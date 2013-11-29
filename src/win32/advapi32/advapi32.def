@@ -1,0 +1,37 @@
+LIBRARY ADVAPI32
+
+EXPORTS
+  GetUserNameA
+  RegCloseKey
+  RegEnumKeyExA
+  RegOpenKeyExA
+  RegOpenKeyExW
+  RegQueryInfoKeyA
+  RegQueryValueExA
+  RegQueryValueExW
+  RegCreateKeyExA
+  RegEnumValueA
+  RegDeleteValueA
+  RegSetValueExA
+  RegFlushKey
+  RegDeleteKeyA
+  RegisterEventSourceA
+  DeregisterEventSource
+  ReportEventA
+  CryptAcquireContextA
+  CryptReleaseContext
+  CryptGenRandom
+  StartServiceCtrlDispatcherA
+  SetServiceStatus
+  RegisterServiceCtrlHandlerA
+  AllocateAndInitializeSid
+  AddAccessAllowedAce
+  CopySid
+  FreeSid
+  GetLengthSid
+  GetSecurityDescriptorDacl
+  OpenProcessToken
+  GetTokenInformation
+  InitializeAcl
+  InitializeSecurityDescriptor
+  SetSecurityDescriptorDacl

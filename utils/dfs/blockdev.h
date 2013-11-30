@@ -5,6 +5,8 @@
 
 struct blockdevice;
 
+#define O_BINARY   0
+
 struct blockdriver 
 {
   const char *format_name;

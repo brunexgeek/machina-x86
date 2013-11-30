@@ -14,6 +14,7 @@ FIELD_DESCRIPTION = "description"
 FIELD_CFLAGS = "cflags"
 FIELD_LDFLAGS = "ldflags"
 FIELD_NAME = "name"
+FIELD_DEPENDENCIES = "dependencies"
 
 class MakefileGenerator:
 
@@ -21,7 +22,10 @@ class MakefileGenerator:
 		return "$(" + name + ")"
 
 	def toObject(self, fileName):
-		return re.sub("\.c$", ".o", fileName)
+		if (fileName.endswith(".c")):
+			return re.sub("\.c$", ".o", fileName)
+		if (fileName.endswith(".asm")):
+			return re.sub("\.asm$", ".o", fileName)
 
 	def generateTarget(self, target):
 		print "#\n#", target[FIELD_DESCRIPTION], "\n#"
@@ -90,16 +94,21 @@ class MakefileGenerator:
 			print "\t" + "@mkdir -p", target[FIELD_OBJECT_DIRECTORY] + "/" + entry
 		print
 
-		# print the target to compile each source file
+		# print the target to compile each C source file
 		print self.toVar(TARGET_OBJ_DIR) + "/%.o:", self.toVar(TARGET_SRC_DIR) + "/%.c"
 		if (target[FIELD_PLATFORM] == "machina"):
 			compiler = "$(TCC)"
 		else:
-			compiler = "$(CC)"
+			compiler = "$(CC) -O2 -m32"
 		print "\t" + compiler, "-I", \
 			self.toVar(TARGET_SRC_DIR), \
 			self.toVar(TARGET_CFLAGS), \
 			"-c $< -o $@"
+		print
+
+		# print the target to compile each ASM source file
+		print self.toVar(TARGET_OBJ_DIR) + "/%.o:", self.toVar(TARGET_SRC_DIR) + "/%.asm"
+		print "\t$(NASM) $< -o $@"
 		print
 
 		# print the target to compile the binary file
@@ -107,12 +116,18 @@ class MakefileGenerator:
 			mainTarget = target[FIELD_NAME]
 		else:
 			mainTarget = self.toVar(TARGET_OUT_FILE)
-		print mainTarget + ":", TARGET_WELCOME, self.toVar(TARGET_OBJ_FILES)
+
+		depends = ""
+		if (FIELD_DEPENDENCIES in target):
+			for entry in target[FIELD_DEPENDENCIES]:
+				depends += entry + " "
+
+		print mainTarget + ":", TARGET_WELCOME, depends, self.toVar(TARGET_OBJ_FILES)
 		print "\t@mkdir -p", self.toVar(TARGET_OUT_DIR)
 		if (target[FIELD_PLATFORM] == "machina"):
 			compiler = "$(TCC)"
 		else:
-			compiler = "$(CC)"
+			compiler = "$(CC) -O2 -m32"
 		print "\t" + compiler, "-I", \
 			self.toVar(TARGET_SRC_DIR), \
 			self.toVar(TARGET_CFLAGS), \
@@ -124,7 +139,9 @@ class MakefileGenerator:
 	def generateMakefile(self, targets):
 		print "#!/bin/make -f"
 		print
-		print "CFLAGS:=$(CFLAGS) -O2 -m32 -Wimplicit"
+		print "CFLAGS:=$(CFLAGS) -Wimplicit"
+		print "TCC = build/tools/cc"
+		print "NASM = build/tools/as"
 		print
 		# create the "help" target
 		print "help:"
@@ -152,7 +169,7 @@ class MakefileGenerator:
 
 
 #
-# This script generate the Machina's makefile.
+# This script generate the Machina's makefiles.
 #
 
 TARGETS = {}
@@ -178,7 +195,7 @@ target[FIELD_SOURCES] = \
 target[FIELD_SOURCE_DIRECTORY] = "src/bin/cc"
 target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/cc"
 target[FIELD_PREFFIX] = "TCC"
-target[FIELD_DESCRIPTION] = "Native Tiny C Compiler"
+target[FIELD_DESCRIPTION] = "Tiny C Compiler for GNU/Linux"
 TARGETS["native_tcc"] = target
 # Native NASM
 target = {}
@@ -228,7 +245,7 @@ target[FIELD_SOURCES] = \
 target[FIELD_SOURCE_DIRECTORY] = "src/bin/as"
 target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/as"
 target[FIELD_PREFFIX] = "NASM"
-target[FIELD_DESCRIPTION] = "Native NASM x86 Assembler"
+target[FIELD_DESCRIPTION] = "NASM x86 Assembler for GNU/Linux"
 target[FIELD_CFLAGS] = "-DOF_ONLY -DOF_ELF32 -DOF_WIN32 -DOF_COFF -DOF_OBJ -DOF_BIN " \
 	"-DOF_DBG -DOF_DEFAULT=of_elf32 -DHAVE_SNPRINTF -DHAVE_VSNPRINTF"
 TARGETS["native_nasm"] = target
@@ -264,9 +281,161 @@ target[FIELD_SOURCES] = \
 target[FIELD_SOURCE_DIRECTORY] = "utils/dfs"
 target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/mkdfs"
 target[FIELD_PREFFIX] = "MKDFS"
-target[FIELD_NAME] = target[FIELD_PREFFIX] + "mmm"
-target[FIELD_DESCRIPTION] = "Native MKDFS"
+target[FIELD_DESCRIPTION] = "MKDFS Tool for GNU/Linux"
 TARGETS["native_mkdfs"] = target
+# Machina Kernel
+target = {}
+target[FIELD_PLATFORM] = "machina"
+target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as"]
+target[FIELD_CFLAGS] = "-I src/include -D KERNEL -D KRNL_LIB"
+target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x80000000 -filealign 4096 -nostdlib"
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
+target[FIELD_OUTPUT_FILE] = "kernel32.img"
+target[FIELD_SOURCES] = \
+	["sys/kernel/apm.c", \
+	"sys/kernel/buf.c", \
+	"sys/kernel/cpu.c", \
+	"sys/kernel/dbg.c", \
+	"sys/kernel/dev.c", \
+	"sys/kernel/fpu.c", \
+	"sys/kernel/hndl.c", \
+	"sys/kernel/iomux.c", \
+	"sys/kernel/iop.c", \
+	"sys/kernel/iovec.c", \
+	"sys/kernel/kmalloc.c", \
+	"sys/kernel/kmem.c", \
+	"sys/kernel/ldr.c", \
+	"sys/kernel/mach.c", \
+	"sys/kernel/object.c", \
+	"sys/kernel/pci.c", \
+	"sys/kernel/pdir.c", \
+	"sys/kernel/pframe.c", \
+	"sys/kernel/pic.c", \
+	"sys/kernel/pit.c", \
+	"sys/kernel/pnpbios.c", \
+	"sys/kernel/queue.c", \
+	"sys/kernel/sched.c", \
+	"sys/kernel/start.c", \
+	"sys/kernel/syscall.c", \
+	"sys/kernel/timer.c", \
+	"sys/kernel/trap.c", \
+	"sys/kernel/user.c", \
+	"sys/kernel/vfs.c", \
+	"sys/kernel/virtio.c", \
+	"sys/kernel/vmi.c", \
+	"sys/kernel/vmm.c", \
+	# devices
+	"sys/dev/cons.c", \
+	"sys/dev/fd.c", \
+	"sys/dev/hd.c", \
+	"sys/dev/kbd.c", \
+	"sys/dev/klog.c", \
+	"sys/dev/null.c", \
+	"sys/dev/nvram.c", \
+	"sys/dev/ramdisk.c", \
+	"sys/dev/rnd.c", \
+	"sys/dev/serial.c", \
+	"sys/dev/smbios.c", \
+	"sys/dev/video.c", \
+	"sys/dev/virtioblk.c", \
+	"sys/dev/virtiocon.c", \
+	# network
+	"sys/net/arp.c", \
+	"sys/net/dhcp.c", \
+	"sys/net/ether.c", \
+	"sys/net/icmp.c", \
+	"sys/net/inet.c", \
+	"sys/net/ipaddr.c", \
+	"sys/net/ip.c", \
+	"sys/net/loopif.c", \
+	"sys/net/netif.c", \
+	"sys/net/pbuf.c", \
+	"sys/net/raw.c", \
+	"sys/net/rawsock.c", \
+	"sys/net/socket.c", \
+	"sys/net/stats.c", \
+	"sys/net/tcp.c", \
+	"sys/net/tcp_input.c", \
+	"sys/net/tcp_output.c", \
+	"sys/net/tcpsock.c", \
+	"sys/net/udp.c", \
+	"sys/net/udpsock.c", \
+	# file system
+	"sys/fs/cdfs/cdfs.c", \
+	"sys/fs/devfs/devfs.c", \
+	"sys/fs/dfs/dfs.c", \
+	"sys/fs/dfs/dir.c", \
+	"sys/fs/dfs/file.c", \
+	"sys/fs/dfs/group.c", \
+	"sys/fs/dfs/inode.c", \
+	"sys/fs/dfs/super.c", \
+	"sys/fs/pipefs/pipefs.c", \
+	"sys/fs/procfs/procfs.c", \
+	"sys/fs/smbfs/smbcache.c", \
+	"sys/fs/smbfs/smbfs.c", \
+	"sys/fs/smbfs/smbproto.c", \
+	"sys/fs/smbfs/smbutil.c", \
+	# internal libc
+	"lib/libc/bitops.c", \
+	"lib/libc/ctype.c", \
+	"lib/libc/inifile.c", \
+	"lib/libc/moddb.c", \
+	"lib/libc/opts.c", \
+	"lib/libc/rmap.c", \
+	"lib/libc/string.c", \
+	"lib/libc/strtol.c", \
+	"lib/libc/tcccrt.c", \
+	"lib/libc/time.c", \
+	"lib/libc/verinfo.c", \
+	"lib/libc/vsprintf.c" ]
+target[FIELD_SOURCE_DIRECTORY] = "src"
+target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel32"
+target[FIELD_PREFFIX] = "KERNEL32"
+target[FIELD_DESCRIPTION] = "Machina Kernel for x86"
+TARGETS["kernel"] = target
+# Machina "libsys.so"
+target = {}
+target[FIELD_PLATFORM] = "machina"
+target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as"]
+target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
+target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x7FF00000 -nostdlib"
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
+target[FIELD_OUTPUT_FILE] = "libsys.so"
+target[FIELD_SOURCES] = \
+	["sys/os/critsect.c", \
+	"sys/os/environ.c", \
+	"sys/os/heap.c", \
+	"sys/os/netdb.c", \
+	"sys/os/os.c", \
+	"sys/os/resolv.c", \
+	"sys/os/signal.c", \
+	"sys/os/sntp.c", \
+	"sys/os/sysapi.c", \
+	"sys/os/syserr.c", \
+	"sys/os/syslog.c", \
+	"sys/os/thread.c", \
+	"sys/os/tls.c", \
+	"sys/os/userdb.c", \
+	"lib/libc/bitops.c", \
+	"lib/libc/crypt.c", \
+	"lib/libc/ctype.c", \
+	"lib/libc/fcvt.c", \
+	"lib/libc/inifile.c", \
+	"lib/libc/moddb.c", \
+	"lib/libc/opts.c", \
+	"lib/libc/strftime.c", \
+	"lib/libc/string.c", \
+	"lib/libc/strtol.c", \
+	"lib/libc/tcccrt.c", \
+	"lib/libc/time.c", \
+	"lib/libc/verinfo.c", \
+	"lib/libc/vsprintf.c",
+	"lib/libc/math/modf.asm" ]
+target[FIELD_SOURCE_DIRECTORY] = "src"
+target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/libsys"
+target[FIELD_PREFFIX] = "LIBSYS"
+target[FIELD_DESCRIPTION] = "Machina System Library for x86"
+TARGETS["libsys"] = target
 
 generator = MakefileGenerator()
 generator.generateMakefile(TARGETS)

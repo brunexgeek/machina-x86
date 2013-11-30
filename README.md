@@ -1,4 +1,4 @@
-machna
-======
+machina
+=======
 
 A lightweight operating system for x86 machines.

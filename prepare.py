@@ -2,166 +2,244 @@
 
 import re
 
-FIELD_PLATFORM = "platform"
-FIELD_OUTPUT_DIRECTORY = "output_dir"
-FIELD_OUTPUT_FILE = "output"
-FIELD_SOURCES = "sources"
-FIELD_SOURCE_DIRECTORY = "source_dir"
-FIELD_OBJECT_DIRECTORY = "object_dir"
-FIELD_PREFFIX = "preffix"
-FIELD_TYPE = "type"
-FIELD_DESCRIPTION = "description"
-FIELD_CFLAGS = "cflags"
-FIELD_LDFLAGS = "ldflags"
-FIELD_NAME = "name"
-FIELD_DEPENDENCIES = "dependencies"
+FIELD_PLATFORM = "FIELD_PLATFORM"
+FIELD_OUTPUT_DIRECTORY = "FIELD_OUTPUT_DIRECTORY"
+FIELD_OUTPUT_FILE = "FIELD_OUTPUT_FILE"
+FIELD_SOURCES = "FIELD_SOURCES"
+FIELD_SOURCE_DIRECTORY = "FIELD_SOURCE_DIRECTORY"
+FIELD_OBJECT_DIRECTORY = "FIELD_OBJECT_DIRECTORY"
+FIELD_PREFFIX = "FIELD_PREFFIX"
+FIELD_TYPE = "FIELD_TYPE"
+FIELD_DESCRIPTION = "FIELD_DESCRIPTION"
+FIELD_CFLAGS = "FIELD_CFLAGS"
+FIELD_LDFLAGS = "FIELD_LDFLAGS"
+FIELD_NAME = "FIELD_NAME"
+FIELD_DEPENDENCIES = "FIELD_DEPENDENCIES"
 
-class MakefileGenerator:
+BIN_DYNAMIC = 1
+BIN_STATIC = 2
+BIN_EXECUTABLE = 4
 
-	def toVar(self, name):
-		return "$(" + name + ")"
 
+class MakefileTarget:
+
+	def __init__(self, targetDefs):
+		self.checkFields(targetDefs)
+		self.target = targetDefs
+
+	#
+	# Returns the given suffix as a Makefile variable reference
+	#
+	def toVar(self, suffix):
+		return "$(" + self.target[FIELD_PREFFIX] + "_" + suffix + ")"
+
+	#
+	# Returns the given suffix as a Makefile variable name
+	#
+	def toVarName(self, suffix):
+		return self.target[FIELD_PREFFIX] + "_" + suffix
+
+	#
+	# Translate the file name from source to object.
+	#
 	def toObject(self, fileName):
 		if (fileName.endswith(".c")):
 			return re.sub("\.c$", ".o", fileName)
 		if (fileName.endswith(".asm")):
 			return re.sub("\.asm$", ".o", fileName)
+		if (fileName.endswith(".s")):
+			return re.sub("\.s$", ".o", fileName)
+		raise AssertionError("Unknown file extension")
 
-	def generateTarget(self, target):
-		print "#\n#", target[FIELD_DESCRIPTION], "\n#"
+	def checkField(self, targetDefs, name):
+		if (name not in targetDefs):
+			raise KeyError("The field '" + name + "' must be present in target '" + targetDefs[FIELD_OUTPUT_FILE] + "'")
 
-		# print the welcome target
-		TARGET_WELCOME = target[FIELD_PREFFIX] + "_WELCOME"
-		print TARGET_WELCOME + ":"
-		print "\t@echo ' '"
-		print "\t@echo Building", target[FIELD_DESCRIPTION]
+	def checkFields(self, targetDefs):
+		self.checkField(targetDefs, FIELD_DESCRIPTION);
+		self.checkField(targetDefs, FIELD_PREFFIX);
+		self.checkField(targetDefs, FIELD_OBJECT_DIRECTORY);
+		self.checkField(targetDefs, FIELD_SOURCES);
+		self.checkField(targetDefs, FIELD_SOURCE_DIRECTORY);
+		self.checkField(targetDefs, FIELD_OUTPUT_DIRECTORY);
+		self.checkField(targetDefs, FIELD_OUTPUT_FILE);
+		self.checkField(targetDefs, FIELD_PLATFORM);
+		self.checkField(targetDefs, FIELD_TYPE);
+
+	#
+	# Generate the Makefile target
+	#
+	def generateTarget(self):
+		# welcome message
+		print "\n#\n#", self.target[FIELD_DESCRIPTION], "\n#"
+
+		# welcome target
+		print self.toVarName("WELCOME") + ":"
+		print "\t@echo"
+		print "\t@echo Building", self.target[FIELD_DESCRIPTION]
 		print
 
 		# print the CFLAGS definition
-		TARGET_CFLAGS = target[FIELD_PREFFIX] + "_CFLAGS"
-		if (FIELD_CFLAGS in target):
-			print TARGET_CFLAGS, "= $(CFLAGS)", target[FIELD_CFLAGS]
+		if (FIELD_CFLAGS in self.target):
+			print self.toVarName("CFLAGS"), "= $(CFLAGS)", self.target[FIELD_CFLAGS]
 		else:
-			print TARGET_CFLAGS, "= $(CFLAGS)"
+			print self.toVarName("CFLAGS"), "= $(CFLAGS)"
 
 		# print the LDFLAGS definition
-		TARGET_LDFLAGS = target[FIELD_PREFFIX] + "_LDFLAGS"
-		if (FIELD_LDFLAGS in target):
-			print TARGET_LDFLAGS, "= $(LDFLAGS)", target[FIELD_LDFLAGS]
+		if (FIELD_LDFLAGS in self.target):
+			print self.toVarName("LDFLAGS"), "= $(LDFLAGS)", self.target[FIELD_LDFLAGS]
 		else:
-			print TARGET_LDFLAGS, "= $(LDFLAGS)"
+			print self.toVarName("LDFLAGS"), "= $(LDFLAGS)"
 
-		TARGET_OUT_DIR = target[FIELD_PREFFIX] + "_OUT_DIR"
-		print TARGET_OUT_DIR, "=", target[FIELD_OUTPUT_DIRECTORY]
-		TARGET_OUT_FILE = target[FIELD_PREFFIX] + "_OUT_FILE"
-		print TARGET_OUT_FILE, "=", self.toVar(TARGET_OUT_DIR) + "/" + target[FIELD_OUTPUT_FILE]
-
-		# print the source dir variable
-		TARGET_SRC_DIR = target[FIELD_PREFFIX] + "_SRC_DIR"
-		print TARGET_SRC_DIR, "=", target[FIELD_SOURCE_DIRECTORY]
-
-		# print the source files list
-		TARGET_SRC_FILES = target[FIELD_PREFFIX] + "_SRC_FILES"
-		print TARGET_SRC_FILES, "= \\"
-		for index in range(len(target[FIELD_SOURCES])-1):
-			print "\t", target[FIELD_SOURCES][index], "\\"
-		print "\t", target[FIELD_SOURCES][len(target[FIELD_SOURCES])-1]
-
-		# print the object dir variable
-		TARGET_OBJ_DIR = target[FIELD_PREFFIX] + "_OBJ_DIR"
-		print TARGET_OBJ_DIR, "=", target[FIELD_OBJECT_DIRECTORY]
-
-		# print the object files list
-		TARGET_OBJ_FILES = target[FIELD_PREFFIX] + "_OBJ_FILES"
-		print TARGET_OBJ_FILES, "= \\"
-		for index in range(len(target[FIELD_SOURCES])-1):
-			print "\t" + self.toVar(TARGET_OBJ_DIR) + "/" + self.toObject(target[FIELD_SOURCES][index]), "\\"
-		print "\t" + self.toVar(TARGET_OBJ_DIR) + "/" + self.toObject(target[FIELD_SOURCES][len(target[FIELD_SOURCES])-1])
+		# output directory and file
+		print self.toVarName("OUT_DIR"), "=", self.target[FIELD_OUTPUT_DIRECTORY]
+		print self.toVarName("OUT_FILE"), "=", self.toVar("OUT_DIR") + "/" + self.target[FIELD_OUTPUT_FILE]
+		# source directory
+		print self.toVarName("SRC_DIR"), "=", self.target[FIELD_SOURCE_DIRECTORY]
+		# source file list
+		print self.toVarName("SRC_FILES"), "= \\"
+		for index in range(len(self.target[FIELD_SOURCES])-1):
+			print "\t", self.target[FIELD_SOURCES][index], "\\"
+		print "\t", self.target[FIELD_SOURCES][len(self.target[FIELD_SOURCES])-1]
+		# object directory
+		print self.toVarName("OBJ_DIR"), "=", self.target[FIELD_OBJECT_DIRECTORY]
+		# object file list
+		print self.toVarName("OBJ_FILES"), "= \\"
+		for index in range(len(self.target[FIELD_SOURCES])-1):
+			print "\t" + self.toVar("OBJ_DIR") + "/" + self.toObject(self.target[FIELD_SOURCES][index]), "\\"
+		print "\t" + self.toVar("OBJ_DIR") + "/" + self.toObject(self.target[FIELD_SOURCES][len(self.target[FIELD_SOURCES])-1])
 		print
 
-		# print the target from object directory creation
-		TARGET_OBJ_MKDIR = target[FIELD_PREFFIX] + "_OBJ_MKDIR"
-		print self.toVar(TARGET_OBJ_FILES) + ": | " + TARGET_OBJ_MKDIR
+		# target to object directory creation
+		print self.toVar("OBJ_FILES") + ": | " + self.toVarName("OBJ_MKDIR")
 		print
-		print TARGET_OBJ_MKDIR + ":"
-		print "\t" + "@mkdir -p", target[FIELD_OBJECT_DIRECTORY]
+		print self.toVarName("OBJ_MKDIR") + ":"
+		print "\t" + "@mkdir -p", self.target[FIELD_OBJECT_DIRECTORY]
+		# find extra paths to create
 		extraPaths = set()
-		for entry in target[FIELD_SOURCES]:
+		for entry in self.target[FIELD_SOURCES]:
 			pos = entry.rfind("/")
 			if (pos >= 0):
 				extraPaths.add(entry[:pos])
+		# include the extra paths creation in the Makefile
 		for entry in extraPaths:
-			print "\t" + "@mkdir -p", target[FIELD_OBJECT_DIRECTORY] + "/" + entry
+			print "\t" + "@mkdir -p", self.target[FIELD_OBJECT_DIRECTORY] + "/" + entry
 		print
 
-		# print the target to compile each C source file
-		print self.toVar(TARGET_OBJ_DIR) + "/%.o:", self.toVar(TARGET_SRC_DIR) + "/%.c"
-		if (target[FIELD_PLATFORM] == "machina"):
+		# target to compile each C source file
+		print self.toVar("OBJ_DIR") + "/%.o:", self.toVar("SRC_DIR") + "/%.c"
+		if (self.target[FIELD_PLATFORM] == "machina"):
 			compiler = "$(TCC)"
 		else:
 			compiler = "$(CC) -O2 -m32"
 		print "\t" + compiler, "-I", \
-			self.toVar(TARGET_SRC_DIR), \
-			self.toVar(TARGET_CFLAGS), \
+			self.toVar("SRC_DIR"), \
+			self.toVar("CFLAGS"), \
 			"-c $< -o $@"
 		print
-
-		# print the target to compile each ASM source file
-		print self.toVar(TARGET_OBJ_DIR) + "/%.o:", self.toVar(TARGET_SRC_DIR) + "/%.asm"
+		# target to compile each S source file
+		print self.toVar("OBJ_DIR") + "/%.o:", self.toVar("SRC_DIR") + "/%.s"
+		print "\t$(TCC) -I", \
+			self.toVar("SRC_DIR"), \
+			self.toVar("CFLAGS"), \
+			"-c $< -o $@"
+		print
+		# target to compile each ASM source file
+		print self.toVar("OBJ_DIR") + "/%.o:", self.toVar("SRC_DIR") + "/%.asm"
 		print "\t$(NASM) $< -o $@"
 		print
 
-		# print the target to compile the binary file
-		if (FIELD_NAME in target):
-			mainTarget = target[FIELD_NAME]
+		# choose the main target name
+		if (FIELD_NAME in self.target):
+			mainTarget = self.target[FIELD_NAME]
 		else:
-			mainTarget = self.toVar(TARGET_OUT_FILE)
-
+			mainTarget = self.toVar("OUT_FILE")
+		# find the dependencies
 		depends = ""
-		if (FIELD_DEPENDENCIES in target):
-			for entry in target[FIELD_DEPENDENCIES]:
+		if (FIELD_DEPENDENCIES in self.target):
+			for entry in self.target[FIELD_DEPENDENCIES]:
 				depends += entry + " "
-
-		print mainTarget + ":", TARGET_WELCOME, depends, self.toVar(TARGET_OBJ_FILES)
-		print "\t@mkdir -p", self.toVar(TARGET_OUT_DIR)
-		if (target[FIELD_PLATFORM] == "machina"):
+		# target to compile the binary file
+		print mainTarget + ":", depends, self.toVarName("WELCOME"), self.toVar("OBJ_FILES")
+		print "\t@mkdir -p", self.toVar("OUT_DIR")
+		if (self.target[FIELD_PLATFORM] == "machina"):
 			compiler = "$(TCC)"
 		else:
 			compiler = "$(CC) -O2 -m32"
-		print "\t" + compiler, "-I", \
-			self.toVar(TARGET_SRC_DIR), \
-			self.toVar(TARGET_CFLAGS), \
-			self.toVar(TARGET_LDFLAGS), \
-			self.toVar(TARGET_OBJ_FILES) , \
-			"-o", self.toVar(TARGET_OUT_FILE)
+		if (self.target[FIELD_TYPE] == BIN_STATIC):
+			print "\t$(AR) -s -m", self.toVar("OUT_FILE"), self.toVar("OBJ_FILES")
+		else:
+			print "\t" + compiler, "-I", \
+				self.toVar("SRC_DIR"), \
+				self.toVar("CFLAGS"), \
+				self.toVar("LDFLAGS"), \
+				self.toVar("OBJ_FILES") , \
+				"-o", self.toVar("OUT_FILE")
 		print
 
-	def generateMakefile(self, targets):
+
+class MakefileGenerator:
+
+	def __init__(self):
+		self.targets = {}
+		self.variables = {}
+
+	#
+	# Returns the given suffix as a Makefile variable reference
+	#
+	def toVar(self, preffix, suffix):
+		return "$(" + preffix + "_" + suffix + ")"
+
+	#
+	# Returns the given suffix as a Makefile variable name
+	#
+	def toVarName(self, suffix):
+		return preffix + "_" + suffix
+
+	def addTarget(self, targetDefs):
+		if (FIELD_NAME in targetDefs):
+			self.targets[targetDefs[FIELD_NAME]] = targetDefs
+		else:
+			if ((FIELD_OUTPUT_DIRECTORY in targetDefs) and \
+			    (FIELD_OUTPUT_FILE in targetDefs)):
+				name = targetDefs[FIELD_OUTPUT_FILE] + "/" + FIELD_OUTPUT_FILE
+				self.targets[targetDefs[FIELD_OUTPUT_FILE]] = targetDefs
+			else:
+				raise KeyError("The fields 'FIELD_OUTPUT_DIRECTORY' and 'FIELD_OUTPUT_FILE' must be present")
+
+	def addVariable(self, name, value):
+		self.variables[name] = value
+
+	def generateMakefile(self):
 		print "#!/bin/make -f"
 		print
-		print "CFLAGS:=$(CFLAGS) -Wimplicit"
-		print "TCC = build/tools/cc"
-		print "NASM = build/tools/as"
+
+		# print the variables
+		for name, value in self.variables.iteritems():
+			print name, ":=", value
 		print
 		# create the "help" target
 		print "help:"
-		for key, current in targets.iteritems():
+		print "\t@echo all"
+		print "\t@echo clean"
+		for key, current in self.targets.iteritems():
 			if (FIELD_NAME in current):
 				label = current[FIELD_NAME]
 			else:
-				label = self.toVar(current[FIELD_PREFFIX] + "_OUT_FILE")
+				label = self.toVar(current[FIELD_PREFFIX], "OUT_FILE")
 			print "\t@echo", label
 		print
 		# create the all other targets
-		for key, current in targets.iteritems():
-			self.generateTarget(current)
+		for key, current in self.targets.iteritems():
+			temp = MakefileTarget(current)
+			temp.generateTarget()
 		# create the "all" target
 		print "all:",
-		for key, current in targets.iteritems():
+		for key, current in self.targets.iteritems():
 			if (FIELD_NAME in current):
 				label = current[FIELD_NAME]
 			else:
-				label = self.toVar(current[FIELD_PREFFIX] + "_OUT_FILE")
+				label = self.toVar(current[FIELD_PREFFIX], "OUT_FILE")
 			print label,
 		print "\n"
 
@@ -172,11 +250,16 @@ class MakefileGenerator:
 # This script generate the Machina's makefiles.
 #
 
-TARGETS = {}
+generator = MakefileGenerator()
+generator.addVariable("CFLAGS", "$(CFLAGS) -Wimplicit")
+generator.addVariable("TCC", "build/tools/cc")
+generator.addVariable("NASM", "build/tools/as")
+generator.addVariable("AR", "build/tools/ar")
 
 # Native Tiny C Compiler
 target = {}
 target[FIELD_PLATFORM] = "native"
+target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
 target[FIELD_OUTPUT_FILE] = "cc"
 target[FIELD_SOURCES] = \
@@ -196,10 +279,11 @@ target[FIELD_SOURCE_DIRECTORY] = "src/bin/cc"
 target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/cc"
 target[FIELD_PREFFIX] = "TCC"
 target[FIELD_DESCRIPTION] = "Tiny C Compiler for GNU/Linux"
-TARGETS["native_tcc"] = target
+generator.addTarget(target);
 # Native NASM
 target = {}
 target[FIELD_PLATFORM] = "native"
+target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
 target[FIELD_OUTPUT_FILE] = "as"
 target[FIELD_SOURCES] = \
@@ -248,10 +332,11 @@ target[FIELD_PREFFIX] = "NASM"
 target[FIELD_DESCRIPTION] = "NASM x86 Assembler for GNU/Linux"
 target[FIELD_CFLAGS] = "-DOF_ONLY -DOF_ELF32 -DOF_WIN32 -DOF_COFF -DOF_OBJ -DOF_BIN " \
 	"-DOF_DBG -DOF_DEFAULT=of_elf32 -DHAVE_SNPRINTF -DHAVE_VSNPRINTF"
-TARGETS["native_nasm"] = target
+generator.addTarget(target);
 # Native AR
 target = {}
 target[FIELD_PLATFORM] = "native"
+target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
 target[FIELD_OUTPUT_FILE] = "ar"
 target[FIELD_SOURCES] = ["ar.c" ]
@@ -259,10 +344,11 @@ target[FIELD_SOURCE_DIRECTORY] = "src/bin/ar"
 target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/ar"
 target[FIELD_PREFFIX] = "AR"
 target[FIELD_DESCRIPTION] = "Native AR"
-TARGETS["native_ar"] = target
+generator.addTarget(target);
 # Native MKDFS
 target = {}
 target[FIELD_PLATFORM] = "native"
+target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
 target[FIELD_OUTPUT_FILE] = "mkdfs"
 target[FIELD_SOURCES] = \
@@ -282,10 +368,11 @@ target[FIELD_SOURCE_DIRECTORY] = "utils/dfs"
 target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/mkdfs"
 target[FIELD_PREFFIX] = "MKDFS"
 target[FIELD_DESCRIPTION] = "MKDFS Tool for GNU/Linux"
-TARGETS["native_mkdfs"] = target
+generator.addTarget(target);
 # Machina Kernel
 target = {}
 target[FIELD_PLATFORM] = "machina"
+target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as"]
 target[FIELD_CFLAGS] = "-I src/include -D KERNEL -D KRNL_LIB"
 target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x80000000 -filealign 4096 -nostdlib"
@@ -392,15 +479,16 @@ target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel32"
 target[FIELD_PREFFIX] = "KERNEL32"
 target[FIELD_DESCRIPTION] = "Machina Kernel for x86"
-TARGETS["kernel"] = target
+generator.addTarget(target);
 # Machina "libsys.so"
 target = {}
 target[FIELD_PLATFORM] = "machina"
+target[FIELD_TYPE] = BIN_DYNAMIC
 target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as"]
 target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
 target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x7FF00000 -nostdlib"
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
-target[FIELD_OUTPUT_FILE] = "libsys.so"
+target[FIELD_OUTPUT_FILE] = "libkrn32.so"
 target[FIELD_SOURCES] = \
 	["sys/os/critsect.c", \
 	"sys/os/environ.c", \
@@ -432,10 +520,102 @@ target[FIELD_SOURCES] = \
 	"lib/libc/vsprintf.c",
 	"lib/libc/math/modf.asm" ]
 target[FIELD_SOURCE_DIRECTORY] = "src"
-target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/libsys"
-target[FIELD_PREFFIX] = "LIBSYS"
-target[FIELD_DESCRIPTION] = "Machina System Library for x86"
-TARGETS["libsys"] = target
+target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/libkrn32"
+target[FIELD_PREFFIX] = "LIBKERNEL"
+target[FIELD_DESCRIPTION] = "Machina Kernel Library for x86"
+generator.addTarget(target);
+# Machina "libc.so"
+target = {}
+target[FIELD_PLATFORM] = "machina"
+target[FIELD_TYPE] = BIN_STATIC
+target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as", "build/tools/ar"]
+target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
+target[FIELD_LDFLAGS] = "-nostdlib"
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/lib"
+target[FIELD_OUTPUT_FILE] = "libc.a"
+target[FIELD_SOURCES] = \
+	["assert.c", \
+	"tcccrt.c", \
+	"bsearch.c", \
+	"conio.c", \
+	"crt0.c", \
+	"ctype.c", \
+	"dirent.c", \
+	"fcvt.c", \
+	"fnmatch.c", \
+	"fork.c", \
+	"getopt.c", \
+	"glob.c", \
+	"hash.c", \
+	"inifile.c", \
+	"input.c", \
+	"math.c", \
+	"mman.c", \
+	"opts.c", \
+	"output.c", \
+	"qsort.c", \
+	"random.c", \
+	"readline.c", \
+	"rmap.c", \
+	"rtttl.c", \
+	"sched.c", \
+	"semaphore.c", \
+	"stdio.c", \
+	"shlib.c", \
+	"scanf.c", \
+	"printf.c", \
+	"tmpfile.c", \
+	"popen.c", \
+	"stdlib.c", \
+	"strftime.c", \
+	"string.c", \
+	"strtod.c", \
+	"strtol.c", \
+	"termios.c", \
+	"time.c", \
+	"xtoa.c", \
+	"regex/regcomp.c", \
+	"regex/regexec.c", \
+	"regex/regerror.c", \
+	"regex/regfree.c", \
+	"pthread/barrier.c", \
+	"pthread/condvar.c", \
+	"pthread/mutex.c", \
+	"pthread/pthread.c", \
+	"pthread/rwlock.c", \
+	"pthread/spinlock.c", \
+	"setjmp.c", \
+	"chkstk.s", \
+	# math
+	"math/acos.asm", \
+	"math/asin.asm", \
+	"math/atan.asm", \
+	"math/atan2.asm", \
+	"math/ceil.asm", \
+	"math/cos.asm", \
+	"math/cosh.asm", \
+	"math/exp.asm", \
+	"math/fabs.asm", \
+	"math/floor.asm", \
+	"math/fmod.asm", \
+	"math/fpconst.asm", \
+	"math/fpreset.asm", \
+	"math/frexp.asm", \
+	"math/ftol.asm", \
+	"math/ldexp.asm", \
+	"math/log.asm", \
+	"math/log10.asm", \
+	"math/modf.asm", \
+	"math/pow.asm", \
+	"math/sin.asm", \
+	"math/sinh.asm", \
+	"math/sqrt.asm", \
+	"math/tan.asm", \
+	"math/tanh.asm" ]
+target[FIELD_SOURCE_DIRECTORY] = "src/lib/libc"
+target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/libc"
+target[FIELD_PREFFIX] = "LIBC"
+target[FIELD_DESCRIPTION] = "Machina Standard C Library for x86"
+generator.addTarget(target);
 
-generator = MakefileGenerator()
-generator.generateMakefile(TARGETS)
+generator.generateMakefile()

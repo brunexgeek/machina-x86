@@ -1,22 +1,86 @@
 #!/bin/make -f
 
-CFLAGS:=$(CFLAGS) -Wimplicit
-TCC = build/tools/cc
-NASM = build/tools/as
+AR := build/tools/ar
+TCC := build/tools/cc
+CFLAGS := $(CFLAGS) -Wimplicit
+NASM := build/tools/as
 
 help:
+	@echo all
+	@echo clean
+	@echo $(MKDFS_OUT_FILE)
 	@echo $(KERNEL32_OUT_FILE)
+	@echo $(TCC_OUT_FILE)
 	@echo $(NASM_OUT_FILE)
 	@echo $(AR_OUT_FILE)
-	@echo $(LIBSYS_OUT_FILE)
-	@echo $(TCC_OUT_FILE)
-	@echo $(MKDFS_OUT_FILE)
+	@echo $(LIBC_OUT_FILE)
+	@echo $(LIBKRNL_OUT_FILE)
+
+
+#
+# MKDFS Tool for GNU/Linux 
+#
+MKDFS_WELCOME:
+	@echo
+	@echo Building MKDFS Tool for GNU/Linux
+
+MKDFS_CFLAGS = $(CFLAGS)
+MKDFS_LDFLAGS = $(LDFLAGS)
+MKDFS_OUT_DIR = build/tools
+MKDFS_OUT_FILE = $(MKDFS_OUT_DIR)/mkdfs
+MKDFS_SRC_DIR = utils/dfs
+MKDFS_SRC_FILES = \
+	blockdev.c \
+	vmdk.c \
+	bitops.c \
+	buf.c \
+	dfs.c \
+	dir.c \
+	file.c \
+	group.c \
+	inode.c \
+	mkdfs.c \
+	super.c \
+	vfs.c
+MKDFS_OBJ_DIR = build/linux/obj/mkdfs
+MKDFS_OBJ_FILES = \
+	$(MKDFS_OBJ_DIR)/blockdev.o \
+	$(MKDFS_OBJ_DIR)/vmdk.o \
+	$(MKDFS_OBJ_DIR)/bitops.o \
+	$(MKDFS_OBJ_DIR)/buf.o \
+	$(MKDFS_OBJ_DIR)/dfs.o \
+	$(MKDFS_OBJ_DIR)/dir.o \
+	$(MKDFS_OBJ_DIR)/file.o \
+	$(MKDFS_OBJ_DIR)/group.o \
+	$(MKDFS_OBJ_DIR)/inode.o \
+	$(MKDFS_OBJ_DIR)/mkdfs.o \
+	$(MKDFS_OBJ_DIR)/super.o \
+	$(MKDFS_OBJ_DIR)/vfs.o
+
+$(MKDFS_OBJ_FILES): | MKDFS_OBJ_MKDIR
+
+MKDFS_OBJ_MKDIR:
+	@mkdir -p build/linux/obj/mkdfs
+
+$(MKDFS_OBJ_DIR)/%.o: $(MKDFS_SRC_DIR)/%.c
+	$(CC) -O2 -m32 -I $(MKDFS_SRC_DIR) $(MKDFS_CFLAGS) -c $< -o $@
+
+$(MKDFS_OBJ_DIR)/%.o: $(MKDFS_SRC_DIR)/%.s
+	$(TCC) -I $(MKDFS_SRC_DIR) $(MKDFS_CFLAGS) -c $< -o $@
+
+$(MKDFS_OBJ_DIR)/%.o: $(MKDFS_SRC_DIR)/%.asm
+	$(NASM) $< -o $@
+
+$(MKDFS_OUT_FILE):  MKDFS_WELCOME $(MKDFS_OBJ_FILES)
+	@mkdir -p $(MKDFS_OUT_DIR)
+	$(CC) -O2 -m32 -I $(MKDFS_SRC_DIR) $(MKDFS_CFLAGS) $(MKDFS_LDFLAGS) $(MKDFS_OBJ_FILES) -o $(MKDFS_OUT_FILE)
+
 
 #
 # Machina Kernel for x86 
 #
 KERNEL32_WELCOME:
-	@echo ' '
+	@echo
 	@echo Building Machina Kernel for x86
 
 KERNEL32_CFLAGS = $(CFLAGS) -I src/include -D KERNEL -D KRNL_LIB
@@ -230,18 +294,81 @@ KERNEL32_OBJ_MKDIR:
 $(KERNEL32_OBJ_DIR)/%.o: $(KERNEL32_SRC_DIR)/%.c
 	$(TCC) -I $(KERNEL32_SRC_DIR) $(KERNEL32_CFLAGS) -c $< -o $@
 
+$(KERNEL32_OBJ_DIR)/%.o: $(KERNEL32_SRC_DIR)/%.s
+	$(TCC) -I $(KERNEL32_SRC_DIR) $(KERNEL32_CFLAGS) -c $< -o $@
+
 $(KERNEL32_OBJ_DIR)/%.o: $(KERNEL32_SRC_DIR)/%.asm
 	$(NASM) $< -o $@
 
-$(KERNEL32_OUT_FILE): KERNEL32_WELCOME build/tools/cc build/tools/as  $(KERNEL32_OBJ_FILES)
+$(KERNEL32_OUT_FILE): build/tools/cc build/tools/as  KERNEL32_WELCOME $(KERNEL32_OBJ_FILES)
 	@mkdir -p $(KERNEL32_OUT_DIR)
 	$(TCC) -I $(KERNEL32_SRC_DIR) $(KERNEL32_CFLAGS) $(KERNEL32_LDFLAGS) $(KERNEL32_OBJ_FILES) -o $(KERNEL32_OUT_FILE)
+
+
+#
+# Tiny C Compiler for GNU/Linux 
+#
+TCC_WELCOME:
+	@echo
+	@echo Building Tiny C Compiler for GNU/Linux
+
+TCC_CFLAGS = $(CFLAGS)
+TCC_LDFLAGS = $(LDFLAGS)
+TCC_OUT_DIR = build/tools
+TCC_OUT_FILE = $(TCC_OUT_DIR)/cc
+TCC_SRC_DIR = src/bin/cc
+TCC_SRC_FILES = \
+	asm386.c \
+	asm.c \
+	cc.c \
+	codegen386.c \
+	codegen.c \
+	compiler.c \
+	elf.c \
+	pe.c \
+	preproc.c \
+	symbol.c \
+	type.c \
+	util.c
+TCC_OBJ_DIR = build/linux/obj/cc
+TCC_OBJ_FILES = \
+	$(TCC_OBJ_DIR)/asm386.o \
+	$(TCC_OBJ_DIR)/asm.o \
+	$(TCC_OBJ_DIR)/cc.o \
+	$(TCC_OBJ_DIR)/codegen386.o \
+	$(TCC_OBJ_DIR)/codegen.o \
+	$(TCC_OBJ_DIR)/compiler.o \
+	$(TCC_OBJ_DIR)/elf.o \
+	$(TCC_OBJ_DIR)/pe.o \
+	$(TCC_OBJ_DIR)/preproc.o \
+	$(TCC_OBJ_DIR)/symbol.o \
+	$(TCC_OBJ_DIR)/type.o \
+	$(TCC_OBJ_DIR)/util.o
+
+$(TCC_OBJ_FILES): | TCC_OBJ_MKDIR
+
+TCC_OBJ_MKDIR:
+	@mkdir -p build/linux/obj/cc
+
+$(TCC_OBJ_DIR)/%.o: $(TCC_SRC_DIR)/%.c
+	$(CC) -O2 -m32 -I $(TCC_SRC_DIR) $(TCC_CFLAGS) -c $< -o $@
+
+$(TCC_OBJ_DIR)/%.o: $(TCC_SRC_DIR)/%.s
+	$(TCC) -I $(TCC_SRC_DIR) $(TCC_CFLAGS) -c $< -o $@
+
+$(TCC_OBJ_DIR)/%.o: $(TCC_SRC_DIR)/%.asm
+	$(NASM) $< -o $@
+
+$(TCC_OUT_FILE):  TCC_WELCOME $(TCC_OBJ_FILES)
+	@mkdir -p $(TCC_OUT_DIR)
+	$(CC) -O2 -m32 -I $(TCC_SRC_DIR) $(TCC_CFLAGS) $(TCC_LDFLAGS) $(TCC_OBJ_FILES) -o $(TCC_OUT_FILE)
+
 
 #
 # NASM x86 Assembler for GNU/Linux 
 #
 NASM_WELCOME:
-	@echo ' '
+	@echo
 	@echo Building NASM x86 Assembler for GNU/Linux
 
 NASM_CFLAGS = $(CFLAGS) -DOF_ONLY -DOF_ELF32 -DOF_WIN32 -DOF_COFF -DOF_OBJ -DOF_BIN -DOF_DBG -DOF_DEFAULT=of_elf32 -DHAVE_SNPRINTF -DHAVE_VSNPRINTF
@@ -340,18 +467,22 @@ NASM_OBJ_MKDIR:
 $(NASM_OBJ_DIR)/%.o: $(NASM_SRC_DIR)/%.c
 	$(CC) -O2 -m32 -I $(NASM_SRC_DIR) $(NASM_CFLAGS) -c $< -o $@
 
+$(NASM_OBJ_DIR)/%.o: $(NASM_SRC_DIR)/%.s
+	$(TCC) -I $(NASM_SRC_DIR) $(NASM_CFLAGS) -c $< -o $@
+
 $(NASM_OBJ_DIR)/%.o: $(NASM_SRC_DIR)/%.asm
 	$(NASM) $< -o $@
 
-$(NASM_OUT_FILE): NASM_WELCOME  $(NASM_OBJ_FILES)
+$(NASM_OUT_FILE):  NASM_WELCOME $(NASM_OBJ_FILES)
 	@mkdir -p $(NASM_OUT_DIR)
 	$(CC) -O2 -m32 -I $(NASM_SRC_DIR) $(NASM_CFLAGS) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
+
 
 #
 # Native AR 
 #
 AR_WELCOME:
-	@echo ' '
+	@echo
 	@echo Building Native AR
 
 AR_CFLAGS = $(CFLAGS)
@@ -373,26 +504,222 @@ AR_OBJ_MKDIR:
 $(AR_OBJ_DIR)/%.o: $(AR_SRC_DIR)/%.c
 	$(CC) -O2 -m32 -I $(AR_SRC_DIR) $(AR_CFLAGS) -c $< -o $@
 
+$(AR_OBJ_DIR)/%.o: $(AR_SRC_DIR)/%.s
+	$(TCC) -I $(AR_SRC_DIR) $(AR_CFLAGS) -c $< -o $@
+
 $(AR_OBJ_DIR)/%.o: $(AR_SRC_DIR)/%.asm
 	$(NASM) $< -o $@
 
-$(AR_OUT_FILE): AR_WELCOME  $(AR_OBJ_FILES)
+$(AR_OUT_FILE):  AR_WELCOME $(AR_OBJ_FILES)
 	@mkdir -p $(AR_OUT_DIR)
 	$(CC) -O2 -m32 -I $(AR_SRC_DIR) $(AR_CFLAGS) $(AR_LDFLAGS) $(AR_OBJ_FILES) -o $(AR_OUT_FILE)
 
-#
-# Machina System Library for x86 
-#
-LIBSYS_WELCOME:
-	@echo ' '
-	@echo Building Machina System Library for x86
 
-LIBSYS_CFLAGS = $(CFLAGS) -I src/include -D OS_LIB
-LIBSYS_LDFLAGS = $(LDFLAGS) -shared -entry _start@12 -fixed 0x7FF00000 -nostdlib
-LIBSYS_OUT_DIR = build/install/boot
-LIBSYS_OUT_FILE = $(LIBSYS_OUT_DIR)/libsys.so
-LIBSYS_SRC_DIR = src
-LIBSYS_SRC_FILES = \
+#
+# Machina Standard C Library for x86 
+#
+LIBC_WELCOME:
+	@echo
+	@echo Building Machina Standard C Library for x86
+
+LIBC_CFLAGS = $(CFLAGS) -I src/include -D OS_LIB
+LIBC_LDFLAGS = $(LDFLAGS) -nostdlib
+LIBC_OUT_DIR = build/install/lib
+LIBC_OUT_FILE = $(LIBC_OUT_DIR)/libc.a
+LIBC_SRC_DIR = src/lib/libc
+LIBC_SRC_FILES = \
+	assert.c \
+	tcccrt.c \
+	bsearch.c \
+	conio.c \
+	crt0.c \
+	ctype.c \
+	dirent.c \
+	fcvt.c \
+	fnmatch.c \
+	fork.c \
+	getopt.c \
+	glob.c \
+	hash.c \
+	inifile.c \
+	input.c \
+	math.c \
+	mman.c \
+	opts.c \
+	output.c \
+	qsort.c \
+	random.c \
+	readline.c \
+	rmap.c \
+	rtttl.c \
+	sched.c \
+	semaphore.c \
+	stdio.c \
+	shlib.c \
+	scanf.c \
+	printf.c \
+	tmpfile.c \
+	popen.c \
+	stdlib.c \
+	strftime.c \
+	string.c \
+	strtod.c \
+	strtol.c \
+	termios.c \
+	time.c \
+	xtoa.c \
+	regex/regcomp.c \
+	regex/regexec.c \
+	regex/regerror.c \
+	regex/regfree.c \
+	pthread/barrier.c \
+	pthread/condvar.c \
+	pthread/mutex.c \
+	pthread/pthread.c \
+	pthread/rwlock.c \
+	pthread/spinlock.c \
+	setjmp.c \
+	chkstk.s \
+	math/acos.asm \
+	math/asin.asm \
+	math/atan.asm \
+	math/atan2.asm \
+	math/ceil.asm \
+	math/cos.asm \
+	math/cosh.asm \
+	math/exp.asm \
+	math/fabs.asm \
+	math/floor.asm \
+	math/fmod.asm \
+	math/fpconst.asm \
+	math/fpreset.asm \
+	math/frexp.asm \
+	math/ftol.asm \
+	math/ldexp.asm \
+	math/log.asm \
+	math/log10.asm \
+	math/modf.asm \
+	math/pow.asm \
+	math/sin.asm \
+	math/sinh.asm \
+	math/sqrt.asm \
+	math/tan.asm \
+	math/tanh.asm
+LIBC_OBJ_DIR = build/machina/obj/libc
+LIBC_OBJ_FILES = \
+	$(LIBC_OBJ_DIR)/assert.o \
+	$(LIBC_OBJ_DIR)/tcccrt.o \
+	$(LIBC_OBJ_DIR)/bsearch.o \
+	$(LIBC_OBJ_DIR)/conio.o \
+	$(LIBC_OBJ_DIR)/crt0.o \
+	$(LIBC_OBJ_DIR)/ctype.o \
+	$(LIBC_OBJ_DIR)/dirent.o \
+	$(LIBC_OBJ_DIR)/fcvt.o \
+	$(LIBC_OBJ_DIR)/fnmatch.o \
+	$(LIBC_OBJ_DIR)/fork.o \
+	$(LIBC_OBJ_DIR)/getopt.o \
+	$(LIBC_OBJ_DIR)/glob.o \
+	$(LIBC_OBJ_DIR)/hash.o \
+	$(LIBC_OBJ_DIR)/inifile.o \
+	$(LIBC_OBJ_DIR)/input.o \
+	$(LIBC_OBJ_DIR)/math.o \
+	$(LIBC_OBJ_DIR)/mman.o \
+	$(LIBC_OBJ_DIR)/opts.o \
+	$(LIBC_OBJ_DIR)/output.o \
+	$(LIBC_OBJ_DIR)/qsort.o \
+	$(LIBC_OBJ_DIR)/random.o \
+	$(LIBC_OBJ_DIR)/readline.o \
+	$(LIBC_OBJ_DIR)/rmap.o \
+	$(LIBC_OBJ_DIR)/rtttl.o \
+	$(LIBC_OBJ_DIR)/sched.o \
+	$(LIBC_OBJ_DIR)/semaphore.o \
+	$(LIBC_OBJ_DIR)/stdio.o \
+	$(LIBC_OBJ_DIR)/shlib.o \
+	$(LIBC_OBJ_DIR)/scanf.o \
+	$(LIBC_OBJ_DIR)/printf.o \
+	$(LIBC_OBJ_DIR)/tmpfile.o \
+	$(LIBC_OBJ_DIR)/popen.o \
+	$(LIBC_OBJ_DIR)/stdlib.o \
+	$(LIBC_OBJ_DIR)/strftime.o \
+	$(LIBC_OBJ_DIR)/string.o \
+	$(LIBC_OBJ_DIR)/strtod.o \
+	$(LIBC_OBJ_DIR)/strtol.o \
+	$(LIBC_OBJ_DIR)/termios.o \
+	$(LIBC_OBJ_DIR)/time.o \
+	$(LIBC_OBJ_DIR)/xtoa.o \
+	$(LIBC_OBJ_DIR)/regex/regcomp.o \
+	$(LIBC_OBJ_DIR)/regex/regexec.o \
+	$(LIBC_OBJ_DIR)/regex/regerror.o \
+	$(LIBC_OBJ_DIR)/regex/regfree.o \
+	$(LIBC_OBJ_DIR)/pthread/barrier.o \
+	$(LIBC_OBJ_DIR)/pthread/condvar.o \
+	$(LIBC_OBJ_DIR)/pthread/mutex.o \
+	$(LIBC_OBJ_DIR)/pthread/pthread.o \
+	$(LIBC_OBJ_DIR)/pthread/rwlock.o \
+	$(LIBC_OBJ_DIR)/pthread/spinlock.o \
+	$(LIBC_OBJ_DIR)/setjmp.o \
+	$(LIBC_OBJ_DIR)/chkstk.o \
+	$(LIBC_OBJ_DIR)/math/acos.o \
+	$(LIBC_OBJ_DIR)/math/asin.o \
+	$(LIBC_OBJ_DIR)/math/atan.o \
+	$(LIBC_OBJ_DIR)/math/atan2.o \
+	$(LIBC_OBJ_DIR)/math/ceil.o \
+	$(LIBC_OBJ_DIR)/math/cos.o \
+	$(LIBC_OBJ_DIR)/math/cosh.o \
+	$(LIBC_OBJ_DIR)/math/exp.o \
+	$(LIBC_OBJ_DIR)/math/fabs.o \
+	$(LIBC_OBJ_DIR)/math/floor.o \
+	$(LIBC_OBJ_DIR)/math/fmod.o \
+	$(LIBC_OBJ_DIR)/math/fpconst.o \
+	$(LIBC_OBJ_DIR)/math/fpreset.o \
+	$(LIBC_OBJ_DIR)/math/frexp.o \
+	$(LIBC_OBJ_DIR)/math/ftol.o \
+	$(LIBC_OBJ_DIR)/math/ldexp.o \
+	$(LIBC_OBJ_DIR)/math/log.o \
+	$(LIBC_OBJ_DIR)/math/log10.o \
+	$(LIBC_OBJ_DIR)/math/modf.o \
+	$(LIBC_OBJ_DIR)/math/pow.o \
+	$(LIBC_OBJ_DIR)/math/sin.o \
+	$(LIBC_OBJ_DIR)/math/sinh.o \
+	$(LIBC_OBJ_DIR)/math/sqrt.o \
+	$(LIBC_OBJ_DIR)/math/tan.o \
+	$(LIBC_OBJ_DIR)/math/tanh.o
+
+$(LIBC_OBJ_FILES): | LIBC_OBJ_MKDIR
+
+LIBC_OBJ_MKDIR:
+	@mkdir -p build/machina/obj/libc
+	@mkdir -p build/machina/obj/libc/regex
+	@mkdir -p build/machina/obj/libc/math
+	@mkdir -p build/machina/obj/libc/pthread
+
+$(LIBC_OBJ_DIR)/%.o: $(LIBC_SRC_DIR)/%.c
+	$(TCC) -I $(LIBC_SRC_DIR) $(LIBC_CFLAGS) -c $< -o $@
+
+$(LIBC_OBJ_DIR)/%.o: $(LIBC_SRC_DIR)/%.s
+	$(TCC) -I $(LIBC_SRC_DIR) $(LIBC_CFLAGS) -c $< -o $@
+
+$(LIBC_OBJ_DIR)/%.o: $(LIBC_SRC_DIR)/%.asm
+	$(NASM) $< -o $@
+
+$(LIBC_OUT_FILE): build/tools/cc build/tools/as build/tools/ar  LIBC_WELCOME $(LIBC_OBJ_FILES)
+	@mkdir -p $(LIBC_OUT_DIR)
+	$(AR) -s -m $(LIBC_OUT_FILE) $(LIBC_OBJ_FILES)
+
+
+#
+# Machina Kernel Library for x86 
+#
+LIBKRNL_WELCOME:
+	@echo
+	@echo Building Machina Kernel Library for x86
+
+LIBKRNL_CFLAGS = $(CFLAGS) -I src/include -D OS_LIB
+LIBKRNL_LDFLAGS = $(LDFLAGS) -shared -entry _start@12 -fixed 0x7FF00000 -nostdlib
+LIBKRNL_OUT_DIR = build/install/boot
+LIBKRNL_OUT_FILE = $(LIBKRNL_OUT_DIR)/libkrnl.so
+LIBKRNL_SRC_DIR = src
+LIBKRNL_SRC_FILES = \
 	sys/os/critsect.c \
 	sys/os/environ.c \
 	sys/os/heap.c \
@@ -422,165 +749,58 @@ LIBSYS_SRC_FILES = \
 	lib/libc/verinfo.c \
 	lib/libc/vsprintf.c \
 	lib/libc/math/modf.asm
-LIBSYS_OBJ_DIR = build/machina/obj/libsys
-LIBSYS_OBJ_FILES = \
-	$(LIBSYS_OBJ_DIR)/sys/os/critsect.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/environ.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/heap.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/netdb.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/os.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/resolv.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/signal.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/sntp.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/sysapi.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/syserr.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/syslog.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/thread.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/tls.o \
-	$(LIBSYS_OBJ_DIR)/sys/os/userdb.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/bitops.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/crypt.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/ctype.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/fcvt.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/inifile.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/moddb.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/opts.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/strftime.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/string.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/strtol.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/tcccrt.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/time.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/verinfo.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/vsprintf.o \
-	$(LIBSYS_OBJ_DIR)/lib/libc/math/modf.o
+LIBKRNL_OBJ_DIR = build/machina/obj/libkrnl
+LIBKRNL_OBJ_FILES = \
+	$(LIBKRNL_OBJ_DIR)/sys/os/critsect.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/environ.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/heap.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/netdb.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/os.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/resolv.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/signal.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/sntp.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/sysapi.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/syserr.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/syslog.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/thread.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/tls.o \
+	$(LIBKRNL_OBJ_DIR)/sys/os/userdb.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/bitops.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/crypt.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/ctype.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/fcvt.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/inifile.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/moddb.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/opts.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/strftime.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/string.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/strtol.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/tcccrt.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/time.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/verinfo.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/vsprintf.o \
+	$(LIBKRNL_OBJ_DIR)/lib/libc/math/modf.o
 
-$(LIBSYS_OBJ_FILES): | LIBSYS_OBJ_MKDIR
+$(LIBKRNL_OBJ_FILES): | LIBKRNL_OBJ_MKDIR
 
-LIBSYS_OBJ_MKDIR:
-	@mkdir -p build/machina/obj/libsys
-	@mkdir -p build/machina/obj/libsys/lib/libc/math
-	@mkdir -p build/machina/obj/libsys/sys/os
-	@mkdir -p build/machina/obj/libsys/lib/libc
+LIBKRNL_OBJ_MKDIR:
+	@mkdir -p build/machina/obj/libkrnl
+	@mkdir -p build/machina/obj/libkrnl/lib/libc/math
+	@mkdir -p build/machina/obj/libkrnl/sys/os
+	@mkdir -p build/machina/obj/libkrnl/lib/libc
 
-$(LIBSYS_OBJ_DIR)/%.o: $(LIBSYS_SRC_DIR)/%.c
-	$(TCC) -I $(LIBSYS_SRC_DIR) $(LIBSYS_CFLAGS) -c $< -o $@
+$(LIBKRNL_OBJ_DIR)/%.o: $(LIBKRNL_SRC_DIR)/%.c
+	$(TCC) -I $(LIBKRNL_SRC_DIR) $(LIBKRNL_CFLAGS) -c $< -o $@
 
-$(LIBSYS_OBJ_DIR)/%.o: $(LIBSYS_SRC_DIR)/%.asm
+$(LIBKRNL_OBJ_DIR)/%.o: $(LIBKRNL_SRC_DIR)/%.s
+	$(TCC) -I $(LIBKRNL_SRC_DIR) $(LIBKRNL_CFLAGS) -c $< -o $@
+
+$(LIBKRNL_OBJ_DIR)/%.o: $(LIBKRNL_SRC_DIR)/%.asm
 	$(NASM) $< -o $@
 
-$(LIBSYS_OUT_FILE): LIBSYS_WELCOME build/tools/cc build/tools/as  $(LIBSYS_OBJ_FILES)
-	@mkdir -p $(LIBSYS_OUT_DIR)
-	$(TCC) -I $(LIBSYS_SRC_DIR) $(LIBSYS_CFLAGS) $(LIBSYS_LDFLAGS) $(LIBSYS_OBJ_FILES) -o $(LIBSYS_OUT_FILE)
+$(LIBKRNL_OUT_FILE): build/tools/cc build/tools/as  LIBKRNL_WELCOME $(LIBKRNL_OBJ_FILES)
+	@mkdir -p $(LIBKRNL_OUT_DIR)
+	$(TCC) -I $(LIBKRNL_SRC_DIR) $(LIBKRNL_CFLAGS) $(LIBKRNL_LDFLAGS) $(LIBKRNL_OBJ_FILES) -o $(LIBKRNL_OUT_FILE)
 
-#
-# Tiny C Compiler for GNU/Linux 
-#
-TCC_WELCOME:
-	@echo ' '
-	@echo Building Tiny C Compiler for GNU/Linux
-
-TCC_CFLAGS = $(CFLAGS)
-TCC_LDFLAGS = $(LDFLAGS)
-TCC_OUT_DIR = build/tools
-TCC_OUT_FILE = $(TCC_OUT_DIR)/cc
-TCC_SRC_DIR = src/bin/cc
-TCC_SRC_FILES = \
-	asm386.c \
-	asm.c \
-	cc.c \
-	codegen386.c \
-	codegen.c \
-	compiler.c \
-	elf.c \
-	pe.c \
-	preproc.c \
-	symbol.c \
-	type.c \
-	util.c
-TCC_OBJ_DIR = build/linux/obj/cc
-TCC_OBJ_FILES = \
-	$(TCC_OBJ_DIR)/asm386.o \
-	$(TCC_OBJ_DIR)/asm.o \
-	$(TCC_OBJ_DIR)/cc.o \
-	$(TCC_OBJ_DIR)/codegen386.o \
-	$(TCC_OBJ_DIR)/codegen.o \
-	$(TCC_OBJ_DIR)/compiler.o \
-	$(TCC_OBJ_DIR)/elf.o \
-	$(TCC_OBJ_DIR)/pe.o \
-	$(TCC_OBJ_DIR)/preproc.o \
-	$(TCC_OBJ_DIR)/symbol.o \
-	$(TCC_OBJ_DIR)/type.o \
-	$(TCC_OBJ_DIR)/util.o
-
-$(TCC_OBJ_FILES): | TCC_OBJ_MKDIR
-
-TCC_OBJ_MKDIR:
-	@mkdir -p build/linux/obj/cc
-
-$(TCC_OBJ_DIR)/%.o: $(TCC_SRC_DIR)/%.c
-	$(CC) -O2 -m32 -I $(TCC_SRC_DIR) $(TCC_CFLAGS) -c $< -o $@
-
-$(TCC_OBJ_DIR)/%.o: $(TCC_SRC_DIR)/%.asm
-	$(NASM) $< -o $@
-
-$(TCC_OUT_FILE): TCC_WELCOME  $(TCC_OBJ_FILES)
-	@mkdir -p $(TCC_OUT_DIR)
-	$(CC) -O2 -m32 -I $(TCC_SRC_DIR) $(TCC_CFLAGS) $(TCC_LDFLAGS) $(TCC_OBJ_FILES) -o $(TCC_OUT_FILE)
-
-#
-# MKDFS Tool for GNU/Linux 
-#
-MKDFS_WELCOME:
-	@echo ' '
-	@echo Building MKDFS Tool for GNU/Linux
-
-MKDFS_CFLAGS = $(CFLAGS)
-MKDFS_LDFLAGS = $(LDFLAGS)
-MKDFS_OUT_DIR = build/tools
-MKDFS_OUT_FILE = $(MKDFS_OUT_DIR)/mkdfs
-MKDFS_SRC_DIR = utils/dfs
-MKDFS_SRC_FILES = \
-	blockdev.c \
-	vmdk.c \
-	bitops.c \
-	buf.c \
-	dfs.c \
-	dir.c \
-	file.c \
-	group.c \
-	inode.c \
-	mkdfs.c \
-	super.c \
-	vfs.c
-MKDFS_OBJ_DIR = build/linux/obj/mkdfs
-MKDFS_OBJ_FILES = \
-	$(MKDFS_OBJ_DIR)/blockdev.o \
-	$(MKDFS_OBJ_DIR)/vmdk.o \
-	$(MKDFS_OBJ_DIR)/bitops.o \
-	$(MKDFS_OBJ_DIR)/buf.o \
-	$(MKDFS_OBJ_DIR)/dfs.o \
-	$(MKDFS_OBJ_DIR)/dir.o \
-	$(MKDFS_OBJ_DIR)/file.o \
-	$(MKDFS_OBJ_DIR)/group.o \
-	$(MKDFS_OBJ_DIR)/inode.o \
-	$(MKDFS_OBJ_DIR)/mkdfs.o \
-	$(MKDFS_OBJ_DIR)/super.o \
-	$(MKDFS_OBJ_DIR)/vfs.o
-
-$(MKDFS_OBJ_FILES): | MKDFS_OBJ_MKDIR
-
-MKDFS_OBJ_MKDIR:
-	@mkdir -p build/linux/obj/mkdfs
-
-$(MKDFS_OBJ_DIR)/%.o: $(MKDFS_SRC_DIR)/%.c
-	$(CC) -O2 -m32 -I $(MKDFS_SRC_DIR) $(MKDFS_CFLAGS) -c $< -o $@
-
-$(MKDFS_OBJ_DIR)/%.o: $(MKDFS_SRC_DIR)/%.asm
-	$(NASM) $< -o $@
-
-$(MKDFS_OUT_FILE): MKDFS_WELCOME  $(MKDFS_OBJ_FILES)
-	@mkdir -p $(MKDFS_OUT_DIR)
-	$(CC) -O2 -m32 -I $(MKDFS_SRC_DIR) $(MKDFS_CFLAGS) $(MKDFS_LDFLAGS) $(MKDFS_OBJ_FILES) -o $(MKDFS_OUT_FILE)
-
-all: $(KERNEL32_OUT_FILE) $(NASM_OUT_FILE) $(AR_OUT_FILE) $(LIBSYS_OUT_FILE) $(TCC_OUT_FILE) $(MKDFS_OUT_FILE) 
+all: $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(TCC_OUT_FILE) $(NASM_OUT_FILE) $(AR_OUT_FILE) $(LIBC_OUT_FILE) $(LIBKRNL_OUT_FILE) 
 

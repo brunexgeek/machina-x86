@@ -6,16 +6,21 @@ CFLAGS := $(CFLAGS) -Wimplicit
 NASM := build/tools/as
 
 help:
-	@echo all
-	@echo clean
-	@echo $(MKDFS_OUT_FILE)
-	@echo $(KERNEL32_OUT_FILE)
-	@echo $(TCC_OUT_FILE)
-	@echo $(NASM_OUT_FILE)
-	@echo $(AR_OUT_FILE)
-	@echo $(LIBC_OUT_FILE)
-	@echo $(LIBKERNEL_OUT_FILE)
+	@echo "   all"
+	@echo "   clean"
+	@echo "   $(MKDFS_OUT_FILE) "
+	@echo "   $(KERNEL32_OUT_FILE) "
+	@echo "   $(LIBC_OUT_FILE) (libc) "
+	@echo "   $(NETBOOT_OUT_FILE) (netboot) "
+	@echo "   $(LIBKERNEL_OUT_FILE) "
+	@echo "   $(TCC_OUT_FILE) (tinycc) "
+	@echo "   $(AR_OUT_FILE) (archiver) "
+	@echo "   $(DISKBOOT_OUT_FILE) (diskboot) "
+	@echo "   $(CDBOOT_OUT_FILE) (cdboot) "
+	@echo "   $(BOOTLDR_OUT_FILE) (bootldr) "
+	@echo "   $(NASM_OUT_FILE) (nasm) "
 
+.PHONY: all clean libc netboot tinycc archiver diskboot cdboot bootldr nasm
 
 #
 # MKDFS Tool for GNU/Linux 
@@ -26,6 +31,7 @@ MKDFS_WELCOME:
 
 MKDFS_CFLAGS = $(CFLAGS)
 MKDFS_LDFLAGS = $(LDFLAGS)
+MKDFS_NFLAGS = $(NFLAGS)
 MKDFS_OUT_DIR = build/tools
 MKDFS_OUT_FILE = $(MKDFS_OUT_DIR)/mkdfs
 MKDFS_SRC_DIR = utils/dfs
@@ -53,20 +59,21 @@ MKDFS_OBJ_MKDIR:
 $(MKDFS_OBJ_DIR)/%.c.o: $(MKDFS_SRC_DIR)/%.c
 	$(CC) -O2 -m32 $(MKDFS_CFLAGS) -c $< -o $@
 
-$(MKDFS_OUT_FILE):  MKDFS_WELCOME $(MKDFS_OBJ_FILES)
+$(MKDFS_OUT_FILE) :  MKDFS_WELCOME $(MKDFS_OBJ_FILES)
 	@mkdir -p $(MKDFS_OUT_DIR)
 	$(CC) -O2 -m32 $(MKDFS_CFLAGS) $(MKDFS_LDFLAGS) $(MKDFS_OBJ_FILES) -o $(MKDFS_OUT_FILE)
 
 
 #
-# Machina Kernel for x86 
+# Machina Kernel Image for x86 
 #
 KERNEL32_WELCOME:
 	@echo
-	@echo Building Machina Kernel for x86
+	@echo Building Machina Kernel Image for x86
 
 KERNEL32_CFLAGS = $(CFLAGS) -I src/include -D KERNEL -D KRNL_LIB
 KERNEL32_LDFLAGS = $(LDFLAGS) -shared -entry _start@12 -fixed 0x80000000 -filealign 4096 -nostdlib
+KERNEL32_NFLAGS = $(NFLAGS)
 KERNEL32_OUT_DIR = build/install/boot
 KERNEL32_OUT_FILE = $(KERNEL32_OUT_DIR)/kernel32.img
 KERNEL32_SRC_DIR = src
@@ -184,149 +191,9 @@ KERNEL32_OBJ_MKDIR:
 $(KERNEL32_OBJ_DIR)/%.c.o: $(KERNEL32_SRC_DIR)/%.c
 	$(TCC) $(KERNEL32_CFLAGS) -c $< -o $@
 
-$(KERNEL32_OUT_FILE): build/tools/cc build/tools/as  KERNEL32_WELCOME $(KERNEL32_OBJ_FILES)
+$(KERNEL32_OUT_FILE) : tinycc nasm  KERNEL32_WELCOME $(KERNEL32_OBJ_FILES)
 	@mkdir -p $(KERNEL32_OUT_DIR)
 	$(TCC) $(KERNEL32_CFLAGS) $(KERNEL32_LDFLAGS) $(KERNEL32_OBJ_FILES) -o $(KERNEL32_OUT_FILE)
-
-
-#
-# Tiny C Compiler for GNU/Linux 
-#
-TCC_WELCOME:
-	@echo
-	@echo Building Tiny C Compiler for GNU/Linux
-
-TCC_CFLAGS = $(CFLAGS)
-TCC_LDFLAGS = $(LDFLAGS)
-TCC_OUT_DIR = build/tools
-TCC_OUT_FILE = $(TCC_OUT_DIR)/cc
-TCC_SRC_DIR = src/bin/cc
-TCC_SRC_FILES = \
-	asm386.c \
-	asm.c \
-	cc.c \
-	codegen386.c \
-	codegen.c \
-	compiler.c \
-	elf.c \
-	pe.c \
-	preproc.c \
-	symbol.c \
-	type.c \
-	util.c
-TCC_OBJ_DIR = build/linux/obj/bin/cc
-TCC_OBJ_FILES = $(patsubst %,$(TCC_OBJ_DIR)/%.o ,$(TCC_SRC_FILES))
-
-$(TCC_OBJ_FILES): | TCC_OBJ_MKDIR
-
-TCC_OBJ_MKDIR:
-	@mkdir -p build/linux/obj/bin/cc
-
-$(TCC_OBJ_DIR)/%.c.o: $(TCC_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(TCC_CFLAGS) -c $< -o $@
-
-$(TCC_OUT_FILE):  TCC_WELCOME $(TCC_OBJ_FILES)
-	@mkdir -p $(TCC_OUT_DIR)
-	$(CC) -O2 -m32 $(TCC_CFLAGS) $(TCC_LDFLAGS) $(TCC_OBJ_FILES) -o $(TCC_OUT_FILE)
-
-
-#
-# NASM x86 Assembler for GNU/Linux 
-#
-NASM_WELCOME:
-	@echo
-	@echo Building NASM x86 Assembler for GNU/Linux
-
-NASM_CFLAGS = $(CFLAGS) -DOF_ONLY -DOF_ELF32 -DOF_WIN32 -DOF_COFF -DOF_OBJ -DOF_BIN -DOF_DBG -DOF_DEFAULT=of_elf32 -DHAVE_SNPRINTF -DHAVE_VSNPRINTF -Isrc/bin/as
-NASM_LDFLAGS = $(LDFLAGS)
-NASM_OUT_DIR = build/tools
-NASM_OUT_FILE = $(NASM_OUT_DIR)/as
-NASM_SRC_DIR = src/bin/as
-NASM_SRC_FILES = \
-	nasm.c \
-	nasmlib.c \
-	ver.c \
-	raa.c \
-	saa.c \
-	rbtree.c \
-	float.c \
-	insnsa.c \
-	insnsb.c \
-	directiv.c \
-	assemble.c \
-	labels.c \
-	hashtbl.c \
-	crc64.c \
-	parser.c \
-	preproc.c \
-	quote.c \
-	pptok.c \
-	macros.c \
-	listing.c \
-	eval.c \
-	exprlib.c \
-	stdscan.c \
-	strfunc.c \
-	tokhash.c \
-	regvals.c \
-	regflags.c \
-	ilog2.c \
-	strlcpy.c \
-	output/outform.c \
-	output/outlib.c \
-	output/nulldbg.c \
-	output/nullout.c \
-	output/outbin.c \
-	output/outcoff.c \
-	output/outelf.c \
-	output/outelf32.c \
-	output/outobj.c \
-	output/outdbg.c
-NASM_OBJ_DIR = build/linux/obj/bin/as
-NASM_OBJ_FILES = $(patsubst %,$(NASM_OBJ_DIR)/%.o ,$(NASM_SRC_FILES))
-
-$(NASM_OBJ_FILES): | NASM_OBJ_MKDIR
-
-NASM_OBJ_MKDIR:
-	@mkdir -p build/linux/obj/bin/as
-	@mkdir -p build/linux/obj/bin/as/output
-
-$(NASM_OBJ_DIR)/%.c.o: $(NASM_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(NASM_CFLAGS) -c $< -o $@
-
-$(NASM_OUT_FILE):  NASM_WELCOME $(NASM_OBJ_FILES)
-	@mkdir -p $(NASM_OUT_DIR)
-	$(CC) -O2 -m32 $(NASM_CFLAGS) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
-
-
-#
-# Native AR 
-#
-AR_WELCOME:
-	@echo
-	@echo Building Native AR
-
-AR_CFLAGS = $(CFLAGS)
-AR_LDFLAGS = $(LDFLAGS)
-AR_OUT_DIR = build/tools
-AR_OUT_FILE = $(AR_OUT_DIR)/ar
-AR_SRC_DIR = src/bin/ar
-AR_SRC_FILES = \
-	ar.c
-AR_OBJ_DIR = build/linux/obj/bin/ar
-AR_OBJ_FILES = $(patsubst %,$(AR_OBJ_DIR)/%.o ,$(AR_SRC_FILES))
-
-$(AR_OBJ_FILES): | AR_OBJ_MKDIR
-
-AR_OBJ_MKDIR:
-	@mkdir -p build/linux/obj/bin/ar
-
-$(AR_OBJ_DIR)/%.c.o: $(AR_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(AR_CFLAGS) -c $< -o $@
-
-$(AR_OUT_FILE):  AR_WELCOME $(AR_OBJ_FILES)
-	@mkdir -p $(AR_OUT_DIR)
-	$(CC) -O2 -m32 $(AR_CFLAGS) $(AR_LDFLAGS) $(AR_OBJ_FILES) -o $(AR_OUT_FILE)
 
 
 #
@@ -338,6 +205,7 @@ LIBC_WELCOME:
 
 LIBC_CFLAGS = $(CFLAGS) -I src/include -D OS_LIB
 LIBC_LDFLAGS = $(LDFLAGS) -nostdlib
+LIBC_NFLAGS = $(NFLAGS)
 LIBC_OUT_DIR = build/install/usr/lib
 LIBC_OUT_FILE = $(LIBC_OUT_DIR)/libc.a
 LIBC_SRC_DIR = src
@@ -434,12 +302,31 @@ LIBC_OBJ_MKDIR:
 $(LIBC_OBJ_DIR)/%.c.o: $(LIBC_SRC_DIR)/%.c
 	$(TCC) $(LIBC_CFLAGS) -c $< -o $@
 
-$(LIBC_OBJ_DIR)/%.asm.o: $(LIBC_SRC_DIR)/%.asm
-	$(NASM) $< -o $@
+$(LIBC_OBJ_DIR)/%.s.o: $(LIBC_SRC_DIR)/%.s
+	$(TCC) $(LIBC_CFLAGS) -c $< -o $@
 
-$(LIBC_OUT_FILE): build/tools/cc build/tools/as build/tools/ar  LIBC_WELCOME $(LIBC_OBJ_FILES)
+$(LIBC_OBJ_DIR)/%.asm.o: $(LIBC_SRC_DIR)/%.asm
+	$(NASM) $(LIBC_NFLAGS) $< -o $@
+
+$(LIBC_OUT_FILE) libc : build/tools/cc build/tools/as build/tools/ar  LIBC_WELCOME $(LIBC_OBJ_FILES)
 	@mkdir -p $(LIBC_OUT_DIR)
 	$(AR) -s -m $(LIBC_OUT_FILE) $(LIBC_OBJ_FILES)
+
+
+#
+# Machina PXE Stage 1 Bootloader 
+#
+NETBOOT_NFLAGS = $(NFLAGS) -f bin
+NETBOOT_OUT_DIR = linux/install/boot
+NETBOOT_OUT_FILE = $(NETBOOT_OUT_DIR)/netboot.bin
+NETBOOT_SRC_FILES = \
+	src/sys/arch/x86/boot/netboot.asm
+
+$(NETBOOT_OUT_FILE) netboot : nasm 
+	@echo
+	@echo Building Machina PXE Stage 1 Bootloader
+	@mkdir -p $(NETBOOT_OUT_DIR)
+	$(NASM) $(NETBOOT_NFLAGS) $(NETBOOT_SRC_FILES) -o $(NETBOOT_OUT_FILE)
 
 
 #
@@ -451,8 +338,9 @@ LIBKERNEL_WELCOME:
 
 LIBKERNEL_CFLAGS = $(CFLAGS) -I src/include -D OS_LIB
 LIBKERNEL_LDFLAGS = $(LDFLAGS) -shared -entry _start@12 -fixed 0x7FF00000 -nostdlib
+LIBKERNEL_NFLAGS = $(NFLAGS)
 LIBKERNEL_OUT_DIR = build/install/boot
-LIBKERNEL_OUT_FILE = $(LIBKERNEL_OUT_DIR)/libkernel32.so
+LIBKERNEL_OUT_FILE = $(LIBKERNEL_OUT_DIR)/kernel32.so
 LIBKERNEL_SRC_DIR = src
 LIBKERNEL_SRC_FILES = \
 	sys/os/critsect.c \
@@ -484,26 +372,243 @@ LIBKERNEL_SRC_FILES = \
 	lib/libc/verinfo.c \
 	lib/libc/vsprintf.c \
 	lib/libc/math/modf.asm
-LIBKERNEL_OBJ_DIR = build/machina/obj/libkernel32
+LIBKERNEL_OBJ_DIR = build/machina/obj/kernel32
 LIBKERNEL_OBJ_FILES = $(patsubst %,$(LIBKERNEL_OBJ_DIR)/%.o ,$(LIBKERNEL_SRC_FILES))
 
 $(LIBKERNEL_OBJ_FILES): | LIBKERNEL_OBJ_MKDIR
 
 LIBKERNEL_OBJ_MKDIR:
-	@mkdir -p build/machina/obj/libkernel32
-	@mkdir -p build/machina/obj/libkernel32/lib/libc/math
-	@mkdir -p build/machina/obj/libkernel32/sys/os
-	@mkdir -p build/machina/obj/libkernel32/lib/libc
+	@mkdir -p build/machina/obj/kernel32
+	@mkdir -p build/machina/obj/kernel32/lib/libc/math
+	@mkdir -p build/machina/obj/kernel32/sys/os
+	@mkdir -p build/machina/obj/kernel32/lib/libc
 
 $(LIBKERNEL_OBJ_DIR)/%.c.o: $(LIBKERNEL_SRC_DIR)/%.c
 	$(TCC) $(LIBKERNEL_CFLAGS) -c $< -o $@
 
 $(LIBKERNEL_OBJ_DIR)/%.asm.o: $(LIBKERNEL_SRC_DIR)/%.asm
-	$(NASM) $< -o $@
+	$(NASM) $(LIBKERNEL_NFLAGS) $< -o $@
 
-$(LIBKERNEL_OUT_FILE): build/tools/cc build/tools/as  LIBKERNEL_WELCOME $(LIBKERNEL_OBJ_FILES)
+$(LIBKERNEL_OUT_FILE) : build/tools/cc build/tools/as  LIBKERNEL_WELCOME $(LIBKERNEL_OBJ_FILES)
 	@mkdir -p $(LIBKERNEL_OUT_DIR)
 	$(TCC) $(LIBKERNEL_CFLAGS) $(LIBKERNEL_LDFLAGS) $(LIBKERNEL_OBJ_FILES) -o $(LIBKERNEL_OUT_FILE)
 
-all: $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(TCC_OUT_FILE) $(NASM_OUT_FILE) $(AR_OUT_FILE) $(LIBC_OUT_FILE) $(LIBKERNEL_OUT_FILE) 
+
+#
+# Tiny C Compiler for GNU/Linux 
+#
+TCC_WELCOME:
+	@echo
+	@echo Building Tiny C Compiler for GNU/Linux
+
+TCC_CFLAGS = $(CFLAGS)
+TCC_LDFLAGS = $(LDFLAGS)
+TCC_NFLAGS = $(NFLAGS)
+TCC_OUT_DIR = build/tools
+TCC_OUT_FILE = $(TCC_OUT_DIR)/cc
+TCC_SRC_DIR = src/bin/cc
+TCC_SRC_FILES = \
+	asm386.c \
+	asm.c \
+	cc.c \
+	codegen386.c \
+	codegen.c \
+	compiler.c \
+	elf.c \
+	pe.c \
+	preproc.c \
+	symbol.c \
+	type.c \
+	util.c
+TCC_OBJ_DIR = build/linux/obj/bin/cc
+TCC_OBJ_FILES = $(patsubst %,$(TCC_OBJ_DIR)/%.o ,$(TCC_SRC_FILES))
+
+$(TCC_OBJ_FILES): | TCC_OBJ_MKDIR
+
+TCC_OBJ_MKDIR:
+	@mkdir -p build/linux/obj/bin/cc
+
+$(TCC_OBJ_DIR)/%.c.o: $(TCC_SRC_DIR)/%.c
+	$(CC) -O2 -m32 $(TCC_CFLAGS) -c $< -o $@
+
+$(TCC_OUT_FILE) tinycc :  TCC_WELCOME $(TCC_OBJ_FILES)
+	@mkdir -p $(TCC_OUT_DIR)
+	$(CC) -O2 -m32 $(TCC_CFLAGS) $(TCC_LDFLAGS) $(TCC_OBJ_FILES) -o $(TCC_OUT_FILE)
+
+
+#
+# AR Tool for x86 
+#
+AR_WELCOME:
+	@echo
+	@echo Building AR Tool for x86
+
+AR_CFLAGS = $(CFLAGS)
+AR_LDFLAGS = $(LDFLAGS)
+AR_NFLAGS = $(NFLAGS)
+AR_OUT_DIR = build/tools
+AR_OUT_FILE = $(AR_OUT_DIR)/ar
+AR_SRC_DIR = src/bin/ar
+AR_SRC_FILES = \
+	ar.c
+AR_OBJ_DIR = build/linux/obj/bin/ar
+AR_OBJ_FILES = $(patsubst %,$(AR_OBJ_DIR)/%.o ,$(AR_SRC_FILES))
+
+$(AR_OBJ_FILES): | AR_OBJ_MKDIR
+
+AR_OBJ_MKDIR:
+	@mkdir -p build/linux/obj/bin/ar
+
+$(AR_OBJ_DIR)/%.c.o: $(AR_SRC_DIR)/%.c
+	$(CC) -O2 -m32 $(AR_CFLAGS) -c $< -o $@
+
+$(AR_OUT_FILE) archiver :  AR_WELCOME $(AR_OBJ_FILES)
+	@mkdir -p $(AR_OUT_DIR)
+	$(CC) -O2 -m32 $(AR_CFLAGS) $(AR_LDFLAGS) $(AR_OBJ_FILES) -o $(AR_OUT_FILE)
+
+
+#
+# Machina Stage 1 Bootloader 
+#
+DISKBOOT_NFLAGS = $(NFLAGS) -f bin
+DISKBOOT_OUT_DIR = linux/install/boot
+DISKBOOT_OUT_FILE = $(DISKBOOT_OUT_DIR)/diskboot.bin
+DISKBOOT_SRC_FILES = \
+	src/sys/arch/x86/boot/boot.asm
+
+$(DISKBOOT_OUT_FILE) diskboot : nasm 
+	@echo
+	@echo Building Machina Stage 1 Bootloader
+	@mkdir -p $(DISKBOOT_OUT_DIR)
+	$(NASM) $(DISKBOOT_NFLAGS) $(DISKBOOT_SRC_FILES) -o $(DISKBOOT_OUT_FILE)
+
+
+#
+# Machina CD-ROM Stage 1 Bootloader 
+#
+CDBOOT_NFLAGS = $(NFLAGS) -f bin
+CDBOOT_OUT_DIR = linux/install/boot
+CDBOOT_OUT_FILE = $(CDBOOT_OUT_DIR)/cdboot.bin
+CDBOOT_SRC_FILES = \
+	src/sys/arch/x86/boot/cdboot.asm
+
+$(CDBOOT_OUT_FILE) cdboot : nasm 
+	@echo
+	@echo Building Machina CD-ROM Stage 1 Bootloader
+	@mkdir -p $(CDBOOT_OUT_DIR)
+	$(NASM) $(CDBOOT_NFLAGS) $(CDBOOT_SRC_FILES) -o $(CDBOOT_OUT_FILE)
+
+
+#
+# Machina Stage 2 Bootloader 
+#
+BOOTLDR_WELCOME:
+	@echo
+	@echo Building Machina Stage 2 Bootloader
+
+BOOTLDR_CFLAGS = $(CFLAGS) -D OSLDR -D KERNEL -I src/include
+BOOTLDR_LDFLAGS = $(LDFLAGS) -shared -entry _start@12 -fixed 0x00090000 -filealign 4096 -stub $(OBJ)/ldrinit.exe -nostdlib
+BOOTLDR_NFLAGS = $(NFLAGS)
+BOOTLDR_OUT_DIR = linux/install/boot
+BOOTLDR_OUT_FILE = $(BOOTLDR_OUT_DIR)/bootldr.bin
+BOOTLDR_SRC_DIR = src
+BOOTLDR_SRC_FILES = \
+	sys/arch/x86/osldr/osldr.c \
+	sys/arch/x86/osldr/loadkrnl.c \
+	sys/arch/x86/osldr/unzip.c \
+	lib/libc/vsprintf.c \
+	lib/libc/string.c \
+	sys/arch/x86/osldr/bioscall.asm \
+	sys/arch/x86/osldr/ldrinit.asm
+BOOTLDR_OBJ_DIR = build/machina/obj/bootldr
+BOOTLDR_OBJ_FILES = $(patsubst %,$(BOOTLDR_OBJ_DIR)/%.o ,$(BOOTLDR_SRC_FILES))
+
+$(BOOTLDR_OBJ_FILES): | BOOTLDR_OBJ_MKDIR
+
+BOOTLDR_OBJ_MKDIR:
+	@mkdir -p build/machina/obj/bootldr
+	@mkdir -p build/machina/obj/bootldr/lib/libc
+	@mkdir -p build/machina/obj/bootldr/sys/arch/x86/osldr
+
+$(BOOTLDR_OBJ_DIR)/%.c.o: $(BOOTLDR_SRC_DIR)/%.c
+	$(TCC) $(BOOTLDR_CFLAGS) -c $< -o $@
+
+$(BOOTLDR_OBJ_DIR)/%.asm.o: $(BOOTLDR_SRC_DIR)/%.asm
+	$(NASM) $(BOOTLDR_NFLAGS) $< -o $@
+
+$(BOOTLDR_OUT_FILE) bootldr : nasm  BOOTLDR_WELCOME $(BOOTLDR_OBJ_FILES)
+	@mkdir -p $(BOOTLDR_OUT_DIR)
+	$(TCC) $(BOOTLDR_CFLAGS) $(BOOTLDR_LDFLAGS) $(BOOTLDR_OBJ_FILES) -o $(BOOTLDR_OUT_FILE)
+
+
+#
+# NASM x86 Assembler for GNU/Linux 
+#
+NASM_WELCOME:
+	@echo
+	@echo Building NASM x86 Assembler for GNU/Linux
+
+NASM_CFLAGS = $(CFLAGS) -DOF_ONLY -DOF_ELF32 -DOF_WIN32 -DOF_COFF -DOF_OBJ -DOF_BIN -DOF_DBG -DOF_DEFAULT=of_elf32 -DHAVE_SNPRINTF -DHAVE_VSNPRINTF -Isrc/bin/as
+NASM_LDFLAGS = $(LDFLAGS)
+NASM_NFLAGS = $(NFLAGS)
+NASM_OUT_DIR = build/tools
+NASM_OUT_FILE = $(NASM_OUT_DIR)/as
+NASM_SRC_DIR = src/bin/as
+NASM_SRC_FILES = \
+	nasm.c \
+	nasmlib.c \
+	ver.c \
+	raa.c \
+	saa.c \
+	rbtree.c \
+	float.c \
+	insnsa.c \
+	insnsb.c \
+	directiv.c \
+	assemble.c \
+	labels.c \
+	hashtbl.c \
+	crc64.c \
+	parser.c \
+	preproc.c \
+	quote.c \
+	pptok.c \
+	macros.c \
+	listing.c \
+	eval.c \
+	exprlib.c \
+	stdscan.c \
+	strfunc.c \
+	tokhash.c \
+	regvals.c \
+	regflags.c \
+	ilog2.c \
+	strlcpy.c \
+	output/outform.c \
+	output/outlib.c \
+	output/nulldbg.c \
+	output/nullout.c \
+	output/outbin.c \
+	output/outcoff.c \
+	output/outelf.c \
+	output/outelf32.c \
+	output/outobj.c \
+	output/outdbg.c
+NASM_OBJ_DIR = build/linux/obj/bin/as
+NASM_OBJ_FILES = $(patsubst %,$(NASM_OBJ_DIR)/%.o ,$(NASM_SRC_FILES))
+
+$(NASM_OBJ_FILES): | NASM_OBJ_MKDIR
+
+NASM_OBJ_MKDIR:
+	@mkdir -p build/linux/obj/bin/as
+	@mkdir -p build/linux/obj/bin/as/output
+
+$(NASM_OBJ_DIR)/%.c.o: $(NASM_SRC_DIR)/%.c
+	$(CC) -O2 -m32 $(NASM_CFLAGS) -c $< -o $@
+
+$(NASM_OUT_FILE) nasm :  NASM_WELCOME $(NASM_OBJ_FILES)
+	@mkdir -p $(NASM_OUT_DIR)
+	$(CC) -O2 -m32 $(NASM_CFLAGS) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
+
+all: $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(TCC_OUT_FILE) $(AR_OUT_FILE) $(DISKBOOT_OUT_FILE) $(CDBOOT_OUT_FILE) $(BOOTLDR_OUT_FILE) $(NASM_OUT_FILE) 
 

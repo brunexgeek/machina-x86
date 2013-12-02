@@ -19,7 +19,11 @@ FIELD_DEPENDENCIES = "FIELD_DEPENDENCIES"
 BIN_DYNAMIC = 1
 BIN_STATIC = 2
 BIN_EXECUTABLE = 4
+BIN_MACHINA = 8
 
+LANG_C = 1
+LANG_S = 2
+LANG_ASM = 4
 
 class MakefileTarget:
 
@@ -63,7 +67,7 @@ class MakefileTarget:
 		self.checkField(targetDefs, FIELD_SOURCE_DIRECTORY);
 		self.checkField(targetDefs, FIELD_OUTPUT_DIRECTORY);
 		self.checkField(targetDefs, FIELD_OUTPUT_FILE);
-		self.checkField(targetDefs, FIELD_PLATFORM);
+		#self.checkField(targetDefs, FIELD_PLATFORM);
 		self.checkField(targetDefs, FIELD_TYPE);
 
 	#
@@ -104,10 +108,12 @@ class MakefileTarget:
 		# object directory
 		print self.toVarName("OBJ_DIR"), "=", self.target[FIELD_OBJECT_DIRECTORY]
 		# object file list
-		print self.toVarName("OBJ_FILES"), "= \\"
-		for index in range(len(self.target[FIELD_SOURCES])-1):
-			print "\t" + self.toVar("OBJ_DIR") + "/" + self.toObject(self.target[FIELD_SOURCES][index]), "\\"
-		print "\t" + self.toVar("OBJ_DIR") + "/" + self.toObject(self.target[FIELD_SOURCES][len(self.target[FIELD_SOURCES])-1])
+		#print self.toVarName("OBJ_FILES"), "= \\"
+		#for index in range(len(self.target[FIELD_SOURCES])-1):
+		#	print "\t" + self.toVar("OBJ_DIR") + "/" + self.toObject(self.target[FIELD_SOURCES][index]), "\\"
+		#print "\t" + self.toVar("OBJ_DIR") + "/" + self.toObject(self.target[FIELD_SOURCES][len(self.target[FIELD_SOURCES])-1])
+		#print
+		print self.toVarName("OBJ_FILES"), "=", "$(patsubst %," + self.toVar("OBJ_DIR") + "/%.o ," + self.toVar("SRC_FILES") + ")"
 		print
 
 		# target to object directory creation
@@ -126,28 +132,44 @@ class MakefileTarget:
 			print "\t" + "@mkdir -p", self.target[FIELD_OBJECT_DIRECTORY] + "/" + entry
 		print
 
+		# check which language targets will be necessary
+		langs = 0
+		for entry in self.target[FIELD_SOURCES]:
+			if (entry.endswith(".c")):
+				langs |= LANG_C
+			else:
+				if (entry.endswith(".S")):
+					langs |= LANG_S
+				else:
+					if (entry.endswith(".asm")):
+						langs |= LANG_ASM
 		# target to compile each C source file
-		print self.toVar("OBJ_DIR") + "/%.o:", self.toVar("SRC_DIR") + "/%.c"
-		if (self.target[FIELD_PLATFORM] == "machina"):
-			compiler = "$(TCC)"
-		else:
-			compiler = "$(CC) -O2 -m32"
-		print "\t" + compiler, "-I", \
-			self.toVar("SRC_DIR"), \
-			self.toVar("CFLAGS"), \
-			"-c $< -o $@"
-		print
+		if ((langs & LANG_C) > 0):
+			print self.toVar("OBJ_DIR") + "/%.c.o:", self.toVar("SRC_DIR") + "/%.c"
+			if ((self.target[FIELD_TYPE] & BIN_MACHINA) > 0):
+				compiler = "$(TCC)"
+			else:
+				compiler = "$(CC) -O2 -m32"
+			print "\t" + compiler, \
+				self.toVar("CFLAGS"), \
+				"-c $< -o $@"
+			print
 		# target to compile each S source file
-		print self.toVar("OBJ_DIR") + "/%.o:", self.toVar("SRC_DIR") + "/%.s"
-		print "\t$(TCC) -I", \
-			self.toVar("SRC_DIR"), \
-			self.toVar("CFLAGS"), \
-			"-c $< -o $@"
-		print
+		if ((langs & LANG_S) > 0):
+			print self.toVar("OBJ_DIR") + "/%.s.o:", self.toVar("SRC_DIR") + "/%.s"
+			if ((self.target[FIELD_TYPE] & BIN_MACHINA) > 0):
+				compiler = "$(TCC)"
+			else:
+				compiler = "$(CC) -O2 -m32"
+			print "\t" + compiler, \
+				self.toVar("CFLAGS"), \
+				"-c $< -o $@"
+			print
 		# target to compile each ASM source file
-		print self.toVar("OBJ_DIR") + "/%.o:", self.toVar("SRC_DIR") + "/%.asm"
-		print "\t$(NASM) $< -o $@"
-		print
+		if ((langs & LANG_ASM) > 0):
+			print self.toVar("OBJ_DIR") + "/%.asm.o:", self.toVar("SRC_DIR") + "/%.asm"
+			print "\t$(NASM) $< -o $@"
+			print
 
 		# choose the main target name
 		if (FIELD_NAME in self.target):
@@ -162,15 +184,14 @@ class MakefileTarget:
 		# target to compile the binary file
 		print mainTarget + ":", depends, self.toVarName("WELCOME"), self.toVar("OBJ_FILES")
 		print "\t@mkdir -p", self.toVar("OUT_DIR")
-		if (self.target[FIELD_PLATFORM] == "machina"):
+		if ((self.target[FIELD_TYPE] & BIN_MACHINA) > 0):
 			compiler = "$(TCC)"
 		else:
 			compiler = "$(CC) -O2 -m32"
-		if (self.target[FIELD_TYPE] == BIN_STATIC):
+		if ((self.target[FIELD_TYPE] & BIN_STATIC) > 0):
 			print "\t$(AR) -s -m", self.toVar("OUT_FILE"), self.toVar("OBJ_FILES")
 		else:
-			print "\t" + compiler, "-I", \
-				self.toVar("SRC_DIR"), \
+			print "\t" + compiler, \
 				self.toVar("CFLAGS"), \
 				self.toVar("LDFLAGS"), \
 				self.toVar("OBJ_FILES") , \
@@ -258,10 +279,13 @@ generator.addVariable("AR", "build/tools/ar")
 
 # Native Tiny C Compiler
 target = {}
-target[FIELD_PLATFORM] = "native"
+target[FIELD_DESCRIPTION] = "Tiny C Compiler for GNU/Linux"
+target[FIELD_PREFFIX] = "TCC"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
 target[FIELD_OUTPUT_FILE] = "cc"
+target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/bin/cc"
+target[FIELD_SOURCE_DIRECTORY] = "src/bin/cc"
 target[FIELD_SOURCES] = \
 	["asm386.c", \
 	"asm.c", \
@@ -275,17 +299,18 @@ target[FIELD_SOURCES] = \
 	"symbol.c", \
 	"type.c", \
 	"util.c" ]
-target[FIELD_SOURCE_DIRECTORY] = "src/bin/cc"
-target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/cc"
-target[FIELD_PREFFIX] = "TCC"
-target[FIELD_DESCRIPTION] = "Tiny C Compiler for GNU/Linux"
 generator.addTarget(target);
 # Native NASM
 target = {}
-target[FIELD_PLATFORM] = "native"
+target[FIELD_DESCRIPTION] = "NASM x86 Assembler for GNU/Linux"
+target[FIELD_PREFFIX] = "NASM"
 target[FIELD_TYPE] = BIN_EXECUTABLE
+target[FIELD_CFLAGS] = "-DOF_ONLY -DOF_ELF32 -DOF_WIN32 -DOF_COFF -DOF_OBJ -DOF_BIN " \
+	"-DOF_DBG -DOF_DEFAULT=of_elf32 -DHAVE_SNPRINTF -DHAVE_VSNPRINTF -Isrc/bin/as"
 target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
 target[FIELD_OUTPUT_FILE] = "as"
+target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/bin/as"
+target[FIELD_SOURCE_DIRECTORY] = "src/bin/as"
 target[FIELD_SOURCES] = \
 	["nasm.c", \
 	"nasmlib.c", \
@@ -326,31 +351,27 @@ target[FIELD_SOURCES] = \
 	"output/outelf32.c", \
 	"output/outobj.c", \
 	"output/outdbg.c" ]
-target[FIELD_SOURCE_DIRECTORY] = "src/bin/as"
-target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/as"
-target[FIELD_PREFFIX] = "NASM"
-target[FIELD_DESCRIPTION] = "NASM x86 Assembler for GNU/Linux"
-target[FIELD_CFLAGS] = "-DOF_ONLY -DOF_ELF32 -DOF_WIN32 -DOF_COFF -DOF_OBJ -DOF_BIN " \
-	"-DOF_DBG -DOF_DEFAULT=of_elf32 -DHAVE_SNPRINTF -DHAVE_VSNPRINTF"
 generator.addTarget(target);
 # Native AR
 target = {}
-target[FIELD_PLATFORM] = "native"
+target[FIELD_DESCRIPTION] = "Native AR"
+target[FIELD_PREFFIX] = "AR"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
 target[FIELD_OUTPUT_FILE] = "ar"
-target[FIELD_SOURCES] = ["ar.c" ]
+target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/bin/ar"
 target[FIELD_SOURCE_DIRECTORY] = "src/bin/ar"
-target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/ar"
-target[FIELD_PREFFIX] = "AR"
-target[FIELD_DESCRIPTION] = "Native AR"
+target[FIELD_SOURCES] = ["ar.c" ]
 generator.addTarget(target);
 # Native MKDFS
 target = {}
-target[FIELD_PLATFORM] = "native"
+target[FIELD_DESCRIPTION] = "MKDFS Tool for GNU/Linux"
+target[FIELD_PREFFIX] = "MKDFS"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
 target[FIELD_OUTPUT_FILE] = "mkdfs"
+target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/utils/dfs"
+target[FIELD_SOURCE_DIRECTORY] = "utils/dfs"
 target[FIELD_SOURCES] = \
 	["blockdev.c", \
 	"vmdk.c", \
@@ -364,20 +385,19 @@ target[FIELD_SOURCES] = \
 	"mkdfs.c", \
 	"super.c", \
 	"vfs.c" ]
-target[FIELD_SOURCE_DIRECTORY] = "utils/dfs"
-target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/mkdfs"
-target[FIELD_PREFFIX] = "MKDFS"
-target[FIELD_DESCRIPTION] = "MKDFS Tool for GNU/Linux"
 generator.addTarget(target);
 # Machina Kernel
 target = {}
-target[FIELD_PLATFORM] = "machina"
-target[FIELD_TYPE] = BIN_EXECUTABLE
-target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as"]
+target[FIELD_DESCRIPTION] = "Machina Kernel for x86"
+target[FIELD_PREFFIX] = "KERNEL32"
+target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
 target[FIELD_CFLAGS] = "-I src/include -D KERNEL -D KRNL_LIB"
 target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x80000000 -filealign 4096 -nostdlib"
+target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "kernel32.img"
+target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel"
+target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
 	["sys/kernel/apm.c", \
 	"sys/kernel/buf.c", \
@@ -475,20 +495,19 @@ target[FIELD_SOURCES] = \
 	"lib/libc/time.c", \
 	"lib/libc/verinfo.c", \
 	"lib/libc/vsprintf.c" ]
-target[FIELD_SOURCE_DIRECTORY] = "src"
-target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel32"
-target[FIELD_PREFFIX] = "KERNEL32"
-target[FIELD_DESCRIPTION] = "Machina Kernel for x86"
 generator.addTarget(target);
-# Machina "libsys.so"
+# Machina "libkernel32.so"
 target = {}
-target[FIELD_PLATFORM] = "machina"
-target[FIELD_TYPE] = BIN_DYNAMIC
-target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as"]
+target[FIELD_DESCRIPTION] = "Machina Kernel Library for x86"
+target[FIELD_PREFFIX] = "LIBKERNEL"
+target[FIELD_TYPE] = BIN_DYNAMIC | BIN_MACHINA
 target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
 target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x7FF00000 -nostdlib"
+target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
-target[FIELD_OUTPUT_FILE] = "libkrn32.so"
+target[FIELD_OUTPUT_FILE] = "libkernel32.so"
+target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/libkernel32"
+target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
 	["sys/os/critsect.c", \
 	"sys/os/environ.c", \
@@ -519,103 +538,115 @@ target[FIELD_SOURCES] = \
 	"lib/libc/verinfo.c", \
 	"lib/libc/vsprintf.c",
 	"lib/libc/math/modf.asm" ]
-target[FIELD_SOURCE_DIRECTORY] = "src"
-target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/libkrn32"
-target[FIELD_PREFFIX] = "LIBKERNEL"
-target[FIELD_DESCRIPTION] = "Machina Kernel Library for x86"
 generator.addTarget(target);
-# Machina "libc.so"
+# Machina "libc.a"
 target = {}
-target[FIELD_PLATFORM] = "machina"
-target[FIELD_TYPE] = BIN_STATIC
-target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as", "build/tools/ar"]
+target[FIELD_DESCRIPTION] = "Machina Standard C Library for x86"
+target[FIELD_PREFFIX] = "LIBC"
+target[FIELD_TYPE] = BIN_STATIC | BIN_MACHINA
 target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
 target[FIELD_LDFLAGS] = "-nostdlib"
-target[FIELD_OUTPUT_DIRECTORY] = "build/install/lib"
+target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as", "build/tools/ar"]
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/usr/lib"
 target[FIELD_OUTPUT_FILE] = "libc.a"
-target[FIELD_SOURCES] = \
-	["assert.c", \
-	"tcccrt.c", \
-	"bsearch.c", \
-	"conio.c", \
-	"crt0.c", \
-	"ctype.c", \
-	"dirent.c", \
-	"fcvt.c", \
-	"fnmatch.c", \
-	"fork.c", \
-	"getopt.c", \
-	"glob.c", \
-	"hash.c", \
-	"inifile.c", \
-	"input.c", \
-	"math.c", \
-	"mman.c", \
-	"opts.c", \
-	"output.c", \
-	"qsort.c", \
-	"random.c", \
-	"readline.c", \
-	"rmap.c", \
-	"rtttl.c", \
-	"sched.c", \
-	"semaphore.c", \
-	"stdio.c", \
-	"shlib.c", \
-	"scanf.c", \
-	"printf.c", \
-	"tmpfile.c", \
-	"popen.c", \
-	"stdlib.c", \
-	"strftime.c", \
-	"string.c", \
-	"strtod.c", \
-	"strtol.c", \
-	"termios.c", \
-	"time.c", \
-	"xtoa.c", \
-	"regex/regcomp.c", \
-	"regex/regexec.c", \
-	"regex/regerror.c", \
-	"regex/regfree.c", \
-	"pthread/barrier.c", \
-	"pthread/condvar.c", \
-	"pthread/mutex.c", \
-	"pthread/pthread.c", \
-	"pthread/rwlock.c", \
-	"pthread/spinlock.c", \
-	"setjmp.c", \
-	"chkstk.s", \
-	# math
-	"math/acos.asm", \
-	"math/asin.asm", \
-	"math/atan.asm", \
-	"math/atan2.asm", \
-	"math/ceil.asm", \
-	"math/cos.asm", \
-	"math/cosh.asm", \
-	"math/exp.asm", \
-	"math/fabs.asm", \
-	"math/floor.asm", \
-	"math/fmod.asm", \
-	"math/fpconst.asm", \
-	"math/fpreset.asm", \
-	"math/frexp.asm", \
-	"math/ftol.asm", \
-	"math/ldexp.asm", \
-	"math/log.asm", \
-	"math/log10.asm", \
-	"math/modf.asm", \
-	"math/pow.asm", \
-	"math/sin.asm", \
-	"math/sinh.asm", \
-	"math/sqrt.asm", \
-	"math/tan.asm", \
-	"math/tanh.asm" ]
-target[FIELD_SOURCE_DIRECTORY] = "src/lib/libc"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/libc"
-target[FIELD_PREFFIX] = "LIBC"
-target[FIELD_DESCRIPTION] = "Machina Standard C Library for x86"
+target[FIELD_SOURCE_DIRECTORY] = "src"
+target[FIELD_SOURCES] = \
+	["lib/libc/assert.c", \
+	"lib/libc/tcccrt.c", \
+	"lib/libc/bsearch.c", \
+	"lib/libc/conio.c", \
+	"lib/libc/crt0.c", \
+	"lib/libc/ctype.c", \
+	"lib/libc/dirent.c", \
+	"lib/libc/fcvt.c", \
+	"lib/libc/fnmatch.c", \
+	"lib/libc/fork.c", \
+	"lib/libc/getopt.c", \
+	"lib/libc/glob.c", \
+	"lib/libc/hash.c", \
+	"lib/libc/inifile.c", \
+	"lib/libc/input.c", \
+	"lib/libc/math.c", \
+	"lib/libc/mman.c", \
+	"lib/libc/opts.c", \
+	"lib/libc/output.c", \
+	"lib/libc/qsort.c", \
+	"lib/libc/random.c", \
+	"lib/libc/readline.c", \
+	"lib/libc/rmap.c", \
+	"lib/libc/rtttl.c", \
+	"lib/libc/sched.c", \
+	"lib/libc/semaphore.c", \
+	"lib/libc/stdio.c", \
+	"lib/libc/shlib.c", \
+	"lib/libc/scanf.c", \
+	"lib/libc/printf.c", \
+	"lib/libc/tmpfile.c", \
+	"lib/libc/popen.c", \
+	"lib/libc/stdlib.c", \
+	"lib/libc/strftime.c", \
+	"lib/libc/string.c", \
+	"lib/libc/strtod.c", \
+	"lib/libc/strtol.c", \
+	"lib/libc/termios.c", \
+	"lib/libc/time.c", \
+	"lib/libc/xtoa.c", \
+	"lib/libc/regex/regcomp.c", \
+	"lib/libc/regex/regexec.c", \
+	"lib/libc/regex/regerror.c", \
+	"lib/libc/regex/regfree.c", \
+	"lib/libc/pthread/barrier.c", \
+	"lib/libc/pthread/condvar.c", \
+	"lib/libc/pthread/mutex.c", \
+	"lib/libc/pthread/pthread.c", \
+	"lib/libc/pthread/rwlock.c", \
+	"lib/libc/pthread/spinlock.c", \
+	"lib/libc/setjmp.c", \
+	"lib/libc/chkstk.s", \
+	# math
+	"lib/libc/math/acos.asm", \
+	"lib/libc/math/asin.asm", \
+	"lib/libc/math/atan.asm", \
+	"lib/libc/math/atan2.asm", \
+	"lib/libc/math/ceil.asm", \
+	"lib/libc/math/cos.asm", \
+	"lib/libc/math/cosh.asm", \
+	"lib/libc/math/exp.asm", \
+	"lib/libc/math/fabs.asm", \
+	"lib/libc/math/floor.asm", \
+	"lib/libc/math/fmod.asm", \
+	"lib/libc/math/fpconst.asm", \
+	"lib/libc/math/fpreset.asm", \
+	"lib/libc/math/frexp.asm", \
+	"lib/libc/math/ftol.asm", \
+	"lib/libc/math/ldexp.asm", \
+	"lib/libc/math/log.asm", \
+	"lib/libc/math/log10.asm", \
+	"lib/libc/math/modf.asm", \
+	"lib/libc/math/pow.asm", \
+	"lib/libc/math/sin.asm", \
+	"lib/libc/math/sinh.asm", \
+	"lib/libc/math/sqrt.asm", \
+	"lib/libc/math/tan.asm", \
+	"lib/libc/math/tanh.asm" ]
 generator.addTarget(target);
+# Driver for NIC 3C905C
+#target = {}
+#target[FIELD_DESCRIPTION] = "Machina 3C905C NIC driver for x86"
+#target[FIELD_PREFFIX] = "LIB3C905C"
+#target[FIELD_TYPE] = BIN_DYNAMIC | BIN_MACHINA
+#target[FIELD_CFLAGS] = "-I src/include -D KERNEL"
+#target[FIELD_LDFLAGS] = "-shared -entry _start@12 -nostdlib -Lbuild/install/boot -lkernel32"
+#target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as", "build/tools/ar", "build/install/boot/libkernel32.so"]
+#target[FIELD_OUTPUT_DIRECTORY] = "build/install/sys"
+#target[FIELD_OUTPUT_FILE] = "lib3c905c.sys"
+#target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/dev/3c905c"
+#target[FIELD_SOURCE_DIRECTORY] = "src"
+#target[FIELD_SOURCES] = \
+#	["sys/dev/3c905c.c", \
+#	"lib/libs/string.c" ]
+#generator.addTarget(target);
+
 
 generator.generateMakefile()

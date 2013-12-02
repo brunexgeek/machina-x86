@@ -12,15 +12,16 @@ help:
 	@echo "   $(KERNEL32_OUT_FILE) "
 	@echo "   $(LIBC_OUT_FILE) (libc) "
 	@echo "   $(NETBOOT_OUT_FILE) (netboot) "
+	@echo "   $(CDEMBOOT_OUT_FILE) (cdemboot) "
 	@echo "   $(LIBKERNEL_OUT_FILE) "
 	@echo "   $(TCC_OUT_FILE) (tinycc) "
 	@echo "   $(AR_OUT_FILE) (archiver) "
 	@echo "   $(DISKBOOT_OUT_FILE) (diskboot) "
-	@echo "   $(CDBOOT_OUT_FILE) (cdboot) "
+	@echo "   $(BOOTLDRSTUB_OUT_FILE) (bootldr-stub) "
 	@echo "   $(BOOTLDR_OUT_FILE) (bootldr) "
 	@echo "   $(NASM_OUT_FILE) (nasm) "
 
-.PHONY: all clean libc netboot tinycc archiver diskboot cdboot bootldr nasm
+.PHONY: all clean libc netboot cdemboot tinycc archiver diskboot bootldr-stub bootldr nasm
 
 #
 # MKDFS Tool for GNU/Linux 
@@ -317,7 +318,7 @@ $(LIBC_OUT_FILE) libc : build/tools/cc build/tools/as build/tools/ar  LIBC_WELCO
 # Machina PXE Stage 1 Bootloader 
 #
 NETBOOT_NFLAGS = $(NFLAGS) -f bin
-NETBOOT_OUT_DIR = linux/install/boot
+NETBOOT_OUT_DIR = build/install/boot
 NETBOOT_OUT_FILE = $(NETBOOT_OUT_DIR)/netboot.bin
 NETBOOT_SRC_FILES = \
 	src/sys/arch/x86/boot/netboot.asm
@@ -327,6 +328,22 @@ $(NETBOOT_OUT_FILE) netboot : nasm
 	@echo Building Machina PXE Stage 1 Bootloader
 	@mkdir -p $(NETBOOT_OUT_DIR)
 	$(NASM) $(NETBOOT_NFLAGS) $(NETBOOT_SRC_FILES) -o $(NETBOOT_OUT_FILE)
+
+
+#
+# Machina CD-ROM Stage 1 Bootloader 
+#
+CDEMBOOT_NFLAGS = $(NFLAGS) -f bin
+CDEMBOOT_OUT_DIR = build/install/boot
+CDEMBOOT_OUT_FILE = $(CDEMBOOT_OUT_DIR)/cdemboot.bin
+CDEMBOOT_SRC_FILES = \
+	src/sys/arch/x86/boot/cdemboot.asm
+
+$(CDEMBOOT_OUT_FILE) cdemboot : nasm 
+	@echo
+	@echo Building Machina CD-ROM Stage 1 Bootloader
+	@mkdir -p $(CDEMBOOT_OUT_DIR)
+	$(NASM) $(CDEMBOOT_NFLAGS) $(CDEMBOOT_SRC_FILES) -o $(CDEMBOOT_OUT_FILE)
 
 
 #
@@ -471,7 +488,7 @@ $(AR_OUT_FILE) archiver :  AR_WELCOME $(AR_OBJ_FILES)
 # Machina Stage 1 Bootloader 
 #
 DISKBOOT_NFLAGS = $(NFLAGS) -f bin
-DISKBOOT_OUT_DIR = linux/install/boot
+DISKBOOT_OUT_DIR = build/install/boot
 DISKBOOT_OUT_FILE = $(DISKBOOT_OUT_DIR)/diskboot.bin
 DISKBOOT_SRC_FILES = \
 	src/sys/arch/x86/boot/boot.asm
@@ -484,19 +501,19 @@ $(DISKBOOT_OUT_FILE) diskboot : nasm
 
 
 #
-# Machina CD-ROM Stage 1 Bootloader 
+# Machina Stage 2 Bootloader 
 #
-CDBOOT_NFLAGS = $(NFLAGS) -f bin
-CDBOOT_OUT_DIR = linux/install/boot
-CDBOOT_OUT_FILE = $(CDBOOT_OUT_DIR)/cdboot.bin
-CDBOOT_SRC_FILES = \
-	src/sys/arch/x86/boot/cdboot.asm
+BOOTLDRSTUB_NFLAGS = $(NFLAGS) -f bin
+BOOTLDRSTUB_OUT_DIR = build/machina/obj/bootldr/
+BOOTLDRSTUB_OUT_FILE = $(BOOTLDRSTUB_OUT_DIR)/ldrinit.exe
+BOOTLDRSTUB_SRC_FILES = \
+	src/sys/arch/x86/osldr/ldrinit.asm
 
-$(CDBOOT_OUT_FILE) cdboot : nasm 
+$(BOOTLDRSTUB_OUT_FILE) bootldr-stub : nasm 
 	@echo
-	@echo Building Machina CD-ROM Stage 1 Bootloader
-	@mkdir -p $(CDBOOT_OUT_DIR)
-	$(NASM) $(CDBOOT_NFLAGS) $(CDBOOT_SRC_FILES) -o $(CDBOOT_OUT_FILE)
+	@echo Building Machina Stage 2 Bootloader
+	@mkdir -p $(BOOTLDRSTUB_OUT_DIR)
+	$(NASM) $(BOOTLDRSTUB_NFLAGS) $(BOOTLDRSTUB_SRC_FILES) -o $(BOOTLDRSTUB_OUT_FILE)
 
 
 #
@@ -507,9 +524,9 @@ BOOTLDR_WELCOME:
 	@echo Building Machina Stage 2 Bootloader
 
 BOOTLDR_CFLAGS = $(CFLAGS) -D OSLDR -D KERNEL -I src/include
-BOOTLDR_LDFLAGS = $(LDFLAGS) -shared -entry _start@12 -fixed 0x00090000 -filealign 4096 -stub $(OBJ)/ldrinit.exe -nostdlib
+BOOTLDR_LDFLAGS = $(LDFLAGS) -shared -entry _start@12 -fixed 0x00090000 -filealign 4096 -nostdlib -stub build/machina/obj/bootldr/ldrinit.exe
 BOOTLDR_NFLAGS = $(NFLAGS)
-BOOTLDR_OUT_DIR = linux/install/boot
+BOOTLDR_OUT_DIR = build/install/boot
 BOOTLDR_OUT_FILE = $(BOOTLDR_OUT_DIR)/bootldr.bin
 BOOTLDR_SRC_DIR = src
 BOOTLDR_SRC_FILES = \
@@ -518,8 +535,7 @@ BOOTLDR_SRC_FILES = \
 	sys/arch/x86/osldr/unzip.c \
 	lib/libc/vsprintf.c \
 	lib/libc/string.c \
-	sys/arch/x86/osldr/bioscall.asm \
-	sys/arch/x86/osldr/ldrinit.asm
+	sys/arch/x86/osldr/bioscall.asm
 BOOTLDR_OBJ_DIR = build/machina/obj/bootldr
 BOOTLDR_OBJ_FILES = $(patsubst %,$(BOOTLDR_OBJ_DIR)/%.o ,$(BOOTLDR_SRC_FILES))
 
@@ -536,7 +552,7 @@ $(BOOTLDR_OBJ_DIR)/%.c.o: $(BOOTLDR_SRC_DIR)/%.c
 $(BOOTLDR_OBJ_DIR)/%.asm.o: $(BOOTLDR_SRC_DIR)/%.asm
 	$(NASM) $(BOOTLDR_NFLAGS) $< -o $@
 
-$(BOOTLDR_OUT_FILE) bootldr : nasm  BOOTLDR_WELCOME $(BOOTLDR_OBJ_FILES)
+$(BOOTLDR_OUT_FILE) bootldr : nasm bootldr-stub  BOOTLDR_WELCOME $(BOOTLDR_OBJ_FILES)
 	@mkdir -p $(BOOTLDR_OUT_DIR)
 	$(TCC) $(BOOTLDR_CFLAGS) $(BOOTLDR_LDFLAGS) $(BOOTLDR_OBJ_FILES) -o $(BOOTLDR_OUT_FILE)
 
@@ -610,5 +626,5 @@ $(NASM_OUT_FILE) nasm :  NASM_WELCOME $(NASM_OBJ_FILES)
 	@mkdir -p $(NASM_OUT_DIR)
 	$(CC) -O2 -m32 $(NASM_CFLAGS) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
 
-all: $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(TCC_OUT_FILE) $(AR_OUT_FILE) $(DISKBOOT_OUT_FILE) $(CDBOOT_OUT_FILE) $(BOOTLDR_OUT_FILE) $(NASM_OUT_FILE) 
+all: $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(TCC_OUT_FILE) $(AR_OUT_FILE) $(DISKBOOT_OUT_FILE) $(BOOTLDRSTUB_OUT_FILE) $(BOOTLDR_OUT_FILE) $(NASM_OUT_FILE) 
 

@@ -736,7 +736,7 @@ target[FIELD_PREFFIX] = "DISKBOOT"
 target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
 target[FIELD_NFLAGS] = "-f bin"
 target[FIELD_DEPENDENCIES] = ["nasm"]
-target[FIELD_OUTPUT_DIRECTORY] = "linux/install/boot"
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "diskboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
@@ -746,17 +746,17 @@ generator.addTarget(target);
 # Machina CD-ROM Stage 1 Bootloader
 #
 target = {}
-target[FIELD_NAME] = "cdboot"
+target[FIELD_NAME] = "cdemboot"
 target[FIELD_DESCRIPTION] = "Machina CD-ROM Stage 1 Bootloader"
-target[FIELD_PREFFIX] = "CDBOOT"
+target[FIELD_PREFFIX] = "CDEMBOOT"
 target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
 target[FIELD_NFLAGS] = "-f bin"
 target[FIELD_DEPENDENCIES] = ["nasm"]
-target[FIELD_OUTPUT_DIRECTORY] = "linux/install/boot"
-target[FIELD_OUTPUT_FILE] = "cdboot.bin"
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
+target[FIELD_OUTPUT_FILE] = "cdemboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
-target[FIELD_SOURCES] = ["sys/arch/x86/boot/cdboot.asm"]
+target[FIELD_SOURCES] = ["sys/arch/x86/boot/cdemboot.asm"]
 generator.addTarget(target);
 #
 # Machina PXE Stage 1 Bootloader
@@ -768,11 +768,28 @@ target[FIELD_PREFFIX] = "NETBOOT"
 target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
 target[FIELD_NFLAGS] = "-f bin"
 target[FIELD_DEPENDENCIES] = ["nasm"]
-target[FIELD_OUTPUT_DIRECTORY] = "linux/install/boot"
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "netboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = ["sys/arch/x86/boot/netboot.asm"]
+generator.addTarget(target);
+#
+# Machina Stage 2 Bootloader Stub
+#
+target = {}
+target[FIELD_NAME] = "bootldr-stub"
+target[FIELD_DESCRIPTION] = "Machina Stage 2 Bootloader"
+target[FIELD_PREFFIX] = "BOOTLDRSTUB"
+target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
+target[FIELD_NFLAGS] = "-f bin"
+target[FIELD_DEPENDENCIES] = ["nasm"]
+target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/bootldr"
+target[FIELD_OUTPUT_FILE] = "ldrinit.exe"
+target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/bootldr"
+target[FIELD_SOURCE_DIRECTORY] = "src"
+target[FIELD_SOURCES] = \
+	["sys/arch/x86/osldr/ldrinit.asm" ]
 generator.addTarget(target);
 #
 # Machina Stage 2 Bootloader
@@ -783,9 +800,9 @@ target[FIELD_DESCRIPTION] = "Machina Stage 2 Bootloader"
 target[FIELD_PREFFIX] = "BOOTLDR"
 target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
 target[FIELD_CFLAGS] = "-D OSLDR -D KERNEL -I src/include"
-target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x00090000 -filealign 4096 -stub $(OBJ)/ldrinit.exe -nostdlib"
-target[FIELD_DEPENDENCIES] = ["nasm"]
-target[FIELD_OUTPUT_DIRECTORY] = "linux/install/boot"
+target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x00090000 -filealign 4096 -nostdlib -stub build/machina/obj/bootldr/ldrinit.exe"
+target[FIELD_DEPENDENCIES] = ["nasm", "bootldr-stub"]
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "bootldr.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/bootldr"
 target[FIELD_SOURCE_DIRECTORY] = "src"
@@ -795,8 +812,7 @@ target[FIELD_SOURCES] = \
 	"sys/arch/x86/osldr/unzip.c", \
 	"lib/libc/vsprintf.c", \
 	"lib/libc/string.c", \
-	"sys/arch/x86/osldr/bioscall.asm", \
-	"sys/arch/x86/osldr/ldrinit.asm" ]
+	"sys/arch/x86/osldr/bioscall.asm" ]
 generator.addTarget(target);
 # Driver for NIC 3C905C
 #target = {}

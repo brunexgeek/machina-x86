@@ -469,9 +469,9 @@ void main(void *arg) {
   if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
   if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
-  // Load os.dll in user address space
-  imgbase = load_image_file(get_property(krnlcfg, "kernel", "osapi", "/boot/os.dll"), 1);
-  if (!imgbase) panic("unable to load os.dll");
+  // Load kernel32.so in user address space
+  imgbase = load_image_file(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
+  if (!imgbase) panic("unable to load kernel32.so");
   imghdr = get_image_header(imgbase);
   stack_reserve = imghdr->optional.size_of_stack_reserve;
   stack_commit = imghdr->optional.size_of_stack_commit;

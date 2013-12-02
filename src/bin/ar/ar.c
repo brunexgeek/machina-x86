@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -127,7 +127,7 @@ struct elf_symbol {
   uint32_t st_value;              // Symbol value
   uint32_t st_size;               // Symbol size
   uint8_t  st_info;               // Symbol type and binding
-  uint8_t  st_other;              // No defined meaning, 0 
+  uint8_t  st_other;              // No defined meaning, 0
   uint16_t st_shndx;              // Section index
 };
 
@@ -154,7 +154,7 @@ struct archive {
   struct entry *last_entry;       // Last archive entry
   struct symbol *first_symbol;    // First archive entry
   struct symbol *last_symbol;     // Last archive entry
-  struct entry *symtab;           // Entry for symbol table 
+  struct entry *symtab;           // Entry for symbol table
 };
 
 int make_symtab = 0;
@@ -165,7 +165,7 @@ void *load_data(int fd, int offset, int size) {
 
   data = malloc(size);
   if (!data) return NULL;
-  
+
   if (lseek(fd, offset, SEEK_SET) != offset)  {
     free(data);
     return NULL;
@@ -210,7 +210,7 @@ struct symbol *find_symbol(struct archive *ar, char *name)  {
   }
   return NULL;
 }
-  
+
 void init_archive(struct archive *ar) {
   memset(ar, 0, sizeof(struct archive));
   if (make_symtab) ar->symtab = add_new_entry(ar);
@@ -244,7 +244,7 @@ int add_symbols(struct archive  *ar, struct entry *e) {
   char *strtab;
   char *name;
   int i, j, num_syms, type, bind;
-  
+
   // The ELF header is at the begining of the file.
   hdr = (struct elf_header *) e->contents;
 
@@ -254,31 +254,31 @@ int add_symbols(struct archive  *ar, struct entry *e) {
 
   // Get sections
   sections = (struct elf_section_header *) (e->contents + hdr->e_shoff);
-    
+
   // Get symbols
   for (i = 1; i < hdr->e_shnum; i++) {
     s = &sections[i];
     if (s->sh_type == SHT_SYMTAB) {
       num_syms = s->sh_size / sizeof(struct elf_symbol);
       symtab = (struct elf_symbol *) (e->contents + s->sh_offset);
-      
+
       s = &sections[s->sh_link];
       strtab = e->contents + s->sh_offset;
-      
+
       for (j = 0; j < num_syms; j++) {
         sym = &symtab[j];
         name = strtab + sym->st_name;
         type = sym->st_info & 0x0f;
         bind = sym->st_info >> 4;
-        
+
         //printf("symbol %s type=%d bind=%d section=%d\n", name, type, bind, sym->st_shndx);
-        
+
         // Only keep defined symbols.
         if (sym->st_shndx == 0) continue;
 
         // Only keep global symbols.
         if (bind != 1) continue;
-        
+
         add_new_symbol(ar, e, name);
       }
     }
@@ -340,7 +340,7 @@ int read_file(struct archive  *ar, int fd, int offset, int size, char *filename)
 
   // Get file information
   if (fstat(fd, &st) < 0) return -1;
-  
+
   // Fill out archive entry header
   fill_header(&e->header, filename, &st);
 
@@ -348,7 +348,7 @@ int read_file(struct archive  *ar, int fd, int offset, int size, char *filename)
   if (make_symtab && size >= 4 && memcmp(e->contents, ELF_MAGIC, 4) == 0) {
     if (add_symbols(ar, e) < 0) return -1;
   }
-  
+
   return 0;
 }
 
@@ -358,7 +358,7 @@ int read_archive_file(struct archive  *ar, int fd) {
   char sizebuf[11];
   int len, i, offset, size;
   struct entry *e;
-  
+
   for (;;) {
     // Read next header from input archive
     len = read(fd, &hdr, sizeof(hdr));
@@ -367,7 +367,7 @@ int read_archive_file(struct archive  *ar, int fd) {
       fprintf(stderr, "invalid archive");
       return -1;
     }
-    
+
     // Get entry name and length from header
     memcpy(name, hdr.ar_name, sizeof(hdr.ar_name));
     for(i = sizeof(hdr.ar_name) - 1; i >= 0; i--) {
@@ -377,7 +377,7 @@ int read_archive_file(struct archive  *ar, int fd) {
     memcpy(sizebuf, hdr.ar_size, sizeof(hdr.ar_size));
     sizebuf[sizeof(hdr.ar_size)] = '\0';
     size = strtol(sizebuf, NULL, 0);
-    
+
     // Skip the symbol table
     offset = lseek(fd, 0, SEEK_CUR);
     if (strcmp(name, "/") != 0) {
@@ -419,7 +419,7 @@ void build_symbol_table(struct archive *ar) {
     s = s->next;
   }
   ar->symtab->size = size;
-  
+
   // Compute offsets for all entries
   offset = 8;
   e = ar->first_entry;
@@ -429,7 +429,7 @@ void build_symbol_table(struct archive *ar) {
     if (offset & 1) offset++;
     e = e->next;
   }
-  
+
   // Build symbol table
   symtab = ar->symtab->contents = malloc(ar->symtab->size);
   *((uint32_t *) symtab) = htonl(num_syms);
@@ -459,7 +459,7 @@ int write_archive(struct archive *ar, int fd) {
   // Write header
   size = write(fd, AR_MAGIC, 8);
   offset = 8;
-  
+
   // Write entries.
   e = ar->first_entry;
   while (e) {
@@ -511,7 +511,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
   archive_filename = argv[optind++];
-  
+
   // Read all the input object files
   init_archive(&ar);
   while (optind < argc) {
@@ -519,11 +519,12 @@ int main(int argc, char *argv[]) {
     char *input_file = argv[optind++];
     fd = open(input_file, O_RDONLY | O_BINARY);
     if (fd < 0) {
-      perror(archive_filename);
+      //perror(archive_filename);
+      perror(input_file);
       free_archive(&ar);
       return 1;
     }
-    
+
     // Determine file type
     if (read(fd, magic, 8) != 8) {
       fprintf(stderr, "%s: Invalid input file\n", input_file);
@@ -531,7 +532,7 @@ int main(int argc, char *argv[]) {
       free_archive(&ar);
       return 1;
     }
-    
+
     // Add input file to archive
     if (merge_archives && memcmp(magic, AR_MAGIC, 8) == 0) {
       if (read_archive_file(&ar, fd) < 0) {
@@ -561,7 +562,7 @@ int main(int argc, char *argv[]) {
 
   // Build symbol table.
   if (make_symtab) build_symbol_table(&ar);
-  
+
   // Write archive.
   if (write_archive(&ar, fd) < 0) {
     perror(archive_filename);
@@ -572,6 +573,6 @@ int main(int argc, char *argv[]) {
 
   close(fd);
   free_archive(&ar);
-  
+
   return 0;
 }

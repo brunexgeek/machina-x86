@@ -186,7 +186,7 @@ class CMakefileTarget(MakefileTarget):
 		# target to compile each C source file
 		if ((langs & LANG_C) > 0):
 			print self._toVar("OBJ_DIR") + "/%.c.o:", self._toVar("SRC_DIR") + "/%.c"
-			print "\t" + compiler, self._toVar("CFLAGS"), "-c $< -o $@"
+			print "\t" + compiler, self._toVar("CFLAGS"), "-DTARGET_MACHINE=$(TARGET_MACHINE)", "-c $< -o $@"
 			print
 		# target to compile each S source file
 		if ((langs & LANG_S) > 0):
@@ -213,12 +213,9 @@ class CMakefileTarget(MakefileTarget):
 		print "\t@mkdir -p", self._toVar("OUT_DIR")
 		# check if the current target is for BIN_DYNAMIC or BIN_EXECUTABLE
 		if ((self.target[FIELD_TYPE] & BIN_STATIC) == 0):
-			if ((self.target[FIELD_TYPE] & BIN_MACHINA) > 0):
-				compiler = "$(TCC)"
-			else:
-				compiler = "$(CC) -O2 -m32"
 			print "\t" + compiler, \
 				self._toVar("CFLAGS"), \
+				"-DTARGET_MACHINE=$(TARGET_MACHINE)", \
 				self._toVar("LDFLAGS"), \
 				self._toVar("OBJ_FILES") , \
 				"-o", self._toVar("OUT_FILE")
@@ -353,6 +350,7 @@ generator.addVariable("CFLAGS", "$(CFLAGS) -Wimplicit")
 generator.addVariable("TCC", "build/tools/cc")
 generator.addVariable("NASM", "build/tools/as")
 generator.addVariable("AR", "build/tools/ar")
+generator.addVariable("TARGET_MACHINE", "x86")
 
 #
 # Tiny C Compiler for GNU/Linux
@@ -779,7 +777,7 @@ generator.addTarget(target);
 #
 target = {}
 target[FIELD_NAME] = "bootldr-stub"
-target[FIELD_DESCRIPTION] = "Machina Stage 2 Bootloader"
+target[FIELD_DESCRIPTION] = "Machina Stage 2 Bootloader Stub"
 target[FIELD_PREFFIX] = "BOOTLDRSTUB"
 target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
 target[FIELD_NFLAGS] = "-f bin"
@@ -801,7 +799,7 @@ target[FIELD_PREFFIX] = "BOOTLDR"
 target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
 target[FIELD_CFLAGS] = "-D OSLDR -D KERNEL -I src/include"
 target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x00090000 -filealign 4096 -nostdlib -stub build/machina/obj/bootldr/ldrinit.exe"
-target[FIELD_DEPENDENCIES] = ["nasm", "bootldr-stub"]
+target[FIELD_DEPENDENCIES] = ["nasm", "build/machina/obj/bootldr/ldrinit.exe"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "bootldr.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/bootldr"

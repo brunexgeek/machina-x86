@@ -1,5 +1,6 @@
 #!/bin/make -f
 
+TARGET_MACHINE := x86
 AR := build/tools/ar
 TCC := build/tools/cc
 CFLAGS := $(CFLAGS) -Wimplicit
@@ -58,11 +59,11 @@ MKDFS_OBJ_MKDIR:
 	@mkdir -p build/linux/obj/utils/dfs
 
 $(MKDFS_OBJ_DIR)/%.c.o: $(MKDFS_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(MKDFS_CFLAGS) -c $< -o $@
+	$(CC) -O2 -m32 $(MKDFS_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(MKDFS_OUT_FILE) :  MKDFS_WELCOME $(MKDFS_OBJ_FILES)
 	@mkdir -p $(MKDFS_OUT_DIR)
-	$(CC) -O2 -m32 $(MKDFS_CFLAGS) $(MKDFS_LDFLAGS) $(MKDFS_OBJ_FILES) -o $(MKDFS_OUT_FILE)
+	$(CC) -O2 -m32 $(MKDFS_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(MKDFS_LDFLAGS) $(MKDFS_OBJ_FILES) -o $(MKDFS_OUT_FILE)
 
 
 #
@@ -190,11 +191,11 @@ KERNEL32_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/kernel/sys/fs/devfs
 
 $(KERNEL32_OBJ_DIR)/%.c.o: $(KERNEL32_SRC_DIR)/%.c
-	$(TCC) $(KERNEL32_CFLAGS) -c $< -o $@
+	$(TCC) $(KERNEL32_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(KERNEL32_OUT_FILE) : tinycc nasm  KERNEL32_WELCOME $(KERNEL32_OBJ_FILES)
 	@mkdir -p $(KERNEL32_OUT_DIR)
-	$(TCC) $(KERNEL32_CFLAGS) $(KERNEL32_LDFLAGS) $(KERNEL32_OBJ_FILES) -o $(KERNEL32_OUT_FILE)
+	$(TCC) $(KERNEL32_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(KERNEL32_LDFLAGS) $(KERNEL32_OBJ_FILES) -o $(KERNEL32_OUT_FILE)
 
 
 #
@@ -301,7 +302,7 @@ LIBC_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/libc/lib/libc
 
 $(LIBC_OBJ_DIR)/%.c.o: $(LIBC_SRC_DIR)/%.c
-	$(TCC) $(LIBC_CFLAGS) -c $< -o $@
+	$(TCC) $(LIBC_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(LIBC_OBJ_DIR)/%.s.o: $(LIBC_SRC_DIR)/%.s
 	$(TCC) $(LIBC_CFLAGS) -c $< -o $@
@@ -401,14 +402,14 @@ LIBKERNEL_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/kernel32/lib/libc
 
 $(LIBKERNEL_OBJ_DIR)/%.c.o: $(LIBKERNEL_SRC_DIR)/%.c
-	$(TCC) $(LIBKERNEL_CFLAGS) -c $< -o $@
+	$(TCC) $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(LIBKERNEL_OBJ_DIR)/%.asm.o: $(LIBKERNEL_SRC_DIR)/%.asm
 	$(NASM) $(LIBKERNEL_NFLAGS) $< -o $@
 
 $(LIBKERNEL_OUT_FILE) : build/tools/cc build/tools/as  LIBKERNEL_WELCOME $(LIBKERNEL_OBJ_FILES)
 	@mkdir -p $(LIBKERNEL_OUT_DIR)
-	$(TCC) $(LIBKERNEL_CFLAGS) $(LIBKERNEL_LDFLAGS) $(LIBKERNEL_OBJ_FILES) -o $(LIBKERNEL_OUT_FILE)
+	$(TCC) $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(LIBKERNEL_LDFLAGS) $(LIBKERNEL_OBJ_FILES) -o $(LIBKERNEL_OUT_FILE)
 
 
 #
@@ -446,11 +447,11 @@ TCC_OBJ_MKDIR:
 	@mkdir -p build/linux/obj/bin/cc
 
 $(TCC_OBJ_DIR)/%.c.o: $(TCC_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(TCC_CFLAGS) -c $< -o $@
+	$(CC) -O2 -m32 $(TCC_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(TCC_OUT_FILE) tinycc :  TCC_WELCOME $(TCC_OBJ_FILES)
 	@mkdir -p $(TCC_OUT_DIR)
-	$(CC) -O2 -m32 $(TCC_CFLAGS) $(TCC_LDFLAGS) $(TCC_OBJ_FILES) -o $(TCC_OUT_FILE)
+	$(CC) -O2 -m32 $(TCC_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(TCC_LDFLAGS) $(TCC_OBJ_FILES) -o $(TCC_OUT_FILE)
 
 
 #
@@ -477,11 +478,11 @@ AR_OBJ_MKDIR:
 	@mkdir -p build/linux/obj/bin/ar
 
 $(AR_OBJ_DIR)/%.c.o: $(AR_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(AR_CFLAGS) -c $< -o $@
+	$(CC) -O2 -m32 $(AR_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(AR_OUT_FILE) archiver :  AR_WELCOME $(AR_OBJ_FILES)
 	@mkdir -p $(AR_OUT_DIR)
-	$(CC) -O2 -m32 $(AR_CFLAGS) $(AR_LDFLAGS) $(AR_OBJ_FILES) -o $(AR_OUT_FILE)
+	$(CC) -O2 -m32 $(AR_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(AR_LDFLAGS) $(AR_OBJ_FILES) -o $(AR_OUT_FILE)
 
 
 #
@@ -501,17 +502,17 @@ $(DISKBOOT_OUT_FILE) diskboot : nasm
 
 
 #
-# Machina Stage 2 Bootloader 
+# Machina Stage 2 Bootloader Stub 
 #
 BOOTLDRSTUB_NFLAGS = $(NFLAGS) -f bin
-BOOTLDRSTUB_OUT_DIR = build/machina/obj/bootldr/
+BOOTLDRSTUB_OUT_DIR = build/machina/obj/bootldr
 BOOTLDRSTUB_OUT_FILE = $(BOOTLDRSTUB_OUT_DIR)/ldrinit.exe
 BOOTLDRSTUB_SRC_FILES = \
 	src/sys/arch/x86/osldr/ldrinit.asm
 
 $(BOOTLDRSTUB_OUT_FILE) bootldr-stub : nasm 
 	@echo
-	@echo Building Machina Stage 2 Bootloader
+	@echo Building Machina Stage 2 Bootloader Stub
 	@mkdir -p $(BOOTLDRSTUB_OUT_DIR)
 	$(NASM) $(BOOTLDRSTUB_NFLAGS) $(BOOTLDRSTUB_SRC_FILES) -o $(BOOTLDRSTUB_OUT_FILE)
 
@@ -547,14 +548,14 @@ BOOTLDR_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/bootldr/sys/arch/x86/osldr
 
 $(BOOTLDR_OBJ_DIR)/%.c.o: $(BOOTLDR_SRC_DIR)/%.c
-	$(TCC) $(BOOTLDR_CFLAGS) -c $< -o $@
+	$(TCC) $(BOOTLDR_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(BOOTLDR_OBJ_DIR)/%.asm.o: $(BOOTLDR_SRC_DIR)/%.asm
 	$(NASM) $(BOOTLDR_NFLAGS) $< -o $@
 
-$(BOOTLDR_OUT_FILE) bootldr : nasm bootldr-stub  BOOTLDR_WELCOME $(BOOTLDR_OBJ_FILES)
+$(BOOTLDR_OUT_FILE) bootldr : nasm build/machina/obj/bootldr/ldrinit.exe  BOOTLDR_WELCOME $(BOOTLDR_OBJ_FILES)
 	@mkdir -p $(BOOTLDR_OUT_DIR)
-	$(TCC) $(BOOTLDR_CFLAGS) $(BOOTLDR_LDFLAGS) $(BOOTLDR_OBJ_FILES) -o $(BOOTLDR_OUT_FILE)
+	$(TCC) $(BOOTLDR_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(BOOTLDR_LDFLAGS) $(BOOTLDR_OBJ_FILES) -o $(BOOTLDR_OUT_FILE)
 
 
 #
@@ -620,11 +621,11 @@ NASM_OBJ_MKDIR:
 	@mkdir -p build/linux/obj/bin/as/output
 
 $(NASM_OBJ_DIR)/%.c.o: $(NASM_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(NASM_CFLAGS) -c $< -o $@
+	$(CC) -O2 -m32 $(NASM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(NASM_OUT_FILE) nasm :  NASM_WELCOME $(NASM_OBJ_FILES)
 	@mkdir -p $(NASM_OUT_DIR)
-	$(CC) -O2 -m32 $(NASM_CFLAGS) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
+	$(CC) -O2 -m32 $(NASM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
 
 all: $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(TCC_OUT_FILE) $(AR_OUT_FILE) $(DISKBOOT_OUT_FILE) $(BOOTLDRSTUB_OUT_FILE) $(BOOTLDR_OUT_FILE) $(NASM_OUT_FILE) 
 

@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os.h>
 #include <string.h>
@@ -95,7 +95,7 @@ void panic(char *msg) {
 
 void init_biosdisk() {
   int status;
-  
+
   status = bios_get_drive_params(bootdrive, &bootdev_cyls, &bootdev_heads, &bootdev_sects);
   if (status != 0) panic("Unable to initialize boot device");
 }
@@ -108,14 +108,14 @@ int biosdisk_read(void *buffer, size_t count, blkno_t blkno) {
   int left = sects;
   while (left > 0) {
     int nsect, status;
-    
+
     // Compute CHS address
     int sect = blkno % bootdev_sects + 1;
     int track = blkno / bootdev_sects;
     int head = track % bootdev_heads;
     int cyl = track / bootdev_heads;
     if (cyl >= bootdev_cyls) return -ERANGE;
-    
+
     // Compute number of sectors to read
     nsect = left;
     if (nsect > sizeof(scratch) / SECTORSIZE) nsect = sizeof(scratch) / SECTORSIZE;
@@ -131,7 +131,7 @@ int biosdisk_read(void *buffer, size_t count, blkno_t blkno) {
 
     // Move data to high memory
     memcpy(buf, scratch, nsect * SECTORSIZE);
-    
+
     // Prepeare next read
     blkno += nsect;
     buf += nsect * SECTORSIZE;
@@ -210,7 +210,7 @@ unsigned long memsize() {
     *mem = value;
   }
 
-  // Restore 
+  // Restore
   __asm { mov eax, [cr0save] };
   __asm { mov cr0, eax };
 
@@ -306,11 +306,11 @@ void copy_ramdisk(char *bootimg) {
   struct superblock *super = (struct superblock *) (bootimg + SECTORSIZE);
   int i;
   int rdpages;
-    
+
   // Copy ram disk to heap
   if (!bootimg) panic("no boot image");
   if (super->signature != DFS_SIGNATURE) panic("invalid DFS signature on initial RAM disk");
-  
+
   initrd_size = (1 << super->log_block_size) * super->block_count;
   rdpages = PAGES(initrd_size);
   initrd = alloc_heap(rdpages);
@@ -351,7 +351,7 @@ void __stdcall start(void *hmod, struct bootparams *bootparams, int reserved) {
 
   // Determine size of RAM
   setup_memory(&bootparams->memmap);
-  //kprintf("%d MB RAM\n", mem_end / (1024 * 1024));
+  kprintf("%d MB RAM\n", mem_end / (1024 * 1024));
 
   // Page allocation starts at 1MB
   heap = (char *) HEAP_START;

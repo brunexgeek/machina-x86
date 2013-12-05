@@ -3,21 +3,22 @@
 ;
 ; CD-ROM 1.44 MB Floppy Emulation Boot sector
 ;
+; Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 ; Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 ;
 ; Redistribution and use in source and binary forms, with or without
 ; modification, are permitted provided that the following conditions
 ; are met:
-; 
-; 1. Redistributions of source code must retain the above copyright 
-;    notice, this list of conditions and the following disclaimer.  
+;
+; 1. Redistributions of source code must retain the above copyright
+;    notice, this list of conditions and the following disclaimer.
 ; 2. Redistributions in binary form must reproduce the above copyright
 ;    notice, this list of conditions and the following disclaimer in the
-;    documentation and/or other materials provided with the distribution.  
+;    documentation and/or other materials provided with the distribution.
 ; 3. Neither the name of the project nor the names of its contributors
 ;    may be used to endorse or promote products derived from this software
-;    without specific prior written permission. 
-; 
+;    without specific prior written permission.
+;
 ; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ; ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 ; IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +28,9 @@
 ; OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 ; HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 ; LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-; OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+; OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ; SUCH DAMAGE.
-; 
+;
 
 OSLDRSEG    equ 0x9000
 OSLDRBASE   equ (OSLDRSEG * 16)
@@ -53,8 +54,8 @@ boot:
         jmp     short start
         nop
         nop
-        
-        db      'SANOS   '
+
+        db      'MACHINA '
 
 ldrsize  dw     OSLDRSIZE
 ldrstrt  dd     OSLDRSTART
@@ -76,7 +77,7 @@ start1:
         ; Display boot message
         mov     si, bootmsg
         call    print
-        
+
 readimg:
         ; Get boot drive geometry
         mov     dl, [bootdrv]
@@ -97,7 +98,7 @@ loadnext:
         mov     ax, [sectno]        ; eax = image sector number
 
         mov     bx, ax
-        shl     bx, 5               ; 512/16 segments per sector                    
+        shl     bx, 5               ; 512/16 segments per sector
         add     bx, IMGSEG
         mov     es, bx              ; es = segment for next image sector
 
@@ -123,7 +124,7 @@ loadnext1:
         cmp     ax, IMGSIZE
         jnz     loadnext
 
-        ; Copy os loader from ram boot image 
+        ; Copy os loader from ram boot image
         push    ds
 
         mov     cx, [ldrsize]       ; cx = number of bytes to copy
@@ -147,9 +148,9 @@ loadnext1:
         ; Call real mode entry point in os loader
         mov     ax, OSLDRSEG
         mov     ds, ax
-        add     ax, [0x16]          ; cs
+        add     ax, [0x16]          ; "cs" from "bootldr.bin" PE Header
         push    ax
-        push    word [0x14]         ; ip
+        push    word [0x14]         ; "ip" from "bootldr.bin" PE Header (should go to stub)
 
         mov     dl, 0xFD            ; boot drive (0xFD for CD emulation)
         mov     ebx, 0x7C00         ; RAM disk image
@@ -242,10 +243,10 @@ printchar:
 
         ; Variables
 
-sectno  dw      0
-sectors dw      0
-heads   dw      0
-bootdrv db      0
+sectno    dw      0
+sectors   dw      0
+heads     dw      0
+bootdrv   db      0
 
         ; Message strings
 bootmsg:

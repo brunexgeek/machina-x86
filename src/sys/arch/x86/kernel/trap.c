@@ -132,37 +132,41 @@ char *trapnames[INTRS] =  {
 
 static void trap(unsigned long args);
 
-static void __declspec(naked) isr() {
-  __asm {
-    cld
-    push    eax                     // Save registers
-    push    ecx
-    push    edx
-    push    ebx
-    push    ebp
-    push    esi
-    push    edi
-    push    ds
-    push    es
-    mov     ax, SEL_KDATA           // Setup kernel data segment
-#ifdef VMACH
-    or      eax, cs:mach.kring
-#endif
-    mov     ds, ax
-    mov     es, ax
-    call    trap                    // Call trap handler
-    pop     es                      // Restore registers
-    pop     ds
-    pop     edi
-    pop     esi
-    pop     ebp
-    pop     ebx
-    pop     edx
-    pop     ecx
-    pop     eax
-    add     esp, 8
-    IRETD                           // Return
-  }
+static void /*__declspec(naked)*/ isr()
+{
+    __asm__
+    (
+        "cld;"
+        "push    eax;"                     // Save registers
+        "push    ecx;"
+        "push    edx;"
+        "push    ebx;"
+        "push    ebp;"
+        "push    esi;"
+        "push    edi;"
+        "push    ds;"
+        "push    es;"
+        "mov     ax, %0;"           // Setup kernel data segment
+        #ifdef VMACH
+        "or      eax, cs:mach.kring;"
+        #endif
+        "mov     ds, ax;"
+        "mov     es, ax;"
+        "call    trap;"                    // Call trap handler
+        "pop     es;"                      // Restore registers
+        "pop     ds;"
+        "pop     edi;"
+        "pop     esi;"
+        "pop     ebp;"
+        "pop     ebx;"
+        "pop     edx;"
+        "pop     ecx;"
+        "pop     eax;"
+        "add     esp, 8;"
+        "IRETD;"                           // Return
+        :
+        : "i" (SEL_KDATA)
+    );
 }
 
 //
@@ -173,49 +177,52 @@ static void __declspec(naked) isr() {
 
 int syscall(int syscallno, char *params, struct context *ctxt);
 
-static void __declspec(naked) systrap(void) {
-  __asm {
-    push    0                       // Push dummy errcode
-    push    INTR_SYSCALL            // Push traptype
+static void /*__declspec(naked)*/ systrap(void) {
+  __asm__
+  (
+        "push    0;"                       // Push dummy errcode
+        "push    %0;"            // Push traptype
 
-    push    eax                     // Save registers
-    push    ecx
-    push    edx
-    push    ebx
-    push    ebp
-    push    esi
-    push    edi
-    push    ds
-    push    es
+        "push    eax;"                     // Save registers
+        "push    ecx;"
+        "push    edx;"
+        "push    ebx;"
+        "push    ebp;"
+        "push    esi;"
+        "push    edi;"
+        "push    ds;"
+        "push    es;"
 
-    mov     bx, SEL_KDATA           // Setup kernel data segment
-#ifdef VMACH
-    or      ebx, cs:mach.kring
-#endif
-    mov     ds, bx
-    mov     es, bx
+        "mov     bx, %1;"           // Setup kernel data segment
+        #ifdef VMACH
+        "or      ebx, cs:mach.kring;"
+        #endif
+        "mov     ds, bx;"
+        "mov     es, bx;"
 
-    mov     ebx, esp                // ebx = context
-    push    ebx                     // Push context
-    push    edx                     // Push params
-    push    eax                     // Push syscallno
+        "mov     ebx, esp;"                // ebx = context
+        "push    ebx;"                     // Push context
+        "push    edx;"                     // Push params
+        "push    eax;"                     // Push syscallno
 
-    call    syscall                 // Call syscall
-    add     esp, 12
+        "call    syscall;"                 // Call syscall
+        "add     esp, 12;"
 
-    pop     es                      // Restore registers
-    pop     ds
-    pop     edi
-    pop     esi
-    pop     ebp
-    pop     ebx
-    pop     edx
-    pop     ecx
+        "pop     es;"                      // Restore registers
+        "pop     ds;"
+        "pop     edi;"
+        "pop     esi;"
+        "pop     ebp;"
+        "pop     ebx;"
+        "pop     edx;"
+        "pop     ecx;"
 
-    add     esp, 12                 // Skip eax, errcode, and traptype
+        "add     esp, 12;"                 // Skip eax, errcode, and traptype
 
-    IRETD                           // Return
-  }
+        "IRETD;"                           // Return
+        :
+        : "i" (INTR_SYSCALL), "i" (SEL_KDATA)
+        );
 }
 
 //
@@ -224,61 +231,64 @@ static void __declspec(naked) systrap(void) {
 // Kernel entry point for sysenter syscall
 //
 
-static void __declspec(naked) sysentry(void) {
-  __asm {
-    mov     esp, ss:[esp]           // Get kernel stack pointer from TSS
-    STI                             // Sysenter disables interrupts, re-enable now
+static void /*__declspec(naked)*/ sysentry(void) {
+    __asm__
+    (
+        "mov     esp, ss:[esp];"           // Get kernel stack pointer from TSS
+        "STI;"                             // Sysenter disables interrupts, re-enable now
 
-    push    SEL_UDATA + SEL_RPL3    // Push ss (fixed)
-    push    ebp                     // Push esp (ebp set to esp by caller)
-    pushfd                          // Push eflg
-    push    SEL_UTEXT + SEL_RPL3    // Push cs (fixed)
-    push    ecx                     // Push eip (return address set by caller)
-    push    0                       // Push errcode
-    push    INTR_SYSENTER           // Push traptype (always sysenter)
+        "push    %0 + %3;"    // Push ss (fixed)
+        "push    ebp;"                     // Push esp (ebp set to esp by caller)
+        "pushfd;"                          // Push eflg
+        "push    %2 + %3;"    // Push cs (fixed)
+        "push    ecx;"                     // Push eip (return address set by caller)
+        "push    0;"                       // Push errcode
+        "push    INTR_SYSENTER;"           // Push traptype (always sysenter)
 
-    push    eax                     // Push registers
-    push    ecx
-    push    edx
-    push    ebx
-    push    ebp
-    push    esi
-    push    edi
+        "push    eax;"                     // Push registers
+        "push    ecx;"
+        "push    edx;"
+        "push    ebx;"
+        "push    ebp;"
+        "push    esi;"
+        "push    edi;"
 
-    push    SEL_UDATA + SEL_RPL3    // Push ds (fixed)
-    push    SEL_UDATA + SEL_RPL3    // Push es (fixed)
+        "push    %0 + %3;"    // Push ds (fixed)
+        "push    %0 + %3;"    // Push es (fixed)
 
-    mov     bx, SEL_KDATA           // Setup kernel data segment
-#ifdef VMACH
-    or      ebx, cs:mach.kring
-#endif
-    mov     ds, bx
-    mov     es, bx
+        "mov     bx, %1;"           // Setup kernel data segment
+        #ifdef VMACH
+        "or      ebx, cs:mach.kring;"
+        #endif
+        "mov     ds, bx;"
+        "mov     es, bx;"
 
-    mov     ebx, esp                // ebx = context
-    push    ebx                     // Push context
-    push    edx                     // Push params
-    push    eax                     // Push syscallno
+        "mov     ebx, esp;"                // ebx = context
+        "push    ebx;"                     // Push context
+        "push    edx;"                     // Push params
+        "push    eax;"                     // Push syscallno
 
-    call    syscall                 // Call syscall
-    add     esp, 12
+        "call    syscall;"                 // Call syscall
+        "add     esp, 12;"
 
-    pop     es                      // Restore registers
-    pop     ds
-    pop     edi
-    pop     esi
-    pop     ebp
-    pop     ebx
+        "pop     es;"                      // Restore registers
+        "pop     ds;"
+        "pop     edi;"
+        "pop     esi;"
+        "pop     ebp;"
+        "pop     ebx;"
 
-    add     esp, 20                 // Skip edx, ecx, eax, errcode, traptype
-    pop     edx                     // Put eip into edx for sysexit
-    add     esp, 4                  // Skip cs
-    popfd                           // Restore flags
-    pop     ecx                     // Put esp into ecx for sysexit
-    add     esp, 4                  // Skip ss
+        "add     esp, 20;"                 // Skip edx, ecx, eax, errcode, traptype
+        "pop     edx;"                     // Put eip into edx for sysexit
+        "add     esp, 4;"                  // Skip cs
+        "popfd;"                           // Restore flags
+        "pop     ecx;"                     // Put esp into ecx for sysexit
+        "add     esp, 4;"                  // Skip ss
 
-    SYSEXIT                         // Return
-  }
+        "SYSEXIT;"                         // Return
+        :
+        : "i" (SEL_UDATA), "i" (SEL_KDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3)
+    );
 }
 
 //
@@ -286,16 +296,16 @@ static void __declspec(naked) sysentry(void) {
 //
 
 #define ISR(n)                                \
-static void __declspec(naked) isr##n(void) {  \
-  __asm { push 0 }                            \
-  __asm { push n }                            \
-  __asm { jmp isr }                           \
+static void /*__declspec(naked)*/ isr##n(void) {  \
+  __asm__("push 0");                            \
+  __asm__("push n");                            \
+  __asm__("jmp isr");                           \
 }
 
 #define ISRE(n)                               \
-static void __declspec(naked) isr##n(void) {  \
-  __asm { push n }                            \
-  __asm { jmp isr }                           \
+static void /*__declspec(naked)*/ isr##n(void) {  \
+  __asm__("push n");                            \
+  __asm__("jmp isr");                           \
 }
 
 ISR(0)  ISR(1)  ISR(2)   ISR(3)   ISR(4)   ISR(5)   ISR(6)   ISR(7)
@@ -313,7 +323,7 @@ ISR(56) ISR(57) ISR(58)  ISR(59)  ISR(60)  ISR(61)  ISR(62)  ISR(63)
 // Tests if context is a user mode context
 //
 
-__inline static int usermode(struct context *ctxt) {
+__inline int usermode(struct context *ctxt) {
   return USERSPACE(ctxt->eip);
 }
 

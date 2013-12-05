@@ -1,23 +1,23 @@
 //
 // pdir.c
 //
-// Page directory 
+// Page directory
 //
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -41,7 +41,7 @@ void map_page(void *vaddr, unsigned long pfn, unsigned long flags) {
   if ((GET_PDE(vaddr) & PT_PRESENT) == 0) {
     unsigned long pdfn;
 
-    pdfn = alloc_pageframe('PTAB');
+    pdfn = alloc_pageframe(0x50544142 /* PTAB */);
     if (USERSPACE(vaddr)) {
       SET_PDE(vaddr, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE | PT_USER);
     } else {
@@ -102,7 +102,7 @@ int mem_access(void *vaddr, int size, pte_t access) {
   unsigned long addr;
   unsigned long next;
   pte_t pte;
-  
+
   addr = (unsigned long) vaddr;
   next = (addr & ~PAGESIZE) + PAGESIZE;
   while (1) {
@@ -182,7 +182,7 @@ int pdir_proc(struct proc_file *pf, void *arg) {
       pte = GET_PTE(vaddr);
       if (pte & PT_PRESENT) {
         ma++;
-        
+
         if (pte & PT_WRITABLE) {
           rw++;
         } else {
@@ -200,8 +200,8 @@ int pdir_proc(struct proc_file *pf, void *arg) {
         if (pte & PT_GUARD) gd++;
         if (pte & PT_FILE) fi++;
 
-        pprintf(pf, "%08x %08x %c%c%c%c%c%c\n", 
-                vaddr, PAGEADDR(pte), 
+        pprintf(pf, "%08x %08x %c%c%c%c%c%c\n",
+                vaddr, PAGEADDR(pte),
                 (pte & PT_WRITABLE) ? 'w' : 'r',
                 (pte & PT_USER) ? 'u' : 's',
                 (pte & PT_ACCESSED) ? 'a' : ' ',
@@ -296,7 +296,7 @@ int pdir_stat(void *addr, int len, struct pdirstat *buf) {
       pte = GET_PTE(vaddr);
       if (pte & PT_PRESENT) {
         buf->present++;
-        
+
         if (pte & PT_WRITABLE) {
           buf->readwrite++;
         } else {

@@ -35,171 +35,203 @@
 #include <os/krnl.h>
 
 
-static void hw_sti() {
-  __asm sti;
+static void hw_sti()
+{
+    __asm__("sti;");
 }
 
-static void hw_cli() {
-  __asm cli;
+
+static void hw_cli()
+{
+    __asm__("cli;");
 }
 
-static void hw_hlt() {
-  __asm hlt;
+
+static void hw_hlt()
+{
+      __asm__("hlt;");
 }
 
-static void hw_iretd() {
-  __asm add esp,4;
-  __asm iretd;
+
+static void hw_iretd()
+{
+    __asm__
+    (
+        "add esp,4;"
+        "iretd;"
+    );
 }
 
-static void hw_sysret() {
-  __asm add esp,4;
-  __asm sysexit;
+static void hw_sysret()
+{
+    __asm__
+    (
+        "add esp,4;"
+        "sysexit;"
+    );
 }
 
-static __declspec(naked) int __fastcall hw_in(port_t port) {
-  __asm {
-    mov     dx,cx
-    xor     eax,eax
-    in      al,dx
-    ret
-  }
+static /*__declspec(naked)*/ int /*__fastcall*/ hw_in(port_t port) {
+    __asm__
+    (
+        "mov     dx,cx;"
+        "xor     eax,eax;"
+        "in      al,dx;"
+        "ret;"
+    );
 }
 
-static __declspec(naked) unsigned short __fastcall hw_inw(port_t port) {
-  __asm {
-    mov     dx,cx
-    in      ax,dx
-    ret
-  }
+static /*__declspec(naked)*/ unsigned short /*__fastcall*/ hw_inw(port_t port) {
+    __asm__
+    (
+        "mov     dx,cx;"
+        "in      ax,dx;"
+        "ret;"
+    );
 }
 
-static __declspec(naked) unsigned long __fastcall hw_ind(port_t port) {
-  __asm {
-    mov     dx,cx
-    in      eax,dx
-    ret
-  }
+static /*__declspec(naked)*/ unsigned long /*__fastcall*/ hw_ind(port_t port) {
+    __asm__
+    (
+        "mov     dx,cx;"
+        "in      eax,dx;"
+        "ret;"
+    );
 }
 
 static void hw_insw(port_t port, void *buf, int count) {
-  __asm {
-    mov edx, port
-    mov edi, buf
-    mov ecx, count
-    rep insw
-  }
+    __asm__
+    (
+        "mov edx, port;"
+        "mov edi, buf;"
+        "mov ecx, count;"
+        "rep insw;"
+    );
 }
 
 static void hw_insd(port_t port, void *buf, int count) {
-  __asm {
-    mov edx, port
-    mov edi, buf
-    mov ecx, count
-    rep insd
-  }
+    __asm__
+    (
+        "mov edx, port;"
+        "mov edi, buf;"
+        "mov ecx, count;"
+        "rep insd;"
+    );
 }
 
-static __declspec(naked) int __fastcall hw_out(port_t port, int val) {
-  __asm {
-    mov     al,dl
-    mov     dx,cx
-    out     dx, al
-    ret
-  }
+static /*__declspec(naked)*/ int /*__fastcall*/ hw_out(port_t port, int val) {
+    __asm__
+    (
+        "mov     al,dl;"
+        "mov     dx,cx;"
+        "out     dx, al;"
+        "ret;"
+    );
 }
 
-static __declspec(naked) unsigned short __fastcall hw_outw(port_t port, unsigned short val) {
-  __asm {
-    mov     ax,dx
-    mov     dx,cx
-    out     dx, ax
-    ret
-  }
+static /*__declspec(naked)*/ unsigned short /*__fastcall*/ hw_outw(port_t port, unsigned short val) {
+    __asm__
+    (
+        "mov     ax,dx;"
+        "mov     dx,cx;"
+        "out     dx, ax;"
+        "ret;"
+    );
 }
 
-static __declspec(naked) unsigned long __fastcall hw_outd(port_t port, unsigned long val) {
-  __asm {
-    mov     eax,edx
-    mov     dx,cx
-    out     dx, eax
-    ret
-  }
+static /*__declspec(naked)*/ unsigned long /*__fastcall*/ hw_outd(port_t port, unsigned long val) {
+    __asm__
+    (
+        "mov     eax,edx;"
+        "mov     dx,cx;"
+        "out     dx, eax;"
+        "ret;"
+    );
 }
 
-static void hw_outsw(port_t port, void *buf, int count) {
-  __asm {
-    mov edx, port
-    mov esi, buf
-    mov ecx, count
-    rep outsw
-  }
+static void hw_outsw(port_t port, void *buf, int count)
+{
+    __asm__
+    (
+        "mov edx, port;"
+        "mov esi, buf;"
+        "mov ecx, count;"
+        "rep outsw;"
+    );
 }
 
-static void hw_outsd(port_t port, void *buf, int count) {
-  __asm {
-    mov edx, port
-    mov esi, buf
-    mov ecx, count
-    rep outsd
-  }
+static void hw_outsd(port_t port, void *buf, int count)
+{
+    __asm__
+    (
+        "mov edx, port;"
+        "mov esi, buf;"
+        "mov ecx, count;"
+        "rep outsd;"
+    );
 }
 
 static void hw_cpuid(unsigned long reg, unsigned long values[4]) {
-  __asm {
-    mov    eax, reg
-    cpuid
-    mov    esi, values
-    mov    [esi], eax
-    mov    [esi+4], ebx
-    mov    [esi+8], ecx
-    mov    [esi+12], edx
-  }
+    __asm__
+    (
+        "mov    eax, reg;"
+        "cpuid;"
+        "mov    esi, values;"
+        "mov    [esi], eax;"
+        "mov    [esi+4], ebx;"
+        "mov    [esi+8], ecx;"
+        "mov    [esi+12], edx;"
+    );
 }
 
 static unsigned long hw_get_cr0() {
   unsigned long val;
 
-  __asm  {
-    mov eax, cr0
-    mov val, eax
-  }
+    __asm__
+    (
+        "mov eax, cr0;"
+        "mov val, eax;"
+    );
 
   return val;
 }
 
 static void hw_set_cr0(unsigned long val) {
-  __asm {
-    mov eax, val
-    mov cr0, eax
-  }
+    __asm__
+    (
+        "mov eax, val;"
+        "mov cr0, eax;"
+    );
 }
 
 static unsigned long hw_get_cr2() {
   unsigned long val;
 
-  __asm  {
-    mov eax, cr2
-    mov val, eax
-  }
+    __asm__
+    (
+        "mov eax, cr2;"
+        "mov val, eax;"
+    );
 
   return val;
 }
 
-static __declspec(naked) unsigned __int64 hw_rdtsc() {
-  __asm  {
-    rdtsc
-    ret
-  }
+static /*__declspec(naked)*/ unsigned __int64 hw_rdtsc() {
+    __asm__
+    (
+        "rdtsc;"
+        "ret;"
+    );
 }
 
 static void hw_wrmsr(unsigned long reg, unsigned long valuelow, unsigned long valuehigh) {
-  __asm {
-    mov ecx, reg
-    mov eax, valuelow
-    mov edx, valuehigh
-    wrmsr
-  }
+    __asm__
+    (
+        "mov ecx, reg;"
+        "mov eax, valuelow;"
+        "mov edx, valuehigh;"
+        "wrmsr;"
+    );
 }
 
 static void hw_set_gdt_entry(int entry, unsigned long addr, unsigned long size, int access, int granularity) {
@@ -223,19 +255,32 @@ static void hw_set_idt_trap(int intrno, void *handler) {
 static void hw_switch_kernel_stack() {
 }
 
-static void hw_flushtlb() {
-  __asm { mov eax, cr3 }
-  __asm { mov cr3, eax }
+static void hw_flushtlb()
+{
+    __asm__
+    (
+        "mov eax, cr3;"
+        "mov cr3, eax;"
+    );
 }
 
 static void hw_invlpage(void *addr) {
-  if (cpu.family < CPU_FAMILY_486) {
-    __asm { mov eax, cr3 }
-    __asm { mov cr3, eax }
-  } else   {
-    __asm { mov eax, addr }
-    __asm { invlpg [eax] }
-  }
+    if (cpu.family < CPU_FAMILY_486)
+    {
+        __asm__
+        (
+            "mov eax, cr3;"
+            "mov cr3, eax;"
+        );
+    }
+    else
+    {
+        __asm__
+        (
+            "mov eax, addr;"
+            "invlpg [eax];"
+        );
+    }
 }
 
 static void hw_register_page_dir(unsigned long pfn) {
@@ -264,10 +309,11 @@ static void hw_poweroff()
   }
 
   while (1) {
-    __asm {
-      cli
-      hlt
-    }
+        __asm__
+        (
+            "cli;"
+            "hlt;"
+        );
   }
 }
 

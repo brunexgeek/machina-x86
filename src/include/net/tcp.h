@@ -9,16 +9,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,9 +28,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #ifndef TCP_H
 #define TCP_H
@@ -88,7 +88,7 @@ err_t tcp_output(struct tcp_pcb *pcb);
 #define TCP_ACK 0x10
 #define TCP_URG 0x20
 
-#define TCP_HLEN 20                 // Length of the TCP header, excluding options 
+#define TCP_HLEN 20                 // Length of the TCP header, excluding options
 #define TCP_FAST_INTERVAL      200  // The fine grained timeout in milliseconds
 #define TCP_SLOW_INTERVAL      500  // The coarse grained timeout in milliseconds
 #define TCP_FIN_WAIT_TIMEOUT 20000  // milliseconds
@@ -148,16 +148,16 @@ struct tcp_pcb {
   enum tcp_state state;   // TCP state
 
   void *callback_arg;
-  
+
   // Function to call when a listener has been connected
   err_t (*accept)(void *arg, struct tcp_pcb *newpcb, err_t err);
 
   struct ip_addr local_ip;
   unsigned short local_port;
-  
+
   struct ip_addr remote_ip;
   unsigned short remote_port;
-  
+
   // Receiver variables
   unsigned long rcv_nxt;   // Next seqno expected
   unsigned short rcv_wnd;  // Receiver window
@@ -167,11 +167,11 @@ struct tcp_pcb {
 
   // Retransmission timer
   int rtime;
-  
+
   int mss;                 // Maximum segment size
 
   int flags;
-  
+
   // RTT estimation variables
   unsigned long rttest;   // RTT estimate in 500ms ticks
   unsigned long rtseq;    // sequence number being timed
@@ -183,9 +183,9 @@ struct tcp_pcb {
   // Fast retransmit/recovery
   unsigned long lastack;  // Highest acknowledged seqno
   unsigned short dupacks;
-  
+
   // Congestion avoidance/control variables
-  unsigned long cwnd;  
+  unsigned long cwnd;
   unsigned long ssthresh;
 
   // Sender variables
@@ -202,7 +202,7 @@ struct tcp_pcb {
   // Function to be called when more send buffer space is available
   err_t (*sent)(void *arg, struct tcp_pcb *pcb, unsigned short space);
   unsigned short acked;
-  
+
   // Function to be called when (in-sequence) data has arrived
   err_t (*recv)(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err);
   struct pbuf *recv_data;
@@ -215,10 +215,10 @@ struct tcp_pcb {
 
   // Function to be called whenever a fatal error occurs.
   void (*errf)(void *arg, err_t err);
-  
+
   int polltmr;
   int pollinterval;
-  
+
   // These are ordered by sequence number:
   struct tcp_seg *unsent;   // Unsent (queued) segments
   struct tcp_seg *unacked;  // Sent but unacknowledged segments
@@ -227,11 +227,11 @@ struct tcp_pcb {
 
 struct tcp_pcb_listen {
   struct tcp_pcb_listen *next;   // For the linked list
-  
+
   enum tcp_state state;          // TCP state
 
   void *callback_arg;
-  
+
   // Function to call when a listener has been connected.
   void (*accept)(void *arg, struct tcp_pcb *newpcb);
 
@@ -258,7 +258,7 @@ int tcp_segs_free(struct tcp_seg *seg);
 int tcp_seg_free(struct tcp_seg *seg);
 struct tcp_seg *tcp_seg_copy(struct tcp_seg *seg);
 
-__inline void tcp_ack(struct tcp_pcb *pcb) {
+static __inline void tcp_ack(struct tcp_pcb *pcb) {
   if (pcb->flags & TF_ACK_DELAY) {
     pcb->flags |= TF_ACK_NOW;
     tcp_output(pcb);
@@ -267,7 +267,7 @@ __inline void tcp_ack(struct tcp_pcb *pcb) {
   }
 }
 
-__inline void tcp_ack_now(struct tcp_pcb *pcb) {
+static __inline void tcp_ack_now(struct tcp_pcb *pcb) {
   pcb->flags |= TF_ACK_NOW;
   tcp_output(pcb);
 }

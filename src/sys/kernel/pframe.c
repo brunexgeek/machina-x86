@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -38,7 +38,7 @@
 unsigned long freemem;        // Number of pages free memory
 unsigned long totalmem;       // Total number of pages of memory (bad pages excluded)
 unsigned long maxmem;         // First unavailable memory page
-struct pageframe *pfdb;       // Page frame database      
+struct pageframe *pfdb;       // Page frame database
 struct pageframe *freelist;   // List of free pages
 
 void panic(char *msg);
@@ -73,7 +73,7 @@ unsigned long alloc_linear_pageframes(int pages, unsigned long tag) {
       int n;
 
       for (n = 0; n < pages; n++) {
-        if (pf[n].tag != 'FREE') break;
+        if (pf[n].tag != 0x46524545 /* FREE */) break;
         if (n != 0 && pf[n - 1].next != &pf[n]) break;
       }
 
@@ -106,7 +106,7 @@ void free_pageframe(unsigned long pfn) {
   struct pageframe *pf;
 
   pf = pfdb + pfn;
-  pf->tag = 'FREE';
+  pf->tag = 0x46524545 /* FREE */;
   pf->next = freelist;
   freelist = pf;
   freemem++;
@@ -138,11 +138,11 @@ int memmap_proc(struct proc_file *pf, void *arg) {
       default: type = "MEM?"; break;
     }
 
-    pprintf(pf, "0x%08x-0x%08x type %s %8d KB\n", 
-      (unsigned long) mm->entry[i].addr, 
+    pprintf(pf, "0x%08x-0x%08x type %s %8d KB\n",
+      (unsigned long) mm->entry[i].addr,
       (unsigned long) (mm->entry[i].addr + mm->entry[i].size) - 1,
       type,
-      (unsigned long) mm->entry[i].size / 1024); 
+      (unsigned long) mm->entry[i].size / 1024);
   }
 
   return 0;
@@ -188,11 +188,11 @@ int memusage_proc(struct proc_file *pf, void *arg) {
 }
 
 int memstat_proc(struct proc_file *pf, void *arg) {
-  pprintf(pf, "Memory %dMB total, %dKB used, %dKB free, %dKB reserved\n", 
-          maxmem * PAGESIZE / (1024 * 1024), 
-          (totalmem - freemem) * PAGESIZE / 1024, 
+  pprintf(pf, "Memory %dMB total, %dKB used, %dKB free, %dKB reserved\n",
+          maxmem * PAGESIZE / (1024 * 1024),
+          (totalmem - freemem) * PAGESIZE / 1024,
           freemem * PAGESIZE / 1024, (maxmem - totalmem) * PAGESIZE / 1024);
-  
+
   return 0;
 }
 
@@ -205,9 +205,9 @@ int physmem_proc(struct proc_file *pf, void *arg) {
       pprintf(pf, "%08X ", PTOB(n));
     }
 
-    if (pfdb[n].tag == 'FREE') {
+    if (pfdb[n].tag == 0x46524545 /* FREE */) {
       pprintf(pf, ".");
-    } else if (pfdb[n].tag == 'RESV') {
+    } else if (pfdb[n].tag == 0x52455356 /* RESV */) {
       pprintf(pf, "-");
     } else if (pfdb[n].tag == 0) {
       pprintf(pf, "?");
@@ -262,7 +262,7 @@ void init_pfdb() {
 
   pfdb = (struct pageframe *) PFDBBASE;
   memset(pfdb, 0, pfdbpages * PAGESIZE);
-  for (i = 0; i < maxmem; i++) pfdb[i].tag = 'BAD';
+  for (i = 0; i < maxmem; i++) pfdb[i].tag = 0x00424144 /* BAD */;
 
   // Add all memory from memory map to page frame database
   memmap = &syspage->bootparams.memmap;
@@ -274,35 +274,35 @@ void init_pfdb() {
     if (last >= maxmem) last = maxmem;
 
     if (memmap->entry[i].type == MEMTYPE_RAM) {
-      for (j = first; j < last; j++) pfdb[j].tag = 'FREE';
+      for (j = first; j < last; j++) pfdb[j].tag = 0x46524545 /* FREE */;
       totalmem += (last - first);
     } else if (memmap->entry[i].type == MEMTYPE_RESERVED) {
-      for (j = first; j < last; j++) pfdb[j].tag = 'RESV';
+      for (j = first; j < last; j++) pfdb[j].tag = 0x52455356 /* RESV */;
     }
   }
 
   // Reserve physical page 0 for BIOS
-  pfdb[0].tag = 'RESV';
+  pfdb[0].tag = 0x52455356 /* RESV */;
   totalmem--;
 
   // Add interval [heapstart:heap] to pfdb as page table pages
-  for (i = syspage->ldrparams.heapstart / PAGESIZE; i < heap / PAGESIZE; i++) pfdb[i].tag = 'PTAB';
+  for (i = syspage->ldrparams.heapstart / PAGESIZE; i < heap / PAGESIZE; i++) pfdb[i].tag = 0x50544142 /* PTAB */;
 
   // Reserve DMA buffers at 0x10000 (used by floppy driver)
-  for (i = DMA_BUFFER_START / PAGESIZE; i < DMA_BUFFER_START / PAGESIZE + DMA_BUFFER_PAGES; i++) pfdb[i].tag = 'DMA';
+  for (i = DMA_BUFFER_START / PAGESIZE; i < DMA_BUFFER_START / PAGESIZE + DMA_BUFFER_PAGES; i++) pfdb[i].tag = 0x00444d41 /* DMA */;
 
   // Fixup tags for pfdb and syspage and intial tcb
-  set_pageframe_tag(pfdb, pfdbpages * PAGESIZE, 'PFDB');
-  set_pageframe_tag(syspage, PAGESIZE, 'SYS');
-  set_pageframe_tag(self(), TCBSIZE, 'TCB');
-  set_pageframe_tag((void *) INITRD_ADDRESS, syspage->ldrparams.initrd_size, 'BOOT');
+  set_pageframe_tag(pfdb, pfdbpages * PAGESIZE, 0x50464442 /* PFDB */);
+  set_pageframe_tag(syspage, PAGESIZE, 0x00535953 /* SYS */);
+  set_pageframe_tag(self(), TCBSIZE, 0x00544342 /* TCB */);
+  set_pageframe_tag((void *) INITRD_ADDRESS, syspage->ldrparams.initrd_size, 0x424f4f54 /* BOOT */);
 
   // Insert all free pages into free list
   pf = pfdb + maxmem;
   do {
     pf--;
 
-    if (pf->tag == 'FREE') {
+    if (pf->tag == 0x46524545 /* FREE */) {
       pf->next = freelist;
       freelist = pf;
       freemem++;

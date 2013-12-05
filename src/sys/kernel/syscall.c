@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -46,7 +46,7 @@ struct syscall_entry {
   char *name;
   int paramsize;
   char *argfmt;
-  int (*func)(char *); 
+  int (*func)(char *);
 };
 
 #ifdef SYSCALL_PROFILE
@@ -54,7 +54,7 @@ static unsigned long sccnt[SYSCALL_MAX  + 1];
 static unsigned long scerr[SYSCALL_MAX  + 1];
 #endif
 
-static __inline int lock_buffer(void *buffer, int size, int modify) {
+__inline int lock_buffer(void *buffer, int size, int modify) {
 #ifdef SYSCALL_CHECKBUFFER
   if (buffer) {
     if (size < 0) return -EINVAL;
@@ -65,10 +65,10 @@ static __inline int lock_buffer(void *buffer, int size, int modify) {
   return 0;
 }
 
-static __inline void unlock_buffer(void *buffer, int size) {
+__inline void unlock_buffer(void *buffer, int size) {
 }
 
-static __inline int lock_string(char *s) {
+__inline int lock_string(char *s) {
 #ifdef SYSCALL_CHECKBUFFER
   if (s) {
     if (!str_access(s, PT_USER_READ)) return -EFAULT;
@@ -78,10 +78,10 @@ static __inline int lock_string(char *s) {
   return 0;
 }
 
-static __inline void unlock_string(char *s) {
+__inline void unlock_string(char *s) {
 }
 
-static __inline int lock_iovec(struct iovec *iov, int count, int modify) {
+__inline int lock_iovec(struct iovec *iov, int count, int modify) {
 #ifdef SYSCALL_CHECKBUFFER
   int rc;
 
@@ -92,10 +92,10 @@ static __inline int lock_iovec(struct iovec *iov, int count, int modify) {
   return 0;
 }
 
-static __inline void unlock_iovec(struct iovec *iov, int count) {
+__inline void unlock_iovec(struct iovec *iov, int count) {
 }
 
-static __inline int lock_fdset(fd_set *fds, int modify) {
+__inline int lock_fdset(fd_set *fds, int modify) {
 #ifdef SYSCALL_CHECKBUFFER
   if (fds) {
     if (!mem_access(fds, sizeof(int), modify ? PT_USER_WRITE : PT_USER_READ)) return -EFAULT;
@@ -108,7 +108,7 @@ static __inline int lock_fdset(fd_set *fds, int modify) {
   return 0;
 }
 
-static __inline void unlock_fdset(fd_set *fds) {
+__inline void unlock_fdset(fd_set *fds) {
 }
 
 static int sys_null(char *params) {
@@ -116,7 +116,7 @@ static int sys_null(char *params) {
 }
 
 static int sys_mkfs(char *params) {
-  char *devname; 
+  char *devname;
   char *type;
   char *opts;
   int rc;
@@ -150,7 +150,7 @@ static int sys_mkfs(char *params) {
 static int sys_mount(char *params) {
   char *type;
   char *mntto;
-  char *mntfrom; 
+  char *mntfrom;
   char *opts;
   int rc;
 
@@ -333,7 +333,7 @@ static int sys_read(char *params) {
 
   o = olock(h, OBJECT_ANY);
   if (!o) return -EBADF;
-  
+
   if (lock_buffer(data, size, 1) < 0) {
     orel(o);
     return -EFAULT;
@@ -379,7 +379,7 @@ static int sys_write(char *params) {
   } else {
     rc = -EBADF;
   }
-  
+
   orel(o);
   unlock_buffer(data, size);
 
@@ -406,7 +406,7 @@ static int sys_ioctl(char *params) {
     orel(o);
     return -EFAULT;
   }
-  
+
   if (o->type == OBJECT_FILE) {
     rc = ioctl((struct file *) o, cmd, data, size);
   } else if (o->type == OBJECT_SOCKET) {
@@ -1301,7 +1301,7 @@ static int sys_gettimeofday(char *params) {
   tv->tv_usec = systemclock.tv_usec;
 
   unlock_buffer(tv, sizeof(struct timeval));
-  
+
   return 0;
 }
 
@@ -1382,7 +1382,7 @@ static int sys_accept(char *params) {
     orel(s);
     return -EFAULT;
   }
-  
+
   if (lock_buffer(addrlen, sizeof(int), 1) < 0) {
     orel(s);
     unlock_buffer(addr, sizeof(struct sockaddr));
@@ -1420,7 +1420,7 @@ static int sys_bind(char *params) {
     orel(s);
     return -EFAULT;
   }
-  
+
   rc = bind(s, name, namelen);
 
   orel(s);
@@ -1447,7 +1447,7 @@ static int sys_connect(char *params) {
     orel(s);
     return -EFAULT;
   }
-  
+
   rc = connect(s, name, namelen);
 
   orel(s);
@@ -1474,7 +1474,7 @@ static int sys_getpeername(char *params) {
     orel(s);
     return -EFAULT;
   }
-  
+
   if (lock_buffer(namelen, 4, 1) < 0) {
     orel(s);
     unlock_buffer(name, sizeof(struct sockaddr));
@@ -1508,7 +1508,7 @@ static int sys_getsockname(char *params) {
     orel(s);
     return -EFAULT;
   }
-  
+
   if (lock_buffer(namelen, 4, 1) < 0) {
     orel(s);
     unlock_buffer(name, sizeof(struct sockaddr));
@@ -1603,7 +1603,7 @@ static int sys_recv(char *params) {
     orel(s);
     return -EFAULT;
   }
-  
+
   rc = recv(s, data, size, flags);
 
   orel(s);
@@ -1680,7 +1680,7 @@ static int sys_send(char *params) {
     orel(s);
     return -EFAULT;
   }
-  
+
   rc = send(s, data, size, flags);
 
   orel(s);
@@ -1845,7 +1845,7 @@ static int sys_writev(char *params) {
 
   o = olock(h, OBJECT_ANY);
   if (!o) return -EBADF;
-  
+
   if (lock_iovec(iov, count, 0) < 0) {
     orel(o);
     return -EFAULT;
@@ -1949,7 +1949,7 @@ static int sys_recvmsg(char *params) {
     orel(s);
     return -EFAULT;
   }
-  
+
   if (lock_iovec(msg->msg_iov, msg->msg_iovlen, 1) < 0) {
     unlock_buffer(msg, sizeof(struct msghdr));
     orel(s);
@@ -1990,7 +1990,7 @@ static int sys_sendmsg(char *params) {
     orel(s);
     return -EFAULT;
   }
-  
+
   if (lock_iovec(msg->msg_iov, msg->msg_iovlen, 0) < 0) {
     unlock_buffer(msg, sizeof(struct msghdr));
     orel(s);
@@ -2099,7 +2099,7 @@ static int sys_setmode(char *params) {
 
   f = (struct file *) olock(h, OBJECT_FILE);
   if (!f) return -EBADF;
-  
+
   rc = setmode(f, mode);
 
   orel(f);
@@ -2241,7 +2241,7 @@ static int sys_pread(char *params) {
 
   o = olock(h, OBJECT_FILE);
   if (!o) return -EBADF;
-  
+
   if (lock_buffer(data, size, 1) < 0) {
     orel(o);
     return -EFAULT;
@@ -2398,7 +2398,7 @@ static int sys_fchown(char *params) {
 
   f = (struct file *) olock(h, OBJECT_FILE);
   if (!f) return -EBADF;
-  
+
   rc = fchown(f, owner, group);
 
   orel(f);
@@ -2434,7 +2434,7 @@ static int sys_poll(char *params) {
   timeout = *(int *) (params + 8);
 
   if (lock_buffer(fds, nfds * sizeof(struct pollfd), 1) < 0) return -EFAULT;
-  
+
   rc = poll(fds, nfds, timeout);
 
   unlock_buffer(fds, nfds * sizeof(struct pollfd));
@@ -2451,7 +2451,7 @@ static int sys_getcwd(char *params) {
   size = *(unsigned int *) (params + 4);
 
   if (lock_buffer(buf, size, 1) < 0) return -EFAULT;
-  
+
   rc = getcwd(buf, size);
 
   unlock_buffer(buf, size);
@@ -2470,7 +2470,7 @@ static int sys_sendsig(char *params) {
 
   t = (struct thread *) olock(h, OBJECT_THREAD);
   if (!t) return -EBADF;
-  
+
   rc = send_user_signal(t, signum);
 
   orel(t);

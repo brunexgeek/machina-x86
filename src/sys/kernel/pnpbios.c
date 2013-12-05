@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -47,7 +47,7 @@ struct {
   {{0x01, 0x02, 0x00}, "Floppy disk controller"},
   {{0x01, 0x03, 0x00}, "IPI controller"},
   {{0x01, 0x80, 0x00}, "Mass storage controller"},
-  
+
   {{0x02, 0x00, 0x00}, "Ethernet controller"},
   {{0x02, 0x01, 0x00}, "Token Ring network controller"},
   {{0x02, 0x02, 0x00}, "FDDI network controller"},
@@ -57,11 +57,11 @@ struct {
   {{0x03, 0x00, 0x01}, "VESA SVGA controller"},
   {{0x03, 0x01, 0x00}, "XGA controller"},
   {{0x03, 0x80, 0x00}, "Display controller"},
-  
+
   {{0x04, 0x00, 0x00}, "Video controller"},
   {{0x04, 0x01, 0x00}, "Audio controller"},
   {{0x04, 0x80, 0x00}, "Multi-media controller"},
-  
+
   {{0x05, 0x00, 0x00}, "RAM memory"},
   {{0x05, 0x01, 0x00}, "Flash memory"},
   {{0x05, 0x80, 0x00}, "Memory"},
@@ -73,7 +73,7 @@ struct {
   {{0x06, 0x04, 0x00}, "PCI bridge"},
   {{0x06, 0x05, 0x00}, "PCMCIA bridge"},
   {{0x06, 0x80, 0x00}, "Bridge"},
- 
+
   {{0x07, 0x00, 0x00}, "RS-232 port"},
   {{0x07, 0x00, 0x01}, "RS-232 port (16450-compatible)"},
   {{0x07, 0x00, 0x02}, "RS-232 port (16550-compatible)"},
@@ -81,7 +81,7 @@ struct {
   {{0x07, 0x01, 0x01}, "Bidirectional parallel port"},
   {{0x07, 0x01, 0x02}, "ECP parallel port"},
   {{0x07, 0x80, 0x00}, "Communication device"},
-  
+
   {{0x08, 0x00, 0x00}, "8259 PIC"},
   {{0x08, 0x00, 0x01}, "ISA PIC"},
   {{0x08, 0x00, 0x02}, "EISA PIC"},
@@ -103,7 +103,7 @@ struct {
 
   {{0x0A, 0x00, 0x00}, "Docking station"},
   {{0x0A, 0x80, 0x00}, "Docking station"},
-  
+
   {{0x0B, 0x00, 0x00}, "386-based processor"},
   {{0x0B, 0x01, 0x00}, "486-based processor"},
   {{0x0B, 0x02, 0x00}, "Pentium-based processor"},
@@ -124,49 +124,50 @@ static unsigned char pnp_bios_thunk[] = {
 
 static int pnp_bios_call(int func, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6, int arg7) {
   int status;
+// WARNING:
+    __asm__
+    (
+        "CLI;"
+        "push ebp;"
+        "push edi;"
+        "push esi;"
+        "push ds;"
+        "push es;"
+        "push fs;"
+        "push gs;"
+        "pushf;"
 
-  __asm {
-    CLI
-    push ebp
-    push edi
-    push esi
-    push ds
-    push es
-    push fs
-    push gs
-    pushf
+        "mov eax, [arg1];"
+        "shl eax, 16;"
+        "or eax, [func];"
 
-    mov eax, [arg1]
-    shl eax, 16
-    or eax, [func]
+        "mov ebx, [arg3];"
+        "shl ebx, 16;"
+        "or ebx, [arg2];"
 
-    mov ebx, [arg3]
-    shl ebx, 16
-    or ebx, [arg2]
+        "mov ecx, [arg5];"
+        "shl ecx, 16;"
+        "or ecx, [arg4];"
 
-    mov ecx, [arg5]
-    shl ecx, 16
-    or ecx, [arg4]
+        "mov edx, [arg7];"
+        "shl edx, 16;"
+        "or edx, [arg6];"
 
-    mov edx, [arg7]
-    shl edx, 16
-    or edx, [arg6]
+        "call fword ptr [pnp_thunk_entrypoint];"
 
-    call fword ptr [pnp_thunk_entrypoint]
+        "popf;"
+        "pop gs;"
+        "pop fs;"
+        "pop es;"
+        "pop ds;"
+        "pop esi;"
+        "pop edi;"
+        "pop ebp;"
 
-    popf
-    pop gs
-    pop fs
-    pop es
-    pop ds
-    pop esi
-    pop edi
-    pop ebp
-
-    STI
-    and eax, 0x0000FFFF
-    mov [status], eax
-  }
+        "STI;"
+        "and eax, 0x0000FFFF;"
+        "mov [status], eax;"
+    );
 
   return status;
 }
@@ -185,14 +186,14 @@ static int pnp_bios_dev_node_info(struct pnp_dev_node_info *data) {
   return status;
 }
 
-// 
+//
 // Call PnP BIOS with function 0x01, "Get system device node"
 //
 // Input:
-//  *nodenum = desired node, 
+//  *nodenum = desired node,
 //  boot = whether to get nonvolatile boot (!=0) or volatile current (0) config
 //
-// Output: 
+// Output:
 //   *nodenum=next node or 0xff if no more nodes
 //
 
@@ -296,7 +297,7 @@ static void extract_node_resource_data(struct pnp_bios_node *node, struct unit *
           add_resource(unit, RESOURCE_MEM, 0, addr, len);
           break;
         }
-        
+
         case 0x02: { // Device name
           int len = *(short *) &p[1];
           unit->productname = (char *) kmalloc(len + 1);
@@ -330,7 +331,7 @@ static void extract_node_resource_data(struct pnp_bios_node *node, struct unit *
 
      // Test for end tag
     if ((p[0] >> 3) == 0x0F) break;
-                  
+
     switch (p[0] >> 3) {
       case 0x04: { // IRQ
         int i, mask, irq = -1;
@@ -415,7 +416,7 @@ static void build_sys_devlist(struct bus *bus) {
   kfree(node);
 }
 
-int enum_pnp_mem(struct unit *unit, unsigned char *b) {       
+int enum_pnp_mem(struct unit *unit, unsigned char *b) {
   int i = 0;
   unsigned long int start, len, more = 1;
 
@@ -442,7 +443,7 @@ int enum_pnp_mem(struct unit *unit, unsigned char *b) {
     if (len == 0) len = 64 * 1024 * 1024;
 
     add_resource(unit, RESOURCE_MEM, 0, start, len);
- 
+
     i += 7;
   }
 
@@ -486,7 +487,7 @@ int enum_pnp_dma(struct unit *unit, unsigned char *b) {
     transfer = (b[i + 1] >> 2) & 0x03;
     timing = (b[i + 1] >> 4) & 0x03;
     // b[i + 2] & 0xc3 set to 0 (reserved)
-    
+
     add_resource(unit, RESOURCE_DMA, 0, dma, 1);
 
     i += 2;
@@ -546,7 +547,7 @@ static int enum_pnp_board(struct bus *bus, unsigned char *b) {
     //if (b[off + 1] != 0) kprintf("escd: b[0x%x]=0x%x, expected 0\n", off + 1, b[off + 1]);
     //if (b[off + 2] != 1) kprintf("escd: b[0x%x]=0x%x, expected 1\n", off + 2, b[off + 2]);
     //if (b[off + 3] != 0) kprintf("escd: b[0x%x]=0x%x, expected 0\n", off + 3, b[off + 3]);
-    
+
     if (type == 0xc0) {
       //showfreeform(&b[off + 4]);
       break;
@@ -673,7 +674,7 @@ int enum_isapnp(struct bus *bus) {
   return 0;
 }
 
-int __declspec(dllexport) isapnp(struct unit *unit) {
+int /*__declspec(dllexport)*/ isapnp(struct unit *unit) {
   struct bus *isabus;
 
   isabus = add_bus(unit, BUSTYPE_ISA, 0);

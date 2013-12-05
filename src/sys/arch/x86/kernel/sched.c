@@ -38,46 +38,48 @@
 #define DEFAULT_INITIAL_STACK_COMMIT (8 * 1024)
 
 
-__declspec(naked) struct thread *self()
+/*__declspec(naked)*/ struct thread *self()
 {
-    __asm {
-        mov eax, esp
-        and eax, TCBMASK
-        ret
-    }
+    __asm__
+    (
+        "mov eax, esp;"
+        "and eax, TCBMASK;"
+        "ret;"
+    );
 }
 
 
-__declspec(naked) void switch_context(struct thread *t)
+/*__declspec(naked)*/ void switch_context(struct thread *t)
 {
-    __asm {
+    __asm__
+    (
         // Save registers on current kernel stack
-        push    ebp
-        push    ebx
-        push    edi
-        push    esi
+        "push    ebp;"
+        "push    ebx;"
+        "push    edi;"
+        "push    esi;"
 
         // Store kernel stack pointer in tcb
-        mov     eax, esp
-        and     eax, TCBMASK
-        add     eax, TCBESP
-        mov     [eax], esp
+        "mov     eax, esp;"
+        "and     eax, TCBMASK;"
+        "add     eax, TCBESP;"
+        "mov     [eax], esp;"
 
         // Get stack pointer for new thread and store in esp0
-        mov     eax, 20[esp]
-        add     eax, TCBESP
-        mov     esp, [eax]
-        mov     ebp, TSS_ESP0
-        mov     [ebp], eax
+        "mov     eax, 20[esp];"
+        "add     eax, TCBESP;"
+        "mov     esp, [eax];"
+        "mov     ebp, TSS_ESP0;"
+        "mov     [ebp], eax;"
 
         // Restore registers from new kernel stack
-        pop     esi
-        pop     edi
-        pop     ebx
-        pop     ebp
+        "pop     esi;"
+        "pop     edi;"
+        "pop     ebx;"
+        "pop     ebp;"
 
-        ret
-    }
+        "ret;"
+    );
 }
 
 
@@ -123,11 +125,14 @@ void mark_thread_running() {
 #endif
 
         // Reload FS register
-        __asm
-        {
-            mov ax, SEL_TIB + SEL_RPL3
-            mov fs, ax
-        }
+        __asm__
+        (
+            "mov ax, %0 + %1;"
+            "mov fs, ax;"
+            :
+            : "i" (SEL_TIB), "i" (SEL_RPL3)
+            : "eax"
+        );
     }
 }
 
@@ -148,19 +153,22 @@ void user_thread_start(void *arg)
 
     // Switch to usermode and start excuting thread routine
     entrypoint = t->entrypoint;
-    __asm
-    {
-        mov eax, stacktop
-        mov ebx, entrypoint
+    __asm__
+    (
+        "mov eax, %3;"
+        "mov ebx, %4;"
 
-        push SEL_UDATA + SEL_RPL3
-        push eax
-        pushfd
-        push SEL_UTEXT + SEL_RPL3
-        push ebx
-        mov ax, SEL_UDATA + SEL_RPL3
-        mov ds, ax
-        mov es, ax
-        IRETD
-    }
+        "push %0 + %2;"
+        "push eax;"
+        "pushfd;"
+        "push %1 + %2;"
+        "push ebx;"
+        "mov ax, %0 + %2;"
+        "mov ds, ax;"
+        "mov es, ax;"
+        "IRETD;"
+        :
+        : "i" (SEL_UDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3), "m" (stacktop), "m" (entrypoint)
+        : "eax"
+    );
 }

@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -49,13 +49,13 @@ void sound(unsigned short freq)  {
   freqdiv = 1193180 / freq;
 
   // Counter 2 select, binary 16-bit counter, first bits 0-7
-  outp(0x43, 0xB6); 
-         
+  outp(0x43, 0xB6);
+
   // First bits 0-7
   outp(0x42, (unsigned char) freqdiv);
-  
+
   // Then bits 8-15
-  outp(0x42, (unsigned char) (freqdiv >> 8)); 
+  outp(0x42, (unsigned char) (freqdiv >> 8));
 
   // Only output if bits are not correctly set
   b = inp(0x61);
@@ -74,7 +74,7 @@ void nosound()  {
   // Output
   outp(0x61, b);
 }
- 
+
 void beep()  {
   sound(1000);
   msleep(250);
@@ -84,7 +84,7 @@ void beep()  {
 void init_serial_console() {
   // Turn off interrupts
   outp(SERIAL_CONSOLE_PORT + 1, 0);
-  
+
   // Set 115200 baud, 8 bits, no parity, one stopbit
   outp(SERIAL_CONSOLE_PORT + 3, 0x80);
   outp(SERIAL_CONSOLE_PORT + 0, 0x01); // 0x0C = 9600, 0x01 = 115200
@@ -154,7 +154,7 @@ static int console_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
       }
       return kbhit();
   }
-  
+
   return -ENOSYS;
 }
 
@@ -175,18 +175,18 @@ static int console_read(struct dev *dev, void *buffer, size_t count, blkno_t blk
       if (ch == -ETIMEOUT && (flags & DEVFLAG_NBIO)) return -EAGAIN;
       return ch;
     }
-    
+
     if (ch < ' ') {
       struct thread *t = self();
       if (ch == CTRL('C') && (t->blocked_signals & (1 << SIGINT)) == 0) send_user_signal(t, SIGINT);
       if (ch == CTRL('Z') && (t->blocked_signals & (1 << SIGTSTP)) == 0) send_user_signal(t, SIGTSTP);
       if (ch == CTRL('\\') && (t->blocked_signals & (1 << SIGABRT)) == 0) send_user_signal(t, SIGABRT);
     }
-    
+
     *p++ = ch;
   }
 
-  return count; 
+  return count;
 }
 
 static int console_write(struct dev *dev, void *buffer, size_t count, blkno_t blkno, int flags) {
@@ -208,7 +208,7 @@ struct driver console_driver = {
   console_write
 };
 
-int __declspec(dllexport) console(struct unit *unit, char *opts) {
+int /*__declspec(dllexport)*/ console(struct unit *unit, char *opts) {
   dev_t devno = dev_make("console", &console_driver, NULL, NULL);
   init_keyboard(devno, get_num_option(opts, "resetkbd", 0));
 

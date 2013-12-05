@@ -3,21 +3,22 @@
 //
 // Programmable Interval Timer functions (PIT i8253)
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +28,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -197,29 +198,32 @@ static void tsc_delay(unsigned long cycles) {
 
   end = (unsigned long) rdtsc() + cycles;
   do  {
-    __asm { nop };
+    __asm__("nop");
     now = (unsigned long) rdtsc();
   } while (end - now > 0);
 }
 
 static void timed_delay(unsigned long loops) {
-  __asm {
-    delay_loop:
-      dec loops
-      jns delay_loop; 
-  }
+    __asm__
+    (
+        "delay_loop:"
+        "dec %0;"
+        "jns delay_loop;"
+        :
+        : "ir" (loops)
+    );
 }
 
 void calibrate_delay() {
   static int cpu_speeds[] =  {
-    16, 20, 25, 33, 40, 50, 60, 66, 75, 80, 90, 
+    16, 20, 25, 33, 40, 50, 60, 66, 75, 80, 90,
     100, 110, 120, 133, 150, 166, 180, 188,
     200, 233, 250, 266,
-    300, 333, 350, 366, 
-    400, 433, 450, 466, 
-    500, 533, 550, 566, 
-    600, 633, 650, 667, 
-    700, 733, 750, 766, 
+    300, 333, 350, 366,
+    400, 433, 450, 466,
+    500, 533, 550, 566,
+    600, 633, 650, 667,
+    700, 733, 750, 766,
     800, 833, 850, 866,
     900, 933, 950, 966,
     1000, 1130, 1200, 1260
@@ -248,7 +252,7 @@ void calibrate_delay() {
     while (loops_per_tick <<= 1) {
       t = ticks;
       while (t == ticks);
-    
+
       t = ticks;
       timed_delay(loops_per_tick);
       if (t != ticks) break;

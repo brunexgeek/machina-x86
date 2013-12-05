@@ -213,6 +213,7 @@ class CMakefileTarget(MakefileTarget):
 		print "\t@mkdir -p", self._toVar("OUT_DIR")
 		# check if the current target is for BIN_DYNAMIC or BIN_EXECUTABLE
 		if ((self.target[FIELD_TYPE] & BIN_STATIC) == 0):
+			compiler = "$(CC)"
 			print "\t" + compiler, \
 				self._toVar("CFLAGS"), \
 				"-DTARGET_MACHINE=$(TARGET_MACHINE)", \
@@ -346,38 +347,10 @@ class MakefileGenerator:
 #
 
 generator = MakefileGenerator()
-generator.addVariable("CFLAGS", "$(CFLAGS) -Wimplicit")
-generator.addVariable("TCC", "build/tools/cc")
-generator.addVariable("NASM", "build/tools/as")
-generator.addVariable("AR", "build/tools/ar")
+generator.addVariable("CFLAGS", "$(CFLAGS) -O0 -m32 -masm=intel -mtune=i686")
+generator.addVariable("NASM", "build/tools/nasm")
 generator.addVariable("TARGET_MACHINE", "x86")
 
-#
-# Tiny C Compiler for GNU/Linux
-#
-target = {}
-target[FIELD_NAME] = "tinycc"
-target[FIELD_DESCRIPTION] = "Tiny C Compiler for GNU/Linux"
-target[FIELD_PREFFIX] = "TCC"
-target[FIELD_TYPE] = BIN_EXECUTABLE
-target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
-target[FIELD_OUTPUT_FILE] = "cc"
-target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/bin/cc"
-target[FIELD_SOURCE_DIRECTORY] = "src/bin/cc"
-target[FIELD_SOURCES] = \
-	["asm386.c", \
-	"asm.c", \
-	"cc.c", \
-	"codegen386.c", \
-	"codegen.c", \
-	"compiler.c", \
-	"elf.c", \
-	"pe.c", \
-	"preproc.c", \
-	"symbol.c", \
-	"type.c", \
-	"util.c" ]
-generator.addTarget(target);
 #
 # NASM x86 Assembler for GNU/Linux
 #
@@ -389,8 +362,8 @@ target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-DOF_ONLY -DOF_ELF32 -DOF_WIN32 -DOF_COFF -DOF_OBJ -DOF_BIN " \
 	"-DOF_DBG -DOF_DEFAULT=of_elf32 -DHAVE_SNPRINTF -DHAVE_VSNPRINTF -Isrc/bin/as"
 target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
-target[FIELD_OUTPUT_FILE] = "as"
-target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/bin/as"
+target[FIELD_OUTPUT_FILE] = "nasm"
+target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/bin/nasm"
 target[FIELD_SOURCE_DIRECTORY] = "src/bin/as"
 target[FIELD_SOURCES] = \
 	["nasm.c", \
@@ -434,20 +407,6 @@ target[FIELD_SOURCES] = \
 	"output/outdbg.c" ]
 generator.addTarget(target);
 #
-# AR Tool for x86
-#
-target = {}
-target[FIELD_NAME] = "archiver"
-target[FIELD_DESCRIPTION] = "AR Tool for x86"
-target[FIELD_PREFFIX] = "AR"
-target[FIELD_TYPE] = BIN_EXECUTABLE
-target[FIELD_OUTPUT_DIRECTORY] = "build/tools"
-target[FIELD_OUTPUT_FILE] = "ar"
-target[FIELD_OBJECT_DIRECTORY] = "build/linux/obj/bin/ar"
-target[FIELD_SOURCE_DIRECTORY] = "src/bin/ar"
-target[FIELD_SOURCES] = ["ar.c" ]
-generator.addTarget(target);
-#
 # MKDFS Tool for GNU/Linux
 #
 target = {}
@@ -478,16 +437,16 @@ generator.addTarget(target);
 target = {}
 target[FIELD_DESCRIPTION] = "Machina Kernel Image for x86"
 target[FIELD_PREFFIX] = "KERNEL32"
-target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
-target[FIELD_CFLAGS] = "-I src/include -D KERNEL -D KRNL_LIB"
-target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x80000000 -filealign 4096 -nostdlib"
-target[FIELD_DEPENDENCIES] = ["tinycc", "nasm"]
+target[FIELD_TYPE] = BIN_EXECUTABLE
+target[FIELD_CFLAGS] = "-I src/include -D KERNEL -D KRNL_LIB -nostdlib"
+target[FIELD_LDFLAGS] = "-nostdlib -shared"
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "kernel32.img"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
-	["sys/kernel/apm.c", \
+	[ \
+	#"sys/kernel/apm.c", \
 	"sys/kernel/buf.c", \
 	"sys/kernel/cpu.c", \
 	"sys/kernel/dbg.c", \
@@ -593,7 +552,7 @@ target[FIELD_PREFFIX] = "LIBKERNEL"
 target[FIELD_TYPE] = BIN_DYNAMIC | BIN_MACHINA
 target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
 target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x7FF00000 -nostdlib"
-target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as"]
+target[FIELD_DEPENDENCIES] = ["build/tools/nasm"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "kernel32.so"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel32"
@@ -777,7 +736,7 @@ generator.addTarget(target);
 #
 target = {}
 target[FIELD_NAME] = "bootldr-stub"
-target[FIELD_DESCRIPTION] = "Machina Stage 2 Bootloader Stub"
+target[FIELD_DESCRIPTION] = "Machina Stage 2 Bootloader"
 target[FIELD_PREFFIX] = "BOOTLDRSTUB"
 target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
 target[FIELD_NFLAGS] = "-f bin"
@@ -799,7 +758,7 @@ target[FIELD_PREFFIX] = "BOOTLDR"
 target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
 target[FIELD_CFLAGS] = "-D OSLDR -D KERNEL -I src/include"
 target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x00090000 -filealign 4096 -nostdlib -stub build/machina/obj/bootldr/ldrinit.exe"
-target[FIELD_DEPENDENCIES] = ["nasm", "build/machina/obj/bootldr/ldrinit.exe"]
+target[FIELD_DEPENDENCIES] = ["nasm", "bootldr-stub"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "bootldr.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/bootldr"

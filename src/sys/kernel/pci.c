@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -126,58 +126,58 @@ struct {
   {0x000000, NULL}
 };
 
-static __inline unsigned char pci_read_byte(int busno, int devno, int funcno, int addr) {
+__inline unsigned char pci_read_byte(int busno, int devno, int funcno, int addr) {
   outpd(PCI_CONFIG_ADDR, ((unsigned long) 0x80000000 | (busno << 16) | (devno << 11) | (funcno << 8) | addr));
   return inp(PCI_CONFIG_DATA);
 }
 
-static __inline unsigned short pci_read_word(int busno, int devno, int funcno, int addr) {
+__inline unsigned short pci_read_word(int busno, int devno, int funcno, int addr) {
   outpd(PCI_CONFIG_ADDR, ((unsigned long) 0x80000000 | (busno << 16) | (devno << 11) | (funcno << 8) | addr));
   return inpw(PCI_CONFIG_DATA);
 }
 
-static __inline unsigned long pci_read_dword(int busno, int devno, int funcno, int addr) {
+__inline unsigned long pci_read_dword(int busno, int devno, int funcno, int addr) {
   outpd(PCI_CONFIG_ADDR, ((unsigned long) 0x80000000 | (busno << 16) | (devno << 11) | (funcno << 8) | addr));
   return inpd(PCI_CONFIG_DATA);
 }
 
-static __inline void pci_write_byte(int busno, int devno, int funcno, int addr, unsigned char value) {
+__inline void pci_write_byte(int busno, int devno, int funcno, int addr, unsigned char value) {
   outpd(PCI_CONFIG_ADDR, ((unsigned long) 0x80000000 | (busno << 16) | (devno << 11) | (funcno << 8) | addr));
   outp(PCI_CONFIG_DATA, value);
 }
 
-static __inline void pci_write_word(int busno, int devno, int funcno, int addr, unsigned short value) {
+__inline void pci_write_word(int busno, int devno, int funcno, int addr, unsigned short value) {
   outpd(PCI_CONFIG_ADDR, ((unsigned long) 0x80000000 | (busno << 16) | (devno << 11) | (funcno << 8) | addr));
   outpw(PCI_CONFIG_DATA, value);
 }
 
-static __inline void pci_write_dword(int busno, int devno, int funcno, int addr, unsigned long value) {
+__inline void pci_write_dword(int busno, int devno, int funcno, int addr, unsigned long value) {
   outpd(PCI_CONFIG_ADDR, ((unsigned long) 0x80000000 | (busno << 16) | (devno << 11) | (funcno << 8) | addr));
   outpd(PCI_CONFIG_DATA, value);
 }
 
 unsigned char pci_read_config_byte(struct unit *unit, int addr) {
-  return pci_read_byte(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr); 
+  return pci_read_byte(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr);
 }
 
 unsigned short pci_read_config_word(struct unit *unit, int addr) {
-  return pci_read_word(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr); 
+  return pci_read_word(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr);
 }
 
 unsigned long pci_read_config_dword(struct unit *unit, int addr) {
-  return pci_read_dword(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr); 
+  return pci_read_dword(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr);
 }
 
 void pci_write_config_byte(struct unit *unit, int addr, unsigned char value) {
-  pci_write_byte(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr, value); 
+  pci_write_byte(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr, value);
 }
 
 void pci_write_config_word(struct unit *unit, int addr, unsigned short value) {
-  pci_write_word(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr, value); 
+  pci_write_word(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr, value);
 }
 
 void pci_write_config_dword(struct unit *unit, int addr, unsigned long value) {
-  pci_write_dword(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr, value); 
+  pci_write_dword(unit->bus->busno, PCI_DEVNO(unit->unitno), PCI_FUNCNO(unit->unitno), addr, value);
 }
 
 void pci_read_buffer(struct unit *unit, int addr, void *buffer, int len) {
@@ -229,7 +229,7 @@ int pci_find_capability(struct unit *unit, int cap) {
   if (!(status & PCI_STATUS_CAP_LIST)) return 0;
 
   pos = pci_read_config_byte(unit, PCI_CONFIG_CAPABILITIES);
-  
+
   while (ttl-- && pos >= 0x40) {
     pos &= ~3;
     id = pci_read_config_byte(unit, pos + PCI_CAP_LIST_ID);
@@ -312,7 +312,7 @@ void enum_pci_bus(struct bus *bus) {
         unit = add_unit(bus, classcode, PCI_UNITCODE(vendorid, deviceid), PCI_UNITNO(devno, funcno));
       }
 
-      
+
       unit->classname = get_pci_class_name(classcode);
       unit->revision = revision;
 

@@ -3,7 +3,7 @@
 //
 // TCC runtime library
 //
-// Parts of this code are (c) 2002 Fabrice Bellard 
+// Parts of this code are (c) 2002 Fabrice Bellard
 //
 // Copyright (C) 1987, 1988, 1992, 1994, 1995 Free Software Foundation, Inc.
 //
@@ -29,10 +29,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program; see the file COPYING.  If not, write to
 // the Free Software Foundation, 59 Temple Place - Suite 330,
-// Boston, MA 02111-1307, USA.  
+// Boston, MA 02111-1307, USA.
 //
 
-#if defined(__GNUC__) || defined(__TINYC__)
+// WARNING:
+#if defined(__GNUCxxx__) || defined(__TINYC__)
 
 #define W_TYPE_SIZE   32
 #define BITS_PER_UNIT 8
@@ -370,7 +371,7 @@ unsigned long long __udivdi3(unsigned long long u, unsigned long long v) {
 
 unsigned long long __umoddi3(unsigned long long u, unsigned long long v) {
   UDWtype w;
-  
+
   __udivmoddi4(u, v, &w);
   return w;
 }
@@ -409,7 +410,7 @@ long long __shldi3(long long a, int b) {
   DWunion u;
 
   u.ll = a;
-  
+
   if (b >= 32) {
     u.s.high = (unsigned) u.s.low << (b - 32);
     u.s.low = 0;
@@ -429,7 +430,7 @@ unsigned short __tcc_int_fpu_control = 0x137f | 0x0c00;
 #endif
 
 float __ulltof(unsigned long long a) {
-  DWunion uu; 
+  DWunion uu;
   XFtype r;
 
   uu.ll = a;
@@ -443,7 +444,7 @@ float __ulltof(unsigned long long a) {
 }
 
 double __ulltod(unsigned long long a) {
-  DWunion uu; 
+  DWunion uu;
   XFtype r;
 
   uu.ll = a;
@@ -457,7 +458,7 @@ double __ulltod(unsigned long long a) {
 }
 
 long double __ulltold(unsigned long long a) {
-  DWunion uu; 
+  DWunion uu;
   XFtype r;
 
   uu.ll = a;

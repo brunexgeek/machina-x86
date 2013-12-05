@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #if _MSC_VER > 1000
 #pragma once
@@ -40,7 +40,7 @@
 
 #ifndef VERSION_H
 #include <os/version.h>
-#endif VERSION_H
+#endif
 
 #ifndef SYS_TYPES_H
 #include <sys/types.h>
@@ -58,9 +58,9 @@
 #define krnlapi
 #else
 #ifdef KRNL_LIB
-#define krnlapi __declspec(dllexport)
+#define krnlapi /*__declspec(dllexport)*/
 #else
-#define krnlapi __declspec(dllimport)
+#define krnlapi /*__declspec(dllimport)*/
 #endif
 #endif
 
@@ -188,7 +188,7 @@ struct section;
 // Spawn flags
 //
 
-#define P_WAIT      0        
+#define P_WAIT      0
 #define P_NOWAIT    1
 #define P_DETACH    4
 #define P_SUSPEND   8
@@ -438,7 +438,7 @@ struct section;
 #define ESOCKTNOSUPPORT 54               // Socket type not supported
 #define EOPNOTSUPP      55               // Operation not supported
 #define EPFNOSUPPORT    56               // Protocol family not supported
-#define EAFNOSUPPORT    57               // Address family not supported 
+#define EAFNOSUPPORT    57               // Address family not supported
 #define EADDRINUSE      58               // Address already in use
 #define EADDRNOTAVAIL   59               // Cannot assign requested address
 #define ENETDOWN        60               // Network is down
@@ -719,7 +719,7 @@ struct utimbuf  {
 #ifndef _IOVEC_DEFINED
 #define _IOVEC_DEFINED
 
-struct iovec { 
+struct iovec {
   size_t iov_len;
   void *iov_base;
 };
@@ -973,19 +973,19 @@ struct servent {
 #ifndef _XTONX_DEFINED
 #define _XTONX_DEFINED
 
-__inline unsigned short htons(unsigned short n) {
+static __inline unsigned short htons(unsigned short n) {
   return ((n & 0xFF) << 8) | ((n & 0xFF00) >> 8);
 }
 
-__inline unsigned short ntohs(unsigned short n) {
+static __inline unsigned short ntohs(unsigned short n) {
   return ((n & 0xFF) << 8) | ((n & 0xFF00) >> 8);
 }
 
-__inline unsigned long htonl(unsigned long n) {
+static __inline unsigned long htonl(unsigned long n) {
   return ((n & 0xFF) << 24) | ((n & 0xFF00) << 8) | ((n & 0xFF0000) >> 8) | ((n & 0xFF000000) >> 24);
 }
 
-__inline unsigned long ntohl(unsigned long n) {
+static __inline unsigned long ntohl(unsigned long n) {
   return ((n & 0xFF) << 24) | ((n & 0xFF00) << 8) | ((n & 0xFF0000) >> 8) | ((n & 0xFF000000) >> 24);
 }
 
@@ -1013,22 +1013,22 @@ typedef struct fd_set {
 #ifndef _FD_FUNCS_DEFINED
 #define _FD_FUNCS_DEFINED
 
-__inline void _fd_zero(fd_set *set) {
+static __inline void _fd_zero(fd_set *set) {
   set->count = 0;
 }
 
-__inline int _fd_isset(int fd, fd_set *set) {
+static __inline int _fd_isset(int fd, fd_set *set) {
   unsigned int i;
 
   for (i = 0; i < set->count; i++) if (set->fd[i] == fd) return 1;
   return 0;
 }
 
-__inline void _fd_set(int fd, fd_set *set) {
+static __inline void _fd_set(int fd, fd_set *set) {
   if (set->count < FD_SETSIZE) set->fd[set->count++] = fd;
 }
 
-__inline void _fd_clr(int fd, fd_set *set) {
+static __inline void _fd_clr(int fd, fd_set *set) {
   unsigned int i;
 
   for (i = 0; i < set->count ; i++) {
@@ -1226,7 +1226,7 @@ struct process {
   char *ident;                      // Process identifier for syslog
   int facility;                     // Default facility for syslog
 
-  char crtbase[CRTBASESIZE];        // Used by C runtime library 
+  char crtbase[CRTBASESIZE];        // Used by C runtime library
 };
 
 //
@@ -1630,7 +1630,7 @@ osapi int socket(int domain, int type, int protocol);
 osapi int res_send(const char *buf, int buflen, char *answer, int anslen);
 osapi int res_query(const char *dname, int cls, int type, unsigned char *answer, int anslen);
 osapi int res_search(const char *name, int cls, int type, unsigned char *answer, int anslen);
-osapi int res_querydomain(const char *name, const char *domain, int cls, int type, unsigned char *answer, int anslen); 
+osapi int res_querydomain(const char *name, const char *domain, int cls, int type, unsigned char *answer, int anslen);
 osapi int res_mkquery(int op, const char *dname, int cls, int type, char *data, int datalen, unsigned char *newrr, char *buf, int buflen);
 osapi int dn_comp(const char *src, unsigned char *dst, int dstsiz, unsigned char **dnptrs, unsigned char **lastdnptr);
 osapi int dn_expand(const unsigned char *msg, const unsigned char *eom, const unsigned char *src,  char *dst, int dstsiz);

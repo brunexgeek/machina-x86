@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os.h>
 #include <os/pe.h>
@@ -152,7 +152,7 @@ struct module *get_module_for_handle(struct moddb *db, hmodule_t hmod) {
     m = m->next;
     if (m == db->modules) break;
   }
- 
+
   return NULL;
 }
 
@@ -279,7 +279,7 @@ static char *get_module_name(struct moddb *db, char *name, char *path, int type)
     }
 
     *s = 0;
-    
+
     // Check that file exists and is executable.
     if (access(path, X_OK) < 0) return NULL;
   } else {
@@ -370,7 +370,7 @@ static void *get_proc_by_name(hmodule_t hmod, int hint, char *procname) {
     char *name = RVA(hmod,  *names);
     if (strcmp(name, procname) == 0) {
       unsigned short idx;
-      
+
       idx = *((unsigned short *) RVA(hmod, exp->address_of_name_ordinals) + i);
       return RVA(hmod, *((unsigned long *) RVA(hmod, exp->address_of_functions) + idx));
     }
@@ -434,7 +434,7 @@ static struct module *resolve_imports(struct module *mod) {
 
       if (modlist == mod) modlist = newmod;
     }
-    
+
     imp++;
   }
 
@@ -448,7 +448,7 @@ static int bind_imports(struct module *mod) {
   // Find import directory in image
   imp = (struct image_import_descriptor *) get_image_directory(mod->hmod, IMAGE_DIRECTORY_ENTRY_IMPORT);
   if (!imp) return 0;
-  
+
   if (imp->forwarder_chain != 0 && imp->forwarder_chain != 0xFFFFFFFF) {
     logmsg(mod->db, "import forwarder chains not supported (%s)", mod->name);
     return -ENOSYS;
@@ -464,12 +464,12 @@ static int bind_imports(struct module *mod) {
 
     name = RVA(mod->hmod, imp->name);
     expmod = get_module(mod->db, name, MODTYPE_DLL);
-    
+
     if (!expmod) {
       logmsg(mod->db, "module %s no longer loaded", name);
       return -ENOEXEC;
     }
-    
+
     thunks = (unsigned long *) RVA(mod->hmod, imp->first_thunk);
     origthunks = (unsigned long *) RVA(mod->hmod, imp->original_first_thunk);
     while (*thunks) {
@@ -592,7 +592,7 @@ static void update_refcount(struct module *mod) {
     struct module *depmod = get_module(mod->db, name, MODTYPE_DLL);
 
     if (depmod != NULL) depmod->refcnt++;
-    
+
     imp++;
   }
 
@@ -614,14 +614,14 @@ static int remove_module(struct module *mod) {
   }
 
   if (mod->flags & MODULE_IMPORTS_REFED) {
-    // Decrement reference count on all dependent modules 
+    // Decrement reference count on all dependent modules
     imp = (struct image_import_descriptor *) get_image_directory(mod->hmod, IMAGE_DIRECTORY_ENTRY_IMPORT);
     if (imp) {
       while (imp->characteristics != 0) {
         char *name = RVA(mod->hmod, imp->name);
         struct module *depmod = get_module(mod->db, name, MODTYPE_DLL);
 
-        if (depmod && --depmod->refcnt == 0) remove_module(depmod); 
+        if (depmod && --depmod->refcnt == 0) remove_module(depmod);
         imp++;
       }
     }
@@ -649,7 +649,7 @@ static int remove_module(struct module *mod) {
 
 static void free_unused_modules(struct moddb *db) {
   struct module *mod;
-  
+
   mod = db->modules;
   while (1) {
     if (mod->refcnt == 0) {
@@ -668,7 +668,7 @@ void *get_proc_address(hmodule_t hmod, char *procname) {
 
 hmodule_t get_module_handle(struct moddb *db, char *name) {
   struct module *mod;
-  
+
   if (!name || strlen(name) > MAXPATH - 1) return NULL;
   mod = get_module(db, name, MODTYPE_DLL);
   if (mod == NULL) mod = get_module(db, name, MODTYPE_EXE);
@@ -678,7 +678,7 @@ hmodule_t get_module_handle(struct moddb *db, char *name) {
 
 int get_module_filename(struct moddb *db, hmodule_t hmod, char *buffer, int size) {
   struct module *mod;
-  
+
   mod = get_module_for_handle(db, hmod);
   if (mod == NULL) return -EINVAL;
   strncpy(buffer, mod->path, size);
@@ -700,7 +700,7 @@ hmodule_t load_module(struct moddb *db, char *name, int flags) {
 
   // Check module name
   if (!name || strlen(name) > MAXPATH - 1) return NULL;
-  
+
   // Check if module is already loaded
   if ((flags & MODLOAD_NOSHARE) == 0) {
     mod = get_module(db, name, MODTYPE_DLL);
@@ -873,7 +873,7 @@ static struct image_resource_directory_entry *find_resource(char *resbase, struc
 
         left--;
       }
-      
+
       if (left == 0 && *p2 == 0) return direntry;
       direntry++;
     }
@@ -916,7 +916,7 @@ int get_resource_data(hmodule_t hmod, char *id1, char *id2, char *id3, void **da
 }
 
 int get_stack_trace(struct moddb *db, struct context *ctxt,
-                    void *stktop, void *stklimit, 
+                    void *stktop, void *stklimit,
                     struct stackframe *frames, int depth) {
   struct module *mod;
   struct stab *stab, *stab_end;
@@ -930,7 +930,7 @@ int get_stack_trace(struct moddb *db, struct context *ctxt,
     frames[i].eip = eip;
     frames[i].ebp = ebp;
     frames[i].line = -1;
-    
+
     mod = get_module_for_address(db, eip);
     if (mod) {
       frames[i].hmod = mod->hmod;
@@ -948,7 +948,7 @@ int get_stack_trace(struct moddb *db, struct context *ctxt,
             case N_SLINE:
               if (func && eip > (void *) (func->n_value + stab->n_value)) line = stab;
               break;
-              
+
             case N_FUN:
               if (func) {
                 if (stab->n_strx == 0 && eip < (void *) (func->n_value + stab->n_value)) {
@@ -1020,7 +1020,7 @@ int init_module_database(struct moddb *db, char *name, hmodule_t hmod, char *lib
       db->modpaths[n++] = path = (char *) malloc(q - p + 1);
       memcpy(path, p, q - p);
       path[q - p] = 0;
-      
+
       if (*q) {
         p = q + 1;
       } else {

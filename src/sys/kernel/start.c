@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,20 +27,20 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
 #ifdef BSD
-char *copyright = 
+char *copyright =
 "Redistribution and use in source and binary forms, with or without\n"
 "modification, are permitted provided that the following conditions\n"
 "are met:\n"
 "\n"
 "1. Redistributions of source code must retain the above copyright\n"
-"   notice, this list of conditions and the following disclaimer.\n" 
+"   notice, this list of conditions and the following disclaimer.\n"
 "2. Redistributions in binary form must reproduce the above copyright\n"
 "   notice, this list of conditions and the following disclaimer in the\n"
 "   documentation and/or other materials provided with the distribution.\n"
@@ -61,7 +61,7 @@ char *copyright =
 #endif
 
 #ifdef GPL
-char *copyright = 
+char *copyright =
 "This program is free software; you can redistribute it and/or modify it under\n"
 "the terms of the GNU General Public License as published by the Free Software\n"
 "Foundation; either version 2 of the License, or (at your option) any later\n"
@@ -203,7 +203,7 @@ static void init_filesystem() {
   init_pipefs();
   init_smbfs();
   init_cdfs();
- 
+
   // Determine boot device
   if ((syspage->ldrparams.bootdrv & 0xF0) == 0xF0) {
     create_initrd();
@@ -289,7 +289,7 @@ static int copyright_proc(struct proc_file *pf, void *arg) {
   return 0;
 }
 
-void __stdcall start(void *hmod, char *opts, int reserved2) {
+void /*__stdcall*/ start(void *hmod, char *opts, int reserved2) {
   // Copy kernel options
   strcpy(krnlopts, opts);
   if (get_option(opts, "silent", NULL, 0, NULL) != NULL) kprint_enabled = 0;
@@ -345,7 +345,7 @@ void __stdcall start(void *hmod, char *opts, int reserved2) {
   init_trap();
   init_fpu();
   init_pit();
-  
+
   // Initialize timers, scheduler, and handle manager
   init_timers();
   init_sched();
@@ -395,7 +395,7 @@ void main(void *arg) {
   char *console;
 
   // Allocate and initialize PEB
-  peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 'PEB', NULL);
+  peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 0x00504542 /* PEB */, NULL);
   if (!peb) panic("unable to allocate PEB");
   memset(peb, 0, PAGESIZE);
   peb->fast_syscalls_supported = (cpu.features & CPU_FEATURE_SEP) != 0;
@@ -484,9 +484,9 @@ void main(void *arg) {
   hprotect(t->hndl);
   mark_thread_running();
 
-  kprintf(KERN_INFO "mem: %dMB total, %dKB used, %dKB free, %dKB reserved\n", 
-          maxmem * PAGESIZE / (1024 * 1024), 
-          (totalmem - freemem) * PAGESIZE / 1024, 
+  kprintf(KERN_INFO "mem: %dMB total, %dKB used, %dKB free, %dKB reserved\n",
+          maxmem * PAGESIZE / (1024 * 1024),
+          (totalmem - freemem) * PAGESIZE / 1024,
           freemem * PAGESIZE / 1024, (maxmem - totalmem) * PAGESIZE / 1024);
 
   // Place arguments to start routine on stack
@@ -497,18 +497,21 @@ void main(void *arg) {
   *(--stacktop) = 0;
 
   // Jump into user mode
-  __asm {
-    mov eax, stacktop
-    mov ebx, entrypoint
+    __asm__
+    (
+        "mov eax, stacktop;"
+        "mov ebx, entrypoint;"
 
-    push SEL_UDATA + SEL_RPL3
-    push eax
-    pushfd
-    push SEL_UTEXT + SEL_RPL3
-    push ebx
-    mov ax, SEL_UDATA + SEL_RPL3
-    mov ds, ax
-    mov es, ax
-    IRETD
-  }
+        "push %0 + %2;"
+        "push eax;"
+        "pushfd;"
+        "push %1 + %2;"
+        "push ebx;"
+        "mov ax, %0 + %2;"
+        "mov ds, ax;"
+        "mov es, ax;"
+        "IRETD;"
+        :
+        : "i" (SEL_UDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3)
+    );
 }

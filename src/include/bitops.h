@@ -3,6 +3,7 @@
 //
 // Bitmap manipulation routines
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -38,57 +39,80 @@
 extern "C" {
 #endif
 
-__inline void set_bit(void *bitmap, int pos) {
-  __asm {
-    mov eax, pos
-    mov ebx, bitmap
-    bts dword ptr [ebx], eax
-  }
+static __inline void set_bit(void *bitmap, int pos) {
+    /*__asm__
+    (
+        "movs eax, pos"
+        "mov ebx, bitmap"
+        "bts dword ptr [ebx], eax"
+    );*/
+    *((unsigned int*)bitmap) = *((unsigned int*)bitmap) | (1 << pos);
 }
 
-__inline void clear_bit(void *bitmap, int pos) {
-  __asm {
-    mov eax, pos
-    mov ebx, bitmap
-    btr dword ptr [ebx], eax
-  }
+static __inline void clear_bit(void *bitmap, int pos)
+{
+    /*__asm__
+    (
+        "mov eax, pos"
+        "mov ebx, bitmap"
+        "btr dword ptr [ebx], eax"
+    );*/
+    *((unsigned int*)bitmap) = *((unsigned int*)bitmap) & ~(1 << pos);
 }
 
-__inline int test_bit(void *bitmap, int pos) {
-  int result;
+static __inline int test_bit(void *bitmap, int pos) {
+    /*
+    int result;
+    __asm__
+    (
+        "mov eax, pos"
+        "mov ebx, bitmap"
+        "bt dword ptr [ebx], eax"
+        "sbb eax, eax"
+        "mov result, eax"
+    );*/
+    unsigned int v;  // find the number of trailing zeros in 32-bit v
+    int r;           // result goes here
+    static const int table[32] =
+    {
+        0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+        31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
+    };
 
-  __asm {
-    mov eax, pos
-    mov ebx, bitmap
-    bt dword ptr [ebx], eax
-    sbb eax, eax
-    mov result, eax
-  }
-
-  return result;
+    v = *((unsigned int*)bitmap);
+    return table[((unsigned int)((v & -v) * 0x077CB531U)) >> 27];
 }
 
 static __inline int find_lowest_bit(unsigned mask) {
-  int n;
+    /*int n;
 
-  __asm {
-    bsf eax, mask
-    mov n, eax
-  }
-
-  return n;
+    __asm__
+    (
+        "bsf eax, mask"
+        "mov n, eax"
+    );*/
+    unsigned int v;  // find the number of trailing zeros in v
+    static const int Mod37BitPosition[] = // map a bit value mod 37 to its position
+    {
+        32, 0, 1, 26, 2, 23, 27, 0, 3, 16, 24, 30, 28, 11, 0, 13, 4,
+        7, 17, 0, 25, 22, 31, 15, 29, 10, 12, 6, 0, 21, 14, 9, 5,
+        20, 8, 19, 18
+    };
+    return Mod37BitPosition[(-mask & mask) % 37];
 }
 
 #if 0
-static __inline int find_highest_bit(unsigned mask) {
-  int n;
+static __inline int find_highest_bit(unsigned mask)
+{
+    int n;
 
-  __asm {
-    bsr eax, mask
-    mov n, eax
-  }
+    __asm__
+    (
+        "bsr eax, mask"
+        "mov n, eax"
+    );
 
-  return n;
+    return n;
 }
 #else
 static __inline int find_highest_bit(unsigned mask) {
@@ -103,7 +127,7 @@ static __inline int find_highest_bit(unsigned mask) {
 }
 #endif
 
-__inline void set_bits(void *bitmap, int pos, int len) {
+static __inline void set_bits(void *bitmap, int pos, int len) {
   while (len-- > 0) set_bit(bitmap, pos++);
 }
 

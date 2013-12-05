@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #ifndef DFS_H
 #define DFS_H
@@ -146,7 +146,7 @@ struct filsys {
 };
 
 #ifdef KRNL_LIB
-__inline int checki(struct inode *inode, int access) {
+static __inline int checki(struct inode *inode, int access) {
   return check(inode->desc->mode, inode->desc->uid, inode->desc->gid, access);
 }
 #endif
@@ -165,9 +165,9 @@ int dfs_chmod(struct fs *fs, char *name, int mode);
 int dfs_chown(struct fs *fs, char *name, int owner, int group);
 
 // super.c
-struct filsys *create_filesystem(char *devname, struct fsoptions *fsopts);
-struct filsys *open_filesystem(char *devname, struct fsoptions *fsopts);
-void close_filesystem(struct filsys *fs);
+static struct filsys *create_filesystem(char *devname, struct fsoptions *fsopts);
+static struct filsys *open_filesystem(char *devname, struct fsoptions *fsopts);
+static void close_filesystem(struct filsys *fs);
 int dfs_mkfs(char *devname, char *opts);
 int dfs_mount(struct fs *fs, char *opts);
 int dfs_umount(struct fs *fs);

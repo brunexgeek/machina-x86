@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <net/net.h>
 
@@ -53,8 +53,8 @@ static int fill_sndbuf(struct socket *s, struct iovec *iov, int iovlen) {
 
     rc = tcp_write(s->tcp.pcb, iov->iov_base, len, (s->flags & SOCK_NODELAY) ? TCP_WRITE_FLUSH : TCP_WRITE_NAGLE);
     if (rc < 0) return rc;
-
-    (char *) iov->iov_base += len;
+// WARNING:
+    iov->iov_base = (void*)((char*)iov->iov_base + len);
     iov->iov_len -= len;
 
     return len;
@@ -68,7 +68,8 @@ static int fill_sndbuf(struct socket *s, struct iovec *iov, int iovlen) {
         rc = tcp_write(s->tcp.pcb, iov->iov_base, len, TCP_WRITE_NOFLUSH);
         if (rc < 0) return rc;
 
-        (char *) iov->iov_base += len;
+    // WARNING:
+        iov->iov_base = (void*)((char*)iov->iov_base + len);
         iov->iov_len -= len;
 
         left -= len;
@@ -91,7 +92,7 @@ static int fetch_rcvbuf(struct socket *s, struct iovec *iov, int iovlen) {
   int recved;
   int rc;
   struct pbuf *p;
-  
+
   left = get_iovec_size(iov, iovlen);
   recved = 0;
   while (s->tcp.recvhead && left > 0) {
@@ -201,7 +202,7 @@ static err_t connected_tcp(void *arg, struct tcp_pcb *pcb, err_t err) {
 
   s->state = SOCKSTATE_CONNECTED;
   set_io_event(&s->iob, IOEVT_CONNECT | IOEVT_WRITE);
-  
+
   return 0;
 }
 
@@ -271,7 +272,7 @@ static err_t recv_tcp(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
   }
 
   if (bytesrecv) tcp_recved(pcb, bytesrecv);
-  
+
   if (s->tcp.recvhead) {
     set_io_event(&s->iob, IOEVT_READ);
   } else {
@@ -340,7 +341,7 @@ static void err_tcp(void *arg, err_t err) {
 static err_t alloc_pcb(struct socket *s) {
   s->tcp.pcb = tcp_new();
   if (!s->tcp.pcb) return -ENOMEM;
-  
+
   tcp_arg(s->tcp.pcb, s);
   tcp_recv(s->tcp.pcb, recv_tcp);
   tcp_sent(s->tcp.pcb, sent_tcp);
@@ -422,7 +423,7 @@ static int tcpsock_close(struct socket *s) {
     release_socket_request(req, -EABORT);
     req = next;
   }
-  
+
   set_io_event(&s->iob, IOEVT_CLOSE);
 
   if (s->tcp.pcb) {
@@ -434,7 +435,7 @@ static int tcpsock_close(struct socket *s) {
 
     if (s->tcp.pcb->state == LISTEN) {
       tcp_close(s->tcp.pcb);
-      for (n = 0; n < s->tcp.numpending; n++) tcpsock_close(s->tcp.pending[n]); 
+      for (n = 0; n < s->tcp.numpending; n++) tcpsock_close(s->tcp.pending[n]);
       kfree(s->tcp.pending);
     } else {
       if (tcp_close(s->tcp.pcb) < 0) {
@@ -474,7 +475,7 @@ static int tcpsock_connect(struct socket *s, struct sockaddr *name, int namelen)
 
   if (s->state != SOCKSTATE_CONNECTED) {
     if (s->flags & SOCK_NBIO) return -EAGAIN;
-  
+
     rc = submit_socket_request(s, &req, SOCKREQ_CONNECT, NULL, INFINITE);
     if (rc < 0) return rc;
   }
@@ -524,7 +525,7 @@ static int tcpsock_ioctl(struct socket *s, int cmd, void *data, size_t size) {
   unsigned int timeout;
   int rc;
   struct sockreq req;
-  
+
   switch (cmd) {
     case SIOWAITRECV:
       if (!data || size != 4) return -EFAULT;
@@ -570,7 +571,7 @@ static int tcpsock_listen(struct socket *s, int backlog) {
     kfree(s->tcp.pending);
     return -ENOMEM;
   }
-  
+
   tcp_accept(s->tcp.pcb, accept_tcp);
   s->state = SOCKSTATE_LISTENING;
 
@@ -608,14 +609,14 @@ static int tcpsock_recvmsg(struct socket *s, struct msghdr *msg, unsigned int fl
     tcp_recved(s->tcp.pcb, rc);
     return rc;
   }
- 
+
   if (s->state == SOCKSTATE_CLOSING) return 0;
   if (s->flags & SOCK_NBIO) return -EAGAIN;
 
   rc = submit_socket_request(s, &req, SOCKREQ_RECV, msg, s->rcvtimeo);
   if (rc < 0) return rc;
 
-  return rc; 
+  return rc;
 }
 
 static int tcpsock_sendmsg(struct socket *s, struct msghdr *msg, unsigned int flags) {

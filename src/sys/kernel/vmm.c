@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -49,7 +49,7 @@ static int valid_range(void *addr, int size) {
 
 static unsigned long pte_flags_from_protect(int protect) {
   switch (protect) {
-    case PAGE_NOACCESS: 
+    case PAGE_NOACCESS:
       return 0;
 
     case PAGE_READONLY:
@@ -80,7 +80,7 @@ static int free_filemap(struct filemap *fm) {
   hunprotect(fm->file);
   rc = hfree(fm->file);
   if (rc < 0) return rc;
-  
+
   rmap_free(vmap, BTOP(fm->addr), PAGES(fm->size));
 
   hunprotect(fm->self);
@@ -99,7 +99,7 @@ static int fetch_file_page(struct filemap *fm, void *addr) {
   filp = (struct file *) olock(fm->file, OBJECT_FILE);
   if (!filp) return -EBADF;
 
-  pfn = alloc_pageframe('FMAP');
+  pfn = alloc_pageframe(0x464d4150  /* FMAP */);
   if (pfn == 0xFFFFFFFF) {
     orel(filp);
     return -ENOMEM;
@@ -166,7 +166,7 @@ void *vmalloc(void *addr, unsigned long size, int type, int protect, unsigned lo
   }
   addr = (void *) PAGEADDR(addr);
   if (!addr && (type & MEM_COMMIT) != 0) type |= MEM_RESERVE;
-  if (!tag) tag = 'VM';
+  if (!tag) tag = 0x0000564d /* VM */;
 
   if (type & MEM_RESERVE) {
     if (addr == NULL) {
@@ -302,7 +302,7 @@ int vmsync(void *addr, unsigned long size) {
           rc = wait_for_object(fm, INFINITE);
           if (rc < 0) return rc;
         }
-        
+
         rc = save_file_page(fm, vaddr);
         if (rc < 0) return rc;
       }
@@ -422,7 +422,7 @@ void *miomap(unsigned long addr, int size, int protect) {
 
   vaddr = (char *) PTOB(rmap_alloc(vmap, pages));
   if (vaddr == NULL) return NULL;
-  
+
   for (i = 0; i < pages; i++) {
     map_page(vaddr + PTOB(i), BTOP(addr) + i, flags | PT_PRESENT);
   }
@@ -443,11 +443,11 @@ int guard_page_handler(void *addr) {
   struct thread *t = self();
 
   if (!t->tib) return -EFAULT;
-  
+
   if (addr < t->tib->stacklimit || addr >= t->tib->stacktop) return -EFAULT;
   if (t->tib->stacklimit <= t->tib->stackbase) return -EFAULT;
 
-  pfn = alloc_pageframe('STK');
+  pfn = alloc_pageframe(0x0053544b /* STK */);
   if (pfn == 0xFFFFFFFF) return -ENOMEM;
 
   t->tib->stacklimit = (char *) t->tib->stacklimit - PAGESIZE;
@@ -460,10 +460,10 @@ int guard_page_handler(void *addr) {
 int fetch_page(void *addr) {
   struct filemap *fm;
   int rc;
-  
+
   fm = (struct filemap *) olock(virt2pfn(addr), OBJECT_FILEMAP);
   if (!fm) return -EBADF;
-  
+
   rc = wait_for_object(fm, INFINITE);
   if (rc < 0) {
     orel(fm);

@@ -10,16 +10,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,9 +29,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <net/net.h>
 
@@ -47,8 +47,9 @@
 
 static unsigned long chksum(void *dataptr, int len) {
   unsigned long acc;
-    
-  for (acc = 0; len > 1; len -= 2) acc += *((unsigned short *) dataptr)++;
+// WARNING:
+  for (acc = 0; len > 1; len -= 2)
+    acc += (*((unsigned short *) dataptr))++;
 
   // Add up any odd byte
   if (len == 1) acc += *(unsigned char *) dataptr;
@@ -65,7 +66,7 @@ static unsigned long chksum(void *dataptr, int len) {
 // Calculates the pseudo Internet checksum used by TCP and UDP for a pbuf chain.
 //
 
-unsigned short inet_chksum_pseudo(struct pbuf *p, struct ip_addr *src, struct ip_addr *dest, 
+unsigned short inet_chksum_pseudo(struct pbuf *p, struct ip_addr *src, struct ip_addr *dest,
                                   unsigned char proto, unsigned short proto_len) {
   unsigned long acc;
   struct pbuf *q;
@@ -90,8 +91,8 @@ unsigned short inet_chksum_pseudo(struct pbuf *p, struct ip_addr *src, struct ip
   acc += (dest->addr & 0xFFFF);
   acc += ((dest->addr >> 16) & 0xFFFF);
   acc += (unsigned long) htons((unsigned short) proto);
-  acc += (unsigned long) htons(proto_len);  
-  
+  acc += (unsigned long) htons(proto_len);
+
   while (acc >> 16) acc = (acc & 0xFFFF) + (acc >> 16);
 
   return (unsigned short) ~(acc & 0xFFFF);
@@ -117,7 +118,7 @@ unsigned short inet_chksum_pbuf(struct pbuf *p) {
   unsigned long acc;
   struct pbuf *q;
   int swapped;
-  
+
   acc = 0;
   swapped = 0;
   for (q = p; q != NULL; q = q->next) {
@@ -129,7 +130,7 @@ unsigned short inet_chksum_pbuf(struct pbuf *p) {
       acc = ((acc & 0xFF) << 8) | ((acc & 0xFF00) >> 8);
     }
   }
- 
+
   if (swapped) acc = ((acc & 0xFF) << 8) | ((acc & 0xFF00) >> 8);
 
   return (unsigned short) ~(acc & 0xFFFF);

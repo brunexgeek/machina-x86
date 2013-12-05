@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -44,7 +44,7 @@ static int expand_htab() {
   handle_t h;
 
   if (htabsize == HTABSIZE / sizeof(struct object *)) return -ENFILE;
-  pfn = alloc_pageframe('HTAB');
+  pfn = alloc_pageframe(*((unsigned int*)"HTAB"));
   map_page(htab + htabsize, pfn, PT_WRITABLE | PT_PRESENT);
 
   for (h = htabsize + HANDLES_PER_PAGE - 1; h >= htabsize; h--) {
@@ -113,7 +113,7 @@ handle_t halloc(struct object *o) {
 //
 // hassign
 //
-// Assign handle to object. If the handle is in use the handle is closed 
+// Assign handle to object. If the handle is in use the handle is closed
 // before beeing assigned
 //
 
@@ -167,7 +167,7 @@ int hfree(handle_t h) {
   hfreelist = h;
 
   if (--o->handle_count > 0) return 0;
-  
+
   rc = close_object(o);
 
   if (o->lock_count == 0) destroy_object(o);
@@ -253,9 +253,9 @@ static int handles_proc(struct proc_file *pf, void *arg) {
   for (h = 0; h < htabsize; h++) {
     if (!HUSED(htab[h])) continue;
     o = HOBJ(htab[h]);
-    
-    pprintf(pf, "%6d %8X %d %d %-7s %5d %5d\n", 
-      h, o, o->signaled,  HPROT(htab[h]), objtype[o->type], 
+
+    pprintf(pf, "%6d %8X %d %d %-7s %5d %5d\n",
+      h, o, o->signaled,  HPROT(htab[h]), objtype[o->type],
       o->handle_count, o->lock_count);
 
     if (o->handle_count != 0) objcount[o->type] += FRAQ / o->handle_count;

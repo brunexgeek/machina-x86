@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -101,7 +101,7 @@ static int bufstats_proc(struct proc_file *pf, void *arg) {
       hitratio = pool->cache_hits * 100 / (pool->cache_hits + pool->cache_misses);
     }
 
-    pprintf(pf, "%-8s %8d %8d %6d%% %7d %7d %7d %7d %7d\n", 
+    pprintf(pf, "%-8s %8d %8d %6d%% %7d %7d %7d %7d %7d\n",
       device(pool->devno)->name,
       pool->blocks_read, pool->blocks_written, hitratio,
       pool->blocks_allocated, pool->blocks_freed,
@@ -125,7 +125,7 @@ static unsigned long bufhash(blkno_t blkno) {
 // change_state
 //
 
-static void __inline change_state(struct bufpool *pool, struct buf *buf, int newstate) {
+void __inline change_state(struct bufpool *pool, struct buf *buf, int newstate) {
   pool->bufcount[buf->state]--;
   pool->bufcount[newstate]++;
   buf->state = newstate;
@@ -157,7 +157,7 @@ static void release_buffer_waiters(struct buf *buf, int waitkey) {
     next = thread->next_waiter;
     thread->next_waiter = NULL;
     thread->waitkey = waitkey;
-    
+
     mark_thread_ready(thread, 1, BUFWAIT_BOOST);
     thread = next;
   }
@@ -477,9 +477,9 @@ struct bufpool *init_buffer_pool(dev_t devno, int poolsize, int bufsize, void (*
     return NULL;
   }
   memset(pool->bufbase, 0, sizeof(struct buf) * poolsize);
-  
+
   // Allocate data buffers
-  pool->database = (char *) kmalloc_tag(poolsize * bufsize, 'CACH');
+  pool->database = (char *) kmalloc_tag(poolsize * bufsize, 0x43414348 /* CACH */);
   if (pool->database == NULL) {
     kfree(pool->bufbase);
     kfree(pool);
@@ -787,12 +787,12 @@ int sync_buffers(struct bufpool *pool, int interruptable) {
 
       // Lock buffer
       buf->locks++;
-      
+
       // Flush buffer to device
       //kprintf("sync block %d\n", buf->blkno);
       rc = dev_write(pool->devno, buf->data, pool->bufsize, buf->blkno * pool->blks_per_buffer, 0);
       if (rc < 0) return rc;
-      
+
       pool->blocks_written++;
       pool->blocks_synched++;
 

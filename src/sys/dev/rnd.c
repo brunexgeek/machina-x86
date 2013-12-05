@@ -9,16 +9,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,9 +28,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -66,13 +66,13 @@ static struct poolinfo poolinfo_table[] =  {
 
   // x^1024 + x^817 + x^615 + x^412 + x^204 + x + 1 -- 290
   {1024, 817,  615,  412,  204,  1},
-  
+
   // x^512 + x^411 + x^308 + x^208 + x^104 + x + 1 -- 225
   {512,  411,  308,  208,  104,  1},
 
   // x^256 + x^205 + x^155 + x^101 + x^52 + x + 1 -- 125
   {256,  205,  155,  101,  52, 1},
-  
+
   // x^128 + x^103 + x^76 + x^51 +x^25 + x + 1 -- 105
   {128,  103,  76, 51, 25, 1},
 
@@ -83,7 +83,7 @@ static struct poolinfo poolinfo_table[] =  {
   {32, 26, 20, 14, 7,  1},
 
   {0,  0,  0,  0,  0,  0},
-};    
+};
 
 //
 // Utility functions
@@ -93,11 +93,11 @@ static struct poolinfo poolinfo_table[] =  {
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
 #endif
 
-__inline static unsigned long rotate_left(int i, unsigned long word) {
+__inline unsigned long rotate_left(int i, unsigned long word) {
   return (word << i) | (word >> (32 - i));
 }
 
-__inline static unsigned long int_ln_12bits(unsigned long word) {
+__inline unsigned long int_ln_12bits(unsigned long word) {
   // Smear msbit right to make an n-bit mask
   word |= word >> 8;
   word |= word >> 4;
@@ -142,7 +142,7 @@ static struct event random_read_ready;
 //
 // Initialize the entropy store.  The input argument is the size of
 // the random pool.
-// 
+//
 // Returns an negative error if there is a problem.
 //
 
@@ -154,7 +154,7 @@ static int create_entropy_store(int size, struct entropy_store **retval) {
   poolwords = (size + 3) / 4; // Convert bytes->words
 
   // The pool size must be a multiple of 16 32-bit words
-  poolwords = ((poolwords + 15) / 16) * 16; 
+  poolwords = ((poolwords + 15) / 16) * 16;
 
   for (p = poolinfo_table; p->poolwords; p++) {
     if (poolwords == p->poolwords) break;
@@ -173,7 +173,7 @@ static int create_entropy_store(int size, struct entropy_store **retval) {
     return -ENOMEM;
   }
   memset(r->pool, 0, poolwords * 4);
-  
+
   *retval = r;
   return 0;
 }
@@ -199,7 +199,7 @@ static void free_entropy_store(struct entropy_store *r) {
 // This function adds a byte into the entropy "pool".  It does not
 // update the entropy estimate. The caller should call
 // credit_entropy_store if this is appropriate.
-// 
+//
 // The pool is stirred with a primitive polynomial of the appropriate
 // degree, and then twisted. We twist by three bits at a time because
 // it's cheap to do so and helps slightly in the expected case where
@@ -209,7 +209,7 @@ static void free_entropy_store(struct entropy_store *r) {
 static void add_entropy_words(struct entropy_store *r, const unsigned long *in, int num) {
   static unsigned long const twist_table[8] = {
     0x00000000, 0x3b6e20c8, 0x76dc4190, 0x4db26158,
-    0xedb88320, 0xd6d6a3e8, 0x9b64c2b0, 0xa00ae278 
+    0xedb88320, 0xd6d6a3e8, 0x9b64c2b0, 0xa00ae278
   };
 
   unsigned i;
@@ -297,8 +297,8 @@ void batch_entropy_store(unsigned long a, unsigned long b, int num) {
 
   if (!batch_max) return;
 
-  //kprintf("rnd: (%lu,%lu) %d bits\n", a, b, num); 
-  
+  //kprintf("rnd: (%lu,%lu) %d bits\n", a, b, num);
+
   batch_entropy_pool[2 * batch_head] = a;
   batch_entropy_pool[(2 * batch_head) + 1] = b;
   batch_entropy_credit[batch_head] = num;
@@ -421,7 +421,7 @@ void add_dpc_randomness(void *dpc) {
 #define HASH_BUFFER_SIZE 4
 #define HASH_EXTRA_SIZE 0
 #define HASH_TRANSFORM MD5Transform
-  
+
 //
 // MD5 transform algorithm, taken from code written by Colin Plumb,
 // and put into the public domain
@@ -546,8 +546,8 @@ static int extract_entropy(struct entropy_store *r, void *buf, size_t nbytes, in
 
 //
 // This utility function is responsible for transfering entropy
-// from the primary pool to the secondary extraction pool. We pull 
-// randomness under two conditions; one is if there isn't enough entropy 
+// from the primary pool to the secondary extraction pool. We pull
+// randomness under two conditions; one is if there isn't enough entropy
 // in the secondary pool.  The other is after we have extract 1024 bytes,
 // at which point we do a "catastrophic reseeding".
 //
@@ -560,7 +560,7 @@ static void xfer_secondary_pool(struct entropy_store *r, size_t nbytes) {
     add_entropy_words(r, tmp, TMP_BUF_SIZE);
     credit_entropy_store(r, TMP_BUF_SIZE * 8);
   }
-  
+
   if (r->extract_count > 1024) {
     extract_entropy(random_state, tmp, sizeof(tmp), 0);
     add_entropy_words(r, tmp, TMP_BUF_SIZE);
@@ -581,10 +581,10 @@ static int extract_entropy(struct entropy_store *r, void *buf, size_t nbytes, in
   int ret, i;
   unsigned long tmp[TMP_BUF_SIZE];
   unsigned long x;
-  char *b = (char *) buf; 
+  char *b = (char *) buf;
 
   add_timer_randomness(&extract_timer_state, nbytes);
-  
+
   // Redundant, but just in case...
   if (r->entropy_count > r->poolinfo.poolwords) r->entropy_count = r->poolinfo.poolwords;
 
@@ -598,7 +598,7 @@ static int extract_entropy(struct entropy_store *r, void *buf, size_t nbytes, in
   //if (r->entropy_count < 128) set_event(&random_write_ready);
 
   r->extract_count += nbytes;
-  
+
   ret = 0;
   while (nbytes) {
     // Hash the pool to get the output
@@ -620,7 +620,7 @@ static int extract_entropy(struct entropy_store *r, void *buf, size_t nbytes, in
       HASH_TRANSFORM(tmp, r->pool + i);
       add_entropy_words(r, &tmp[x % HASH_BUFFER_SIZE], 1);
     }
-    
+
     //
     // In case the hash function has some recognizable
     // output pattern, we fold it in half.
@@ -630,7 +630,7 @@ static int extract_entropy(struct entropy_store *r, void *buf, size_t nbytes, in
       tmp[i] ^= tmp[i + (HASH_BUFFER_SIZE + 1) / 2];
      }
 
-#if HASH_BUFFER_SIZE & 1  
+#if HASH_BUFFER_SIZE & 1
     // There's a middle word to deal with
     x = tmp[HASH_BUFFER_SIZE / 2];
     x ^= (x >> 16);   // Fold it in half
@@ -649,7 +649,7 @@ static int extract_entropy(struct entropy_store *r, void *buf, size_t nbytes, in
 
   // Wipe data just returned from memory
   memset(tmp, 0, sizeof(tmp));
-  
+
   return ret;
 }
 
@@ -677,13 +677,13 @@ static int random_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
     case IOCTL_GETBLKSIZE:
       return 1;
   }
-  
+
   return -ENOSYS;
 }
 
 static int random_read(struct dev *dev, void *buffer, size_t count, blkno_t blkno, int flags) {
   int n;
-  
+
   if (count == 0) return 0;
   while (1) {
     n = count;
@@ -735,7 +735,7 @@ static void init_std_data(struct entropy_store *r) {
   add_entropy_words(r, words, 2);
 }
 
-int __declspec(dllexport) random() {
+int /*__declspec(dllexport)*/ random() {
   int rc;
 
   init_event(&random_read_ready, 1, 0);

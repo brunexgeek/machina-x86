@@ -1,7 +1,7 @@
 #!/bin/make -f
 
 TARGET_MACHINE := x86
-CFLAGS := $(CFLAGS) -O0 -m32 -masm=intel -mtune=i686
+CFLAGS := $(CFLAGS) -O0 -m32 -mtune=i686
 NASM := build/tools/nasm
 
 help:
@@ -14,11 +14,11 @@ help:
 	@echo "   $(CDEMBOOT_OUT_FILE) (cdemboot) "
 	@echo "   $(LIBKERNEL_OUT_FILE) "
 	@echo "   $(DISKBOOT_OUT_FILE) (diskboot) "
-	@echo "   $(BOOTLDRSTUB_OUT_FILE) (bootldr-stub) "
+	@echo "   $(OSLOADER_OUT_FILE) (osloader) "
 	@echo "   $(BOOTLDR_OUT_FILE) (bootldr) "
 	@echo "   $(NASM_OUT_FILE) (nasm) "
 
-.PHONY: all clean libc netboot cdemboot diskboot bootldr-stub bootldr nasm
+.PHONY: all clean libc netboot cdemboot diskboot osloader bootldr nasm
 
 #
 # MKDFS Tool for GNU/Linux 
@@ -69,7 +69,7 @@ KERNEL32_WELCOME:
 	@echo
 	@echo Building Machina Kernel Image for x86
 
-KERNEL32_CFLAGS = $(CFLAGS) -I src/include -D KERNEL -D KRNL_LIB -nostdlib
+KERNEL32_CFLAGS = $(CFLAGS) -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel
 KERNEL32_LDFLAGS = $(LDFLAGS) -nostdlib -shared
 KERNEL32_NFLAGS = $(NFLAGS)
 KERNEL32_OUT_DIR = build/install/boot
@@ -424,19 +424,19 @@ $(DISKBOOT_OUT_FILE) diskboot : nasm
 
 
 #
-# Machina Stage 2 Bootloader 
+# Machina OS Loader 
 #
-BOOTLDRSTUB_NFLAGS = $(NFLAGS) -f bin
-BOOTLDRSTUB_OUT_DIR = build/machina/obj/bootldr
-BOOTLDRSTUB_OUT_FILE = $(BOOTLDRSTUB_OUT_DIR)/ldrinit.exe
-BOOTLDRSTUB_SRC_FILES = \
+OSLOADER_NFLAGS = $(NFLAGS) -f bin
+OSLOADER_OUT_DIR = build/install/boot
+OSLOADER_OUT_FILE = $(OSLOADER_OUT_DIR)/osloader.bin
+OSLOADER_SRC_FILES = \
 	src/sys/arch/x86/osldr/ldrinit.asm
 
-$(BOOTLDRSTUB_OUT_FILE) bootldr-stub : nasm 
+$(OSLOADER_OUT_FILE) osloader : nasm 
 	@echo
-	@echo Building Machina Stage 2 Bootloader
-	@mkdir -p $(BOOTLDRSTUB_OUT_DIR)
-	$(NASM) $(BOOTLDRSTUB_NFLAGS) $(BOOTLDRSTUB_SRC_FILES) -o $(BOOTLDRSTUB_OUT_FILE)
+	@echo Building Machina OS Loader
+	@mkdir -p $(OSLOADER_OUT_DIR)
+	$(NASM) $(OSLOADER_NFLAGS) $(OSLOADER_SRC_FILES) -o $(OSLOADER_OUT_FILE)
 
 
 #
@@ -549,5 +549,5 @@ $(NASM_OUT_FILE) nasm :  NASM_WELCOME $(NASM_OBJ_FILES)
 	@mkdir -p $(NASM_OUT_DIR)
 	$(CC) $(NASM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
 
-all: $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(DISKBOOT_OUT_FILE) $(BOOTLDRSTUB_OUT_FILE) $(BOOTLDR_OUT_FILE) $(NASM_OUT_FILE) 
+all: $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(DISKBOOT_OUT_FILE) $(OSLOADER_OUT_FILE) $(BOOTLDR_OUT_FILE) $(NASM_OUT_FILE) 
 

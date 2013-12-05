@@ -347,7 +347,7 @@ class MakefileGenerator:
 #
 
 generator = MakefileGenerator()
-generator.addVariable("CFLAGS", "$(CFLAGS) -O0 -m32 -masm=intel -mtune=i686")
+generator.addVariable("CFLAGS", "$(CFLAGS) -O0 -m32 -mtune=i686")
 generator.addVariable("NASM", "build/tools/nasm")
 generator.addVariable("TARGET_MACHINE", "x86")
 
@@ -438,7 +438,7 @@ target = {}
 target[FIELD_DESCRIPTION] = "Machina Kernel Image for x86"
 target[FIELD_PREFFIX] = "KERNEL32"
 target[FIELD_TYPE] = BIN_EXECUTABLE
-target[FIELD_CFLAGS] = "-I src/include -D KERNEL -D KRNL_LIB -nostdlib"
+target[FIELD_CFLAGS] = "-I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel"
 target[FIELD_LDFLAGS] = "-nostdlib -shared"
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "kernel32.img"
@@ -732,18 +732,18 @@ target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = ["sys/arch/x86/boot/netboot.asm"]
 generator.addTarget(target);
 #
-# Machina Stage 2 Bootloader Stub
+# Machina OS Loader
 #
 target = {}
-target[FIELD_NAME] = "bootldr-stub"
-target[FIELD_DESCRIPTION] = "Machina Stage 2 Bootloader"
-target[FIELD_PREFFIX] = "BOOTLDRSTUB"
+target[FIELD_NAME] = "osloader"
+target[FIELD_DESCRIPTION] = "Machina OS Loader"
+target[FIELD_PREFFIX] = "OSLOADER"
 target[FIELD_TYPE] = BIN_EXECUTABLE | BIN_MACHINA
 target[FIELD_NFLAGS] = "-f bin"
 target[FIELD_DEPENDENCIES] = ["nasm"]
-target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/bootldr"
-target[FIELD_OUTPUT_FILE] = "ldrinit.exe"
-target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/bootldr"
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
+target[FIELD_OUTPUT_FILE] = "osloader.bin"
+target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
 	["sys/arch/x86/osldr/ldrinit.asm" ]

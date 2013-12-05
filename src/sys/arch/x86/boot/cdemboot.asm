@@ -148,13 +148,28 @@ loadnext1:
         ; Call real mode entry point in os loader
         mov     ax, OSLDRSEG
         mov     ds, ax
-        add     ax, [0x16]          ; "cs" from "bootldr.bin" PE Header
+        add     ax, [0x16]          ; "cs" from "kernel-loader.bin" PE Header
         push    ax
-        push    word [0x14]         ; "ip" from "bootldr.bin" PE Header (should go to stub)
+        push    word [0x14]         ; "ip" from "kernel-loader.bin" PE Header (should go to stub)
+
+        mov     bx, 0xc88c
+        mov     ax, [0x40]
+        mov     cx, cs
+        mov     ds, cx
+        cmp     ax,bx
+        jne     failed
+
+        ; Display boot message
+        mov     si, foundmsg
+        call    print
 
         mov     dl, 0xFD            ; boot drive (0xFD for CD emulation)
         mov     ebx, 0x7C00         ; RAM disk image
         retf
+
+failed:
+        hlt
+        jmp failed
 
         ; Read sectors from boot drive
         ; input:
@@ -243,14 +258,16 @@ printchar:
 
         ; Variables
 
-sectno    dw      0
-sectors   dw      0
-heads     dw      0
-bootdrv   db      0
+sectno  dw      0
+sectors dw      0
+heads   dw      0
+bootdrv db      0
 
         ; Message strings
 bootmsg:
         db      'Loading boot image from CD-ROM... ', 0
+foundmsg:
+        db      'OS loader found...', 0
 
         ; Boot signature
         times   510-($-$$) db 0

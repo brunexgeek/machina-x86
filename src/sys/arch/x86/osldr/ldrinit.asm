@@ -60,7 +60,7 @@ STACKTOP    equ 0x9e000
 textstart:
 
 header_start:
-        db      0x4d, 0x5a          ; EXE file signature
+        db      0x05, 0x1D          ; File signature (OSLD)
         dw      textsize % 512
         dw      (textsize + 511) / 512
         dw      0                   ; Relocation information: none
@@ -145,9 +145,15 @@ start32:
         popfd
 
         ; Calculate entrypoint
-        mov     eax, [OSLDRBASE + 0x3c]
-        mov     eax, [eax + OSLDRBASE + 0x28]
-        add     eax, OSLDRBASE
+        ;mov     eax, [OSLDRBASE + 0x3c]
+        ;mov     eax, [eax + OSLDRBASE + 0x28]
+        ;add     eax, OSLDRBASE
+
+        ;/mov     eax, [textend + 0x18]
+        ;/add     eax, OSLDRBASE
+        mov       eax, OSLDRBASE
+        add       eax, 0x800
+        add       eax, 0x85B
 
         ; Push os loader load address and boot parameter block
         push    dword 0
@@ -156,6 +162,9 @@ start32:
 
         ; Call startup code in os loader
         call    eax
+
+        mov al, 0x41
+        call printchar
 
         ; We never return here
         cli
@@ -394,8 +403,10 @@ memrecs      times (MAXMEMRECS * MEMRECSIZ) db 0
 ; Strings
 ;
 
-osldrmsg:    db    ', ldrinit', 0
+osldrmsg:    db    'running OS loader...', 0
 
 textend:
 
 textsize equ (textend - textstart)
+
+padding      times   2048-($-$$) db 0

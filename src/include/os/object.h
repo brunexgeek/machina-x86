@@ -79,6 +79,7 @@
 #define THREAD_NAME_LEN          16
 
 #include <os/timer.h>
+#include <os/fpu.h>
 
 struct thread;
 struct waitblock;

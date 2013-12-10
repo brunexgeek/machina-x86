@@ -7,6 +7,7 @@ NASM := build/tools/nasm
 help:
 	@echo "   all"
 	@echo "   clean"
+	@echo "   $(OSLDRS_OUT_FILE) (osloader-stub) "
 	@echo "   $(MKDFS_OUT_FILE) "
 	@echo "   $(KERNEL32_OUT_FILE) "
 	@echo "   $(LIBC_OUT_FILE) (libc) "
@@ -14,11 +15,27 @@ help:
 	@echo "   $(CDEMBOOT_OUT_FILE) (cdemboot) "
 	@echo "   $(LIBKERNEL_OUT_FILE) "
 	@echo "   $(DISKBOOT_OUT_FILE) (diskboot) "
-	@echo "   $(OSLOADER_OUT_FILE) (osloader) "
-	@echo "   $(BOOTLDR_OUT_FILE) (bootldr) "
+	@echo "   $(OSLDR_OUT_FILE) (osloader) "
+	@echo "   $(OSLDRM_OUT_FILE) (osloader-main) "
 	@echo "   $(NASM_OUT_FILE) (nasm) "
 
-.PHONY: all clean libc netboot cdemboot diskboot osloader bootldr nasm
+.PHONY: all clean osloader-stub libc netboot cdemboot diskboot osloader osloader-main nasm
+
+#
+# Machina OS Loader Stub 
+#
+OSLDRS_NFLAGS = $(NFLAGS) -f bin
+OSLDRS_OUT_DIR = build/install/boot
+OSLDRS_OUT_FILE = $(OSLDRS_OUT_DIR)/osloader-stub.bin
+OSLDRS_SRC_FILES = \
+	src/sys/arch/x86/osldr/ldrinit.asm
+
+$(OSLDRS_OUT_FILE) osloader-stub : nasm 
+	@echo
+	@echo Building Machina OS Loader Stub
+	@mkdir -p $(OSLDRS_OUT_DIR)
+	$(NASM) $(OSLDRS_NFLAGS) $(OSLDRS_SRC_FILES) -o $(OSLDRS_OUT_FILE)
+
 
 #
 # MKDFS Tool for GNU/Linux 
@@ -297,10 +314,10 @@ LIBC_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/libc/lib/libc
 
 $(LIBC_OBJ_DIR)/%.c.o: $(LIBC_SRC_DIR)/%.c
-	$(TCC) $(LIBC_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+	$(CC) -O2 -m32 $(LIBC_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(LIBC_OBJ_DIR)/%.s.o: $(LIBC_SRC_DIR)/%.s
-	$(TCC) $(LIBC_CFLAGS) -c $< -o $@
+	$(CC) -O2 -m32 $(LIBC_CFLAGS) -c $< -o $@
 
 $(LIBC_OBJ_DIR)/%.asm.o: $(LIBC_SRC_DIR)/%.asm
 	$(NASM) $(LIBC_NFLAGS) $< -o $@
@@ -397,7 +414,7 @@ LIBKERNEL_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/kernel32/lib/libc
 
 $(LIBKERNEL_OBJ_DIR)/%.c.o: $(LIBKERNEL_SRC_DIR)/%.c
-	$(TCC) $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+	$(CC) -O2 -m32 $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(LIBKERNEL_OBJ_DIR)/%.asm.o: $(LIBKERNEL_SRC_DIR)/%.asm
 	$(NASM) $(LIBKERNEL_NFLAGS) $< -o $@
@@ -426,58 +443,55 @@ $(DISKBOOT_OUT_FILE) diskboot : nasm
 #
 # Machina OS Loader 
 #
-OSLOADER_NFLAGS = $(NFLAGS) -f bin
-OSLOADER_OUT_DIR = build/install/boot
-OSLOADER_OUT_FILE = $(OSLOADER_OUT_DIR)/osloader.bin
-OSLOADER_SRC_FILES = \
-	src/sys/arch/x86/osldr/ldrinit.asm
-
-$(OSLOADER_OUT_FILE) osloader : nasm 
+OSLDR_OUT_DIR = build/install/boot
+OSLDR_OUT_FILE = $(OSLDR_OUT_DIR)/osloader.bin
+$(OSLDR_OUT_FILE) osloader : nasm osloader-stub osloader-main 
 	@echo
 	@echo Building Machina OS Loader
-	@mkdir -p $(OSLOADER_OUT_DIR)
-	$(NASM) $(OSLOADER_NFLAGS) $(OSLOADER_SRC_FILES) -o $(OSLOADER_OUT_FILE)
+	@mkdir -p $(OSLDR_OUT_DIR)
+	objcopy -O binary -j .text -j .rodata -j .bss -j .data --set-section-flags .bss=alloc,load,contents $(OSLDRM_OUT_FILE) $(OSLDRM_OUT_FILE).bin
+	cat $(OSLDRS_OUT_FILE) $(OSLDRM_OUT_FILE).bin > $(OSLDR_OUT_FILE)
 
 
 #
-# Machina Stage 2 Bootloader 
+# Machina OS Loader Main 
 #
-BOOTLDR_WELCOME:
+OSLDRM_WELCOME:
 	@echo
-	@echo Building Machina Stage 2 Bootloader
+	@echo Building Machina OS Loader Main
 
-BOOTLDR_CFLAGS = $(CFLAGS) -D OSLDR -D KERNEL -I src/include
-BOOTLDR_LDFLAGS = $(LDFLAGS) -shared -entry _start@12 -fixed 0x00090000 -filealign 4096 -nostdlib -stub build/machina/obj/bootldr/ldrinit.exe
-BOOTLDR_NFLAGS = $(NFLAGS)
-BOOTLDR_OUT_DIR = build/install/boot
-BOOTLDR_OUT_FILE = $(BOOTLDR_OUT_DIR)/bootldr.bin
-BOOTLDR_SRC_DIR = src
-BOOTLDR_SRC_FILES = \
+OSLDRM_CFLAGS = $(CFLAGS) -D OSLDR -D KERNEL -I src/include -masm=intel -nostdlib
+OSLDRM_LDFLAGS = $(LDFLAGS) -Wl,-e,start -Wl,-Ttext,0x90800
+OSLDRM_NFLAGS = $(NFLAGS)
+OSLDRM_OUT_DIR = build/install/boot
+OSLDRM_OUT_FILE = $(OSLDRM_OUT_DIR)/osloader-main.elf
+OSLDRM_SRC_DIR = src
+OSLDRM_SRC_FILES = \
 	sys/arch/x86/osldr/osldr.c \
 	sys/arch/x86/osldr/loadkrnl.c \
 	sys/arch/x86/osldr/unzip.c \
 	lib/libc/vsprintf.c \
 	lib/libc/string.c \
 	sys/arch/x86/osldr/bioscall.asm
-BOOTLDR_OBJ_DIR = build/machina/obj/bootldr
-BOOTLDR_OBJ_FILES = $(patsubst %,$(BOOTLDR_OBJ_DIR)/%.o ,$(BOOTLDR_SRC_FILES))
+OSLDRM_OBJ_DIR = build/machina/obj/osloader
+OSLDRM_OBJ_FILES = $(patsubst %,$(OSLDRM_OBJ_DIR)/%.o ,$(OSLDRM_SRC_FILES))
 
-$(BOOTLDR_OBJ_FILES): | BOOTLDR_OBJ_MKDIR
+$(OSLDRM_OBJ_FILES): | OSLDRM_OBJ_MKDIR
 
-BOOTLDR_OBJ_MKDIR:
-	@mkdir -p build/machina/obj/bootldr
-	@mkdir -p build/machina/obj/bootldr/lib/libc
-	@mkdir -p build/machina/obj/bootldr/sys/arch/x86/osldr
+OSLDRM_OBJ_MKDIR:
+	@mkdir -p build/machina/obj/osloader
+	@mkdir -p build/machina/obj/osloader/lib/libc
+	@mkdir -p build/machina/obj/osloader/sys/arch/x86/osldr
 
-$(BOOTLDR_OBJ_DIR)/%.c.o: $(BOOTLDR_SRC_DIR)/%.c
-	$(TCC) $(BOOTLDR_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+$(OSLDRM_OBJ_DIR)/%.c.o: $(OSLDRM_SRC_DIR)/%.c
+	$(CC) -O2 -m32 $(OSLDRM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
-$(BOOTLDR_OBJ_DIR)/%.asm.o: $(BOOTLDR_SRC_DIR)/%.asm
-	$(NASM) $(BOOTLDR_NFLAGS) $< -o $@
+$(OSLDRM_OBJ_DIR)/%.asm.o: $(OSLDRM_SRC_DIR)/%.asm
+	$(NASM) $(OSLDRM_NFLAGS) $< -o $@
 
-$(BOOTLDR_OUT_FILE) bootldr : nasm bootldr-stub  BOOTLDR_WELCOME $(BOOTLDR_OBJ_FILES)
-	@mkdir -p $(BOOTLDR_OUT_DIR)
-	$(CC) $(BOOTLDR_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(BOOTLDR_LDFLAGS) $(BOOTLDR_OBJ_FILES) -o $(BOOTLDR_OUT_FILE)
+$(OSLDRM_OUT_FILE) osloader-main : nasm osloader-stub  OSLDRM_WELCOME $(OSLDRM_OBJ_FILES)
+	@mkdir -p $(OSLDRM_OUT_DIR)
+	$(CC) $(OSLDRM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(OSLDRM_LDFLAGS) $(OSLDRM_OBJ_FILES) -o $(OSLDRM_OUT_FILE)
 
 
 #
@@ -549,5 +563,5 @@ $(NASM_OUT_FILE) nasm :  NASM_WELCOME $(NASM_OBJ_FILES)
 	@mkdir -p $(NASM_OUT_DIR)
 	$(CC) $(NASM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
 
-all: $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(DISKBOOT_OUT_FILE) $(OSLOADER_OUT_FILE) $(BOOTLDR_OUT_FILE) $(NASM_OUT_FILE) 
+all: $(OSLDRS_OUT_FILE) $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(DISKBOOT_OUT_FILE) $(OSLDR_OUT_FILE) $(OSLDRM_OUT_FILE) $(NASM_OUT_FILE) 
 

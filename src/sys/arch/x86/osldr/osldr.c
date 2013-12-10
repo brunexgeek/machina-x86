@@ -172,78 +172,100 @@ char *alloc_heap(int numpages) {
   return p;
 }
 
-unsigned long memsize() {
-  volatile unsigned long *mem;
-  unsigned long addr;
-  unsigned long value;
-  unsigned long cr0save;
-  unsigned long cr0new;
+unsigned long memsize()
+{
+    volatile unsigned long *mem;
+    unsigned long addr;
+    unsigned long value;
+    unsigned long cr0save;
+    unsigned long cr0new;
 
-  // Start at 1MB
-  addr = 1024 * 1024;
+    // Start at 1MB
+    addr = 1024 * 1024;
 
-  // Save a copy of CR0
-  __asm { mov eax, cr0 };
-  __asm { mov [cr0save], eax };
+    // Save a copy of CR0
+    __asm__
+    (
+        "mov eax, cr0;"
+        "mov DWORD PTR %0, eax;"
+        :
+        : "m" (cr0save)
+    );
 
-  // Invalidate the cache (write-back and invalidate the cache)
-  __asm { wbinvd };
+    // Invalidate the cache (write-back and invalidate the cache)
+    __asm__("wbinvd");
 
-  // Plug cr0 with just PE/CD/NW (cache disable(486+), no-writeback(486+), 32bit mode(386+))
-  cr0new = cr0save | 0x00000001 | 0x40000000 | 0x20000000;
-  __asm { mov eax, [cr0new] };
-  __asm { mov cr0, eax };
+    // Plug cr0 with just PE/CD/NW (cache disable(486+), no-writeback(486+), 32bit mode(386+))
+    cr0new = cr0save | 0x00000001 | 0x40000000 | 0x20000000;
+    __asm__
+    (
+        "mov eax, %0;"
+        "mov cr0, eax;"
+        :
+        : "m" (cr0new)
+    );
 
-  // Probe for each megabyte
-  while (addr < 0xFFF00000) {
-    addr += 1024 * 1024;
-    mem= (unsigned long *) addr;
+    // Probe for each megabyte
+    while (addr < 0xFFF00000)
+    {
+        addr += 1024 * 1024;
+        mem= (unsigned long *) addr;
 
-    value = *mem;
-    *mem = 0x55AA55AA;
+        value = *mem;
+        *mem = 0x55AA55AA;
 
-    if (*mem != 0x55AA55AA) break;
+        if (*mem != 0x55AA55AA) break;
 
-    *mem = 0xAA55AA55;
-    if(*mem != 0xAA55AA55) break;
+        *mem = 0xAA55AA55;
+        if(*mem != 0xAA55AA55) break;
 
-    *mem = value;
-  }
+        *mem = value;
+    }
 
-  // Restore
-  __asm { mov eax, [cr0save] };
-  __asm { mov cr0, eax };
+    // Restore
+    __asm__
+    (
+        "mov eax, %0;"
+        "mov cr0, eax;"
+        :
+        : "m" (cr0save)
+    );
 
-  return addr;
+    return addr;
 }
 
 void setup_memory(struct memmap *memmap) {
-  int i;
+    int i;
 
-  if (memmap->count != 0) {
-    // Determine largest available RAM address from BIOS memory map
-    mem_end = 0;
-    for (i = 0; i < memmap->count; i++) {
-      if (memmap->entry[i].type == MEMTYPE_RAM) {
-        mem_end = (unsigned long) (memmap->entry[i].addr + memmap->entry[i].size);
-      }
+    if (memmap->count != 0)
+    {
+        // Determine largest available RAM address from BIOS memory map
+        mem_end = 0;
+        for (i = 0; i < memmap->count; i++)
+        {
+            if (memmap->entry[i].type == MEMTYPE_RAM)
+            {
+                mem_end = (unsigned long) (memmap->entry[i].addr + memmap->entry[i].size);
+            }
+        }
     }
-  } else {
-    // No BIOS memory map, probe memory and create a simple map with 640K:1M hole
-    mem_end = memsize();
+    else
+    {
+        // No BIOS memory map, probe memory and create a simple map with 640K:1M hole
+        mem_end = memsize();
 
-    memmap->entry[0].addr = 0;
-    memmap->entry[0].size = 0xA0000;
-    memmap->entry[0].type = MEMTYPE_RAM;
+        memmap->entry[0].addr = 0;
+        memmap->entry[0].size = 0xA0000;
+        memmap->entry[0].type = MEMTYPE_RAM;
 
-    memmap->entry[1].addr = 0xA0000;
-    memmap->entry[1].size = 0x60000;
-    memmap->entry[1].type = MEMTYPE_RESERVED;
+        memmap->entry[1].addr = 0xA0000;
+        memmap->entry[1].size = 0x60000;
+        memmap->entry[1].type = MEMTYPE_RESERVED;
 
-    memmap->entry[2].addr = 0x100000;
-    memmap->entry[2].size = mem_end - 0x100000;
-    memmap->entry[2].type = MEMTYPE_RESERVED;
-  }
+        memmap->entry[2].addr = 0x100000;
+        memmap->entry[2].size = mem_end - 0x100000;
+        memmap->entry[2].type = MEMTYPE_RESERVED;
+    }
 }
 
 void setup_descriptors() {
@@ -283,23 +305,43 @@ void setup_descriptors() {
   // Setup TIB segment
   seginit(&syspage->gdt[GDT_TIB], 0, PAGESIZE, D_DATA | D_DPL3 | D_WRITE | D_PRESENT, 0);
 
-  // Set GDT to the new segment descriptors
-  gdtsel.limit = (sizeof(struct segment) * MAXGDT) - 1;
-  gdtsel.dt = syspage->gdt;
-  __asm { lgdt gdtsel }
+    // Set GDT to the new segment descriptors
+    gdtsel.limit = (sizeof(struct segment) * MAXGDT) - 1;
+    gdtsel.dt = syspage->gdt;
+    __asm__
+    (
+        "lgdt %0"
+        :
+        : "m" (gdtsel)
+    );
 
-  // Make all LDT selectors invalid
-  ldtnull = 0;
-  __asm { lldt [ldtnull] };
+    // Make all LDT selectors invalid
+    ldtnull = 0;
+    __asm__
+    (
+        "lldt %0"
+        :
+        : "m" (ldtnull)
+    );
 
-  // Set IDT to IDT in syspage
-  idtsel.limit = (sizeof(struct gate) * MAXIDT) - 1;
-  idtsel.dt = syspage->idt;
-  __asm { lidt idtsel }
+    // Set IDT to IDT in syspage
+    idtsel.limit = (sizeof(struct gate) * MAXIDT) - 1;
+    idtsel.dt = syspage->idt;
+    __asm__
+    (
+        "lidt %0"
+        :
+        : "m" (idtsel)
+    );
 
-  // Load task register with new TSS segment
-  tssval = SEL_TSS;
-  __asm { ltr tssval };
+    // Load task register with new TSS segment
+    tssval = SEL_TSS;
+    __asm__
+    (
+        "ltr %0"
+        :
+        : "m" (tssval)
+    );
 }
 
 void copy_ramdisk(char *bootimg) {
@@ -342,108 +384,122 @@ void copy_ramdisk(char *bootimg) {
   //kprintf("%d KB boot image found\n", initrd_size / 1024);
 }
 
-void __stdcall start(void *hmod, struct bootparams *bootparams, int reserved) {
-  pte_t *pt;
-  int i;
-  char *bootimg = bootparams->bootimg;
 
-  kprintf(", osldr");
+void __stdcall start(void *hmod, struct bootparams *bootparams, int reserved)
+{
+    pte_t *pt;
+    int i;
+    char *bootimg = bootparams->bootimg;
 
-  // Determine size of RAM
-  setup_memory(&bootparams->memmap);
-  kprintf("%d MB RAM\n", mem_end / (1024 * 1024));
+    kprintf(", osldr");
 
-  // Page allocation starts at 1MB
-  heap = (char *) HEAP_START;
+    __asm__("hlt");
 
-  // Allocate page for page directory
-  pdir = (pte_t *) alloc_heap(1);
+    // Determine size of RAM
+    setup_memory(&bootparams->memmap);
+    kprintf("%d MB RAM\n", mem_end / (1024 * 1024));
 
-  // Make recursive entry for access to page tables
-  pdir[PDEIDX(PTBASE)] = (unsigned long) pdir | PT_PRESENT | PT_WRITABLE;
+    // Page allocation starts at 1MB
+    heap = (char *) HEAP_START;
 
-  // Allocate system page
-  syspage = (struct syspage *) alloc_heap(1);
+    // Allocate page for page directory
+    pdir = (pte_t *) alloc_heap(1);
 
-  // Allocate initial thread control block
-  inittcb = (struct tcb *) alloc_heap(PAGES_PER_TCB);
+    // Make recursive entry for access to page tables
+    pdir[PDEIDX(PTBASE)] = (unsigned long) pdir | PT_PRESENT | PT_WRITABLE;
 
-  // Allocate system page directory page
-  syspagetable = (pte_t *) alloc_heap(1);
+    // Allocate system page
+    syspage = (struct syspage *) alloc_heap(1);
 
-  // Map system page, page directory and and video buffer
-  pdir[PDEIDX(SYSBASE)] = (unsigned long) syspagetable | PT_PRESENT | PT_WRITABLE;
-  syspagetable[PTEIDX(SYSPAGE_ADDRESS)] = (unsigned long) syspage | PT_PRESENT | PT_WRITABLE;
-  syspagetable[PTEIDX(PAGEDIR_ADDRESS)] = (unsigned long) pdir | PT_PRESENT | PT_WRITABLE;
-  syspagetable[PTEIDX(VIDBASE_ADDRESS)] = VIDEO_BASE | PT_PRESENT | PT_WRITABLE;
+    // Allocate initial thread control block
+    inittcb = (struct tcb *) alloc_heap(PAGES_PER_TCB);
 
-  // Map initial TCB
-  for (i = 0; i < PAGES_PER_TCB; i++) {
-    syspagetable[PTEIDX(INITTCB_ADDRESS) + i] = ((unsigned long) inittcb + i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
-  }
+    // Allocate system page directory page
+    syspagetable = (pte_t *) alloc_heap(1);
 
-  // Map first 4MB to physical memory
-  pt = (pte_t *) alloc_heap(1);
-  pdir[0] = (unsigned long) pt | PT_PRESENT | PT_WRITABLE | PT_USER;
-  for (i = 0; i < PTES_PER_PAGE; i++) pt[i] = (i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
+    // Map system page, page directory and and video buffer
+    pdir[PDEIDX(SYSBASE)] = (unsigned long) syspagetable | PT_PRESENT | PT_WRITABLE;
+    syspagetable[PTEIDX(SYSPAGE_ADDRESS)] = (unsigned long) syspage | PT_PRESENT | PT_WRITABLE;
+    syspagetable[PTEIDX(PAGEDIR_ADDRESS)] = (unsigned long) pdir | PT_PRESENT | PT_WRITABLE;
+    syspagetable[PTEIDX(VIDBASE_ADDRESS)] = VIDEO_BASE | PT_PRESENT | PT_WRITABLE;
 
-  // Copy kernel from boot device
-  bootdrive = bootparams->bootdrv;
-  if ((bootdrive & 0xF0) == 0xF0) {
+    // Map initial TCB
+    for (i = 0; i < PAGES_PER_TCB; i++)
+    {
+        syspagetable[PTEIDX(INITTCB_ADDRESS) + i] = ((unsigned long) inittcb + i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
+    }
+
+    // Map first 4MB to physical memory
+    pt = (pte_t *) alloc_heap(1);
+    pdir[0] = (unsigned long) pt | PT_PRESENT | PT_WRITABLE | PT_USER;
+    for (i = 0; i < PTES_PER_PAGE; i++) pt[i] = (i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
+
+    // Copy kernel from boot device
+    bootdrive = bootparams->bootdrv;
+    if ((bootdrive & 0xF0) == 0xF0) {
     copy_ramdisk(bootimg);
     load_kernel(bootdrive);
-  } else {
+    } else {
     init_biosdisk();
     load_kernel(bootdrive);
-  }
+    }
 
-  // Set page directory (CR3) and enable paging (PG bit in CR0)
-  __asm {
-    mov eax, dword ptr [pdir]
-    mov cr3, eax
-    mov eax, cr0
-    or eax, 0x80000000
-    mov cr0, eax
-  }
+    // Set page directory (CR3) and enable paging (PG bit in CR0)
+    __asm__
+    (
+        "mov eax, dword ptr %0;"
+        "mov cr3, eax;"
+        "mov eax, cr0;"
+        "or eax, 0x80000000;"
+        "mov cr0, eax;"
+        :
+        : "m" (pdir)
+    );
 
-  // Setup new descriptors in syspage
-  setup_descriptors();
+    // Setup new descriptors in syspage
+    setup_descriptors();
 
-  // Setup boot parameters
-  memcpy(&syspage->bootparams, bootparams, sizeof(struct bootparams));
-  syspage->ldrparams.heapstart = HEAP_START;
-  syspage->ldrparams.heapend = (unsigned long) heap;
-  syspage->ldrparams.memend = mem_end;
-  syspage->ldrparams.bootdrv = bootdrive;
-  syspage->ldrparams.bootpart = bootpart;
-  syspage->ldrparams.initrd_size = initrd_size;
-  memcpy(syspage->biosdata, (void *) 0x0400, 256);
+    // Setup boot parameters
+    memcpy(&syspage->bootparams, bootparams, sizeof(struct bootparams));
+    syspage->ldrparams.heapstart = HEAP_START;
+    syspage->ldrparams.heapend = (unsigned long) heap;
+    syspage->ldrparams.memend = mem_end;
+    syspage->ldrparams.bootdrv = bootdrive;
+    syspage->ldrparams.bootpart = bootpart;
+    syspage->ldrparams.initrd_size = initrd_size;
+    memcpy(syspage->biosdata, (void *) 0x0400, 256);
 
-  // Kernel options are located in the boot parameter block
-  krnlopts = syspage->bootparams.krnlopts;
+    // Kernel options are located in the boot parameter block
+    krnlopts = syspage->bootparams.krnlopts;
 
-  // Reload segment registers
-  __asm {
-    mov ax, SEL_KDATA
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax
-    push SEL_KTEXT
-    push offset startpg
-    retf
-    startpg:
-  }
+    // Reload segment registers
+    __asm__
+    (
+        "mov ax, %1;"
+        "mov ds, ax;"
+        "mov es, ax;"
+        "mov fs, ax;"
+        "mov gs, ax;"
+        "mov ss, ax;"
+        "push %0;"
+        "push offset startpg;"
+        "retf;"
+        "startpg:"
+        :
+        : "i" (SEL_KTEXT), "i" (SEL_KDATA)
+    );
 
-  // Switch to inital kernel stack and jump to kernel
-  __asm {
-    mov esp, INITTCB_ADDRESS + TCBESP
-    push 0
-    push dword ptr [krnlopts]
-    push OSBASE
-    call dword ptr [krnlentry]
-    cli
-    hlt
-  }
+    // Switch to inital kernel stack and jump to kernel
+    __asm__
+    (
+        "mov esp, %0 + %1;"
+        "push 0;"
+        "push dword ptr [krnlopts];"
+        "push %2;"
+        "call dword ptr [krnlentry];"
+        "cli;"
+        "hlt;"
+        :
+        : "i" (INITTCB_ADDRESS), "i" (TCBESP), "i" (OSBASE)
+    );
 }

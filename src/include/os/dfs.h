@@ -53,6 +53,8 @@
 #define FSOPT_PROGRESS             2
 #define FSOPT_FORMAT               4
 
+#include <os/vfs.h>
+
 struct fsoptions {
   int cache;
   int blocksize;

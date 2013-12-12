@@ -180,10 +180,10 @@ unsigned long memsize()
     unsigned long cr0save;
     unsigned long cr0new;
 
-    // Start at 1MB
+    // start at 1MB
     addr = 1024 * 1024;
 
-    // Save a copy of CR0
+    // save a copy of CR0
     __asm__
     (
         "mov eax, cr0;"
@@ -192,10 +192,9 @@ unsigned long memsize()
         : "m" (cr0save)
     );
 
-    // Invalidate the cache (write-back and invalidate the cache)
+    // invalidate the cache (write-back and invalidate the cache)
     __asm__("wbinvd");
-
-    // Plug cr0 with just PE/CD/NW (cache disable(486+), no-writeback(486+), 32bit mode(386+))
+    // set cr0 with just PE/CD/NW (cache disable(486+), no-writeback(486+), 32bit mode(386+))
     cr0new = cr0save | 0x00000001 | 0x40000000 | 0x20000000;
     __asm__
     (
@@ -205,11 +204,11 @@ unsigned long memsize()
         : "m" (cr0new)
     );
 
-    // Probe for each megabyte
+    // probe for each megabyte of RAM (until almost 4GB)
     while (addr < 0xFFF00000)
     {
         addr += 1024 * 1024;
-        mem= (unsigned long *) addr;
+        mem = (unsigned long *) addr;
 
         value = *mem;
         *mem = 0x55AA55AA;
@@ -234,7 +233,9 @@ unsigned long memsize()
     return addr;
 }
 
-void setup_memory(struct memmap *memmap) {
+
+void setup_memory(struct memmap *memmap)
+{
     int i;
 
     if (memmap->count != 0)
@@ -268,42 +269,44 @@ void setup_memory(struct memmap *memmap) {
     }
 }
 
-void setup_descriptors() {
-  struct syspage *syspage;
-  struct tss *tss;
 
-  // Get syspage virtual address
-  syspage = (struct syspage *) SYSPAGE_ADDRESS;
+void setup_descriptors()
+{
+    struct syspage *syspage;
+    struct tss *tss;
 
-  // Initialize tss
-  tss = &syspage->tss;
-  tss->cr3 = (unsigned long) pdir;
-  tss->eip = krnlentry;
-  tss->cs = SEL_KTEXT;
-  tss->ss0 =  SEL_KDATA;
-  tss->ds =  SEL_KDATA;
-  tss->es =  SEL_KDATA;
-  tss->ss = SEL_KDATA;
-  tss->esp = INITTCB_ADDRESS + TCBESP;
-  tss->esp0 = INITTCB_ADDRESS + TCBESP;
+    // Get syspage virtual address
+    syspage = (struct syspage *) SYSPAGE_ADDRESS;
 
-  // Setup kernel text segment (4GB read and execute, ring 0)
-  seginit(&syspage->gdt[GDT_KTEXT], 0, 0x100000, D_CODE | D_DPL0 | D_READ | D_PRESENT, D_BIG | D_BIG_LIM);
+    // Initialize tss
+    tss = &syspage->tss;
+    tss->cr3 = (unsigned long) pdir;
+    tss->eip = krnlentry;
+    tss->cs = SEL_KTEXT;
+    tss->ss0 =  SEL_KDATA;
+    tss->ds =  SEL_KDATA;
+    tss->es =  SEL_KDATA;
+    tss->ss = SEL_KDATA;
+    tss->esp = INITTCB_ADDRESS + TCBESP;
+    tss->esp0 = INITTCB_ADDRESS + TCBESP;
 
-  // Setup kernel data segment (4GB read and write, ring 0)
-  seginit(&syspage->gdt[GDT_KDATA], 0, 0x100000, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, D_BIG | D_BIG_LIM);
+    // Setup kernel text segment (4GB read and execute, ring 0)
+    seginit(&syspage->gdt[GDT_KTEXT], 0, 0x100000, D_CODE | D_DPL0 | D_READ | D_PRESENT, D_BIG | D_BIG_LIM);
 
-  // Setup user text segment (2GB read and execute, ring 3)
-  seginit(&syspage->gdt[GDT_UTEXT], 0, BTOP(OSBASE), D_CODE | D_DPL3 | D_READ | D_PRESENT, D_BIG | D_BIG_LIM);
+    // Setup kernel data segment (4GB read and write, ring 0)
+    seginit(&syspage->gdt[GDT_KDATA], 0, 0x100000, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, D_BIG | D_BIG_LIM);
 
-  // Setup user data segment (2GB read and write, ring 3)
-  seginit(&syspage->gdt[GDT_UDATA], 0, BTOP(OSBASE), D_DATA | D_DPL3 | D_WRITE | D_PRESENT, D_BIG | D_BIG_LIM);
+    // Setup user text segment (2GB read and execute, ring 3)
+    seginit(&syspage->gdt[GDT_UTEXT], 0, BTOP(OSBASE), D_CODE | D_DPL3 | D_READ | D_PRESENT, D_BIG | D_BIG_LIM);
 
-  // Setup TSS segment
-  seginit(&syspage->gdt[GDT_TSS], (unsigned long) &syspage->tss, sizeof(struct tss), D_TSS | D_DPL0 | D_PRESENT, 0);
+    // Setup user data segment (2GB read and write, ring 3)
+    seginit(&syspage->gdt[GDT_UDATA], 0, BTOP(OSBASE), D_DATA | D_DPL3 | D_WRITE | D_PRESENT, D_BIG | D_BIG_LIM);
 
-  // Setup TIB segment
-  seginit(&syspage->gdt[GDT_TIB], 0, PAGESIZE, D_DATA | D_DPL3 | D_WRITE | D_PRESENT, 0);
+    // Setup TSS segment
+    seginit(&syspage->gdt[GDT_TSS], (unsigned long) &syspage->tss, sizeof(struct tss), D_TSS | D_DPL0 | D_PRESENT, 0);
+
+    // Setup TIB segment
+    seginit(&syspage->gdt[GDT_TIB], 0, PAGESIZE, D_DATA | D_DPL3 | D_WRITE | D_PRESENT, 0);
 
     // Set GDT to the new segment descriptors
     gdtsel.limit = (sizeof(struct segment) * MAXGDT) - 1;
@@ -385,19 +388,15 @@ void copy_ramdisk(char *bootimg) {
 }
 
 
-void __stdcall start(void *hmod, struct bootparams *bootparams, int reserved)
+__attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmod, struct bootparams *bootparams, int reserved)
 {
     pte_t *pt;
     int i;
     char *bootimg = bootparams->bootimg;
 
-    kprintf(", osldr");
-
-    __asm__("hlt");
-
-    // Determine size of RAM
+    // create the memory mapping
     setup_memory(&bootparams->memmap);
-    kprintf("%d MB RAM\n", mem_end / (1024 * 1024));
+    kprintf("\nmemory: %d MB\n", mem_end / (1024 * 1024) + 1);
 
     // Page allocation starts at 1MB
     heap = (char *) HEAP_START;
@@ -436,12 +435,15 @@ void __stdcall start(void *hmod, struct bootparams *bootparams, int reserved)
 
     // Copy kernel from boot device
     bootdrive = bootparams->bootdrv;
-    if ((bootdrive & 0xF0) == 0xF0) {
-    copy_ramdisk(bootimg);
-    load_kernel(bootdrive);
-    } else {
-    init_biosdisk();
-    load_kernel(bootdrive);
+    if ((bootdrive & 0xF0) == 0xF0)
+    {
+        copy_ramdisk(bootimg);
+        load_kernel(bootdrive);
+    }
+    else
+    {
+        init_biosdisk();
+        load_kernel(bootdrive);
     }
 
     // Set page directory (CR3) and enable paging (PG bit in CR0)
@@ -456,10 +458,10 @@ void __stdcall start(void *hmod, struct bootparams *bootparams, int reserved)
         : "m" (pdir)
     );
 
-    // Setup new descriptors in syspage
+    // setup new descriptors in syspage
     setup_descriptors();
 
-    // Setup boot parameters
+    // setup boot parameters
     memcpy(&syspage->bootparams, bootparams, sizeof(struct bootparams));
     syspage->ldrparams.heapstart = HEAP_START;
     syspage->ldrparams.heapend = (unsigned long) heap;
@@ -469,7 +471,7 @@ void __stdcall start(void *hmod, struct bootparams *bootparams, int reserved)
     syspage->ldrparams.initrd_size = initrd_size;
     memcpy(syspage->biosdata, (void *) 0x0400, 256);
 
-    // Kernel options are located in the boot parameter block
+    // kernel options are located in the boot parameter block
     krnlopts = syspage->bootparams.krnlopts;
 
     // Reload segment registers

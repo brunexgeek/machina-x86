@@ -785,12 +785,12 @@ target[FIELD_PREFFIX] = "OSLDRS"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_NFLAGS] = "-f bin"
 target[FIELD_DEPENDENCIES] = ["nasm"]
-target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
+target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_OUTPUT_FILE] = "osloader-stub.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
-    ["sys/arch/x86/osldr/ldrinit.asm" ]
+    ["sys/arch/x86/osloader/stub.asm" ]
 generator.addTarget(target);
 #
 # Machina OS Loader Main
@@ -801,19 +801,19 @@ target[FIELD_DESCRIPTION] = "Machina OS Loader Main"
 target[FIELD_PREFFIX] = "OSLDRM"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-D OSLDR -D KERNEL -I src/include -masm=intel -nostdlib"
-target[FIELD_LDFLAGS] = "-Wl,-e,start -Wl,-Ttext,0x90800"
+target[FIELD_LDFLAGS] = "-Wl,-e,start -Wl,-T,src/sys/arch/x86/osloader/osloader.lds" #-Wl,-Ttext,0x90800"
 target[FIELD_DEPENDENCIES] = ["nasm", "osloader-stub"]
-target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
+target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_OUTPUT_FILE] = "osloader-main.elf"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
-    ["sys/arch/x86/osldr/osldr.c", \
-    "sys/arch/x86/osldr/loadkrnl.c", \
-    "sys/arch/x86/osldr/unzip.c", \
+    ["sys/arch/x86/osloader/osloader.c", \
+    "sys/arch/x86/osloader/kernel.c", \
+    "sys/arch/x86/osloader/unzip.c", \
     "lib/libc/vsprintf.c", \
     "lib/libc/string.c", \
-    "sys/arch/x86/osldr/bioscall.asm" ]
+    "sys/arch/x86/osloader/bioscall.asm" ]
 generator.addTarget(target);
 #
 # Machina OS Loader
@@ -830,6 +830,23 @@ target[FIELD_COMMANDS] = [
     " .bss=alloc,load,contents $(OSLDRM_OUT_FILE) $(OSLDRM_OUT_FILE).bin", \
     "cat $(OSLDRS_OUT_FILE) $(OSLDRM_OUT_FILE).bin > $(OSLDR_OUT_FILE)" ]
 generator.addTarget(target);
+
+#
+# Machina CD image
+#
+target = {}
+target[FIELD_NAME] = "iso"
+target[FIELD_DESCRIPTION] = "Machina CD image"
+target[FIELD_PREFFIX] = "ISO"
+target[FIELD_DEPENDENCIES] = ["cdemboot", "osloader"]
+target[FIELD_OUTPUT_DIRECTORY] = "build"
+target[FIELD_OUTPUT_FILE] = "machina.iso"
+target[FIELD_COMMANDS] = [
+    "build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE)" \
+    " -k ../sanos/linux/install/boot/krnl.dll -c 512 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
+    "genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install" ]
+generator.addTarget(target);
+
 # Driver for NIC 3C905C
 #target = {}
 #target[FIELD_DESCRIPTION] = "Machina 3C905C NIC driver for x86"

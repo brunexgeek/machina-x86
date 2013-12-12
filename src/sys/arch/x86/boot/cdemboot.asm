@@ -145,14 +145,9 @@ loadnext1:
         rep movsb
         pop     ds
 
-        ; Check if we successfuly loaded the osloader binary
+        ; Call real mode entry point in os loader
         mov     ax, OSLDRSEG
         mov     ds, ax
-        mov     bx, [0x00]
-        cmp     bx, 0x1D05
-        jne     failed
-
-        ; Call real mode entry point in os loader
         add     ax, [0x16]          ; "cs" from "kernel-loader.bin" PE Header
         push    ax
         push    word [0x14]         ; "ip" from "kernel-loader.bin" PE Header (should go to stub)
@@ -162,15 +157,13 @@ loadnext1:
         retf
 
 failed:
-        ; Display the fail message
-        mov     ax, cs
-        mov     ds, ax
-        mov     si, failedmsg
+        ; Display boot message
+        mov     si, nfoundmsg
         call    print
-shutdown:
+surrender:
         cli
         hlt
-        jmp shutdown
+        jmp surrender
 
         ; Read sectors from boot drive
         ; input:
@@ -267,8 +260,10 @@ bootdrv db      0
         ; Message strings
 bootmsg:
         db      'Loading boot image from CD-ROM... ', 0
-failedmsg:
-        db      'OS loader not found!', 0
+foundmsg:
+        db      'OS loader found...', 0
+nfoundmsg:
+        db      'OS loader not found...', 0
 
         ; Boot signature
         times   510-($-$$) db 0

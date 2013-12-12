@@ -33,47 +33,51 @@
 ;
 
 ;
-; The kernldr is called by the bootstrap (bootsector) after
-; the os loader has been loaded. The ldrinit uses a simplified
-; DOS .EXE format. It is attached to osldr.dll as the DOS stub
-; for the DLL.
+; The OS loader stub is called by the bootstrap (bootsector).
+; This program uses a simplified DOS MZ executable format
+; (http://wiki.osdev.org/MZ) and is used as a stub for the
+; OS loader main (implemented in C).
 ;
 
-; The os loader is loaded at the fixed address 0x90000.
+; The OD loader is loaded at the fixed address 0x90000.
 ; This allows for 56K for the loader, data area and stack.
 
-OSLDRSEG    equ 0x9000
-OSLDRBASE   equ (OSLDRSEG * 16)
+OSLDRSEG    equ  0x9000
+OSLDRBASE   equ  (OSLDRSEG * 16)
 
-; Put the stack 8K below the 640K border to allow room for
-; the Extended BIOS Data Area
+; Fixed size for stub executable
 
-STACKTOP    equ 0x9e000
+STUBSIZE    equ  0x800
+
+; Position to the stack for execute the OS loader main code
+
+STACKTOP    equ  0x9e000
+
 
         BITS    16
         SECTION .text
 
 ;
-; EXE file header
+; Executable file header
 ;
 
 textstart:
 
 header_start:
-        db      0x05, 0x1D          ; File signature (OSLD)
-        dw      textsize % 512
-        dw      (textsize + 511) / 512
-        dw      0                   ; Relocation information: none
+        db      0x05, 0x1D          ; file signature (OSLD)
+        dw      STUBSIZE % 512
+        dw      (STUBSIZE + 511) / 512
+        dw      0                   ; relocation information: none
         dw      (header_end - header_start) / 16 ; Header size in paragraphs
-        dw      0                   ; Min extra mem
-        dw      0xffff              ; Max extra mem
-        dw      0                   ; Initial SS (before fixup)
-        dw      0                   ; Initial SP
-        dw      0                   ; (no) Checksum
-        dw      start               ; Initial IP
-        dw      0                   ; Initial CS (before fixup)
-        dw      header_end          ; File offset to relocation table: none
-        dw      krnlopts            ; Overlay number (offset for kernel options)
+        dw      0                   ; min extra mem
+        dw      0xffff              ; max extra mem
+        dw      0                   ; initial SS (before fixup)
+        dw      0                   ; initial SP
+        dw      0                   ; checksum (unused for now)
+        dw      start               ; initial IP
+        dw      0                   ; initial CS (before fixup)
+        dw      header_end          ; file offset to relocation table: none
+        dw      krnlopts            ; Offset for kernel options
         align   64, db 0
 header_end:
 
@@ -144,16 +148,9 @@ start32:
         push    dword 2
         popfd
 
-        ; Calculate entrypoint
-        ;mov     eax, [OSLDRBASE + 0x3c]
-        ;mov     eax, [eax + OSLDRBASE + 0x28]
-        ;add     eax, OSLDRBASE
-
-        ;/mov     eax, [textend + 0x18]
-        ;/add     eax, OSLDRBASE
-        mov       eax, OSLDRBASE
-        add       eax, 0x800
-        add       eax, 0x85B
+        ; Calculate entrypoint function (that use 'sdtcall' calling convention)
+        mov      eax, OSLDRBASE
+        add      eax, STUBSIZE
 
         ; Push os loader load address and boot parameter block
         push    dword 0
@@ -163,10 +160,7 @@ start32:
         ; Call startup code in os loader
         call    eax
 
-        mov al, 0x41
-        call printchar
-
-        ; We never return here
+        ; We never [should] return here
         cli
         hlt
 
@@ -174,7 +168,7 @@ start32:
 
 ;
 ; Print string to console
-; si = ptr to first character of a null terminated string
+; si = pointer to first character of a null terminated string
 ;
 
 print:
@@ -403,10 +397,11 @@ memrecs      times (MAXMEMRECS * MEMRECSIZ) db 0
 ; Strings
 ;
 
-osldrmsg:    db    'running OS loader...', 0
+osldrmsg:    db    'OK!', 0
 
 textend:
 
 textsize equ (textend - textstart)
 
-padding      times   2048-($-$$) db 0
+padding      times (STUBSIZE - textsize) db 0
+

@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 #include "iso9660.h"
@@ -169,7 +169,7 @@ static int cdfs_find_dir(struct cdfs *cdfs, char *name, int len) {
 
     // If we reached the end of the path table the directory does not exist
     if (dir == cdfs->path_table_records) return -ENOENT;
-        
+
     // If we have parsed the whole name return the directory number
     if (l == len) return dir;
 
@@ -221,7 +221,7 @@ static int cdfs_find_in_dir(struct cdfs *cdfs, int dir, char *name, int len, str
     rec = (struct iso_directory_record *) p;
     reclen = isonum_711(rec->length);
     namelen = isonum_711(rec->name_len);
-    
+
     if (reclen > 0) {
       if (cdfs_fnmatch(cdfs, name, len, (char *) rec->name, namelen)) {
         *dirrec = rec;
@@ -301,23 +301,23 @@ int cdfs_mount(struct fs *fs, char *opts)
   struct iso_volume_descriptor *vd;
 
   // Check device
-  devno = dev_open(fs->mntfrom);
+  devno = KeDevOpen(fs->mntfrom);
   if (devno == NODEV) return -NODEV;
-  if (device(devno)->driver->type != DEV_TYPE_BLOCK) return -ENOTBLK;
+  if (KeDevGet(devno)->driver->type != DEV_TYPE_BLOCK) return -ENOTBLK;
 
   // Revalidate device and check block size
   if (get_option(opts, "revalidate", NULL, 0, NULL)) {
-    rc = dev_ioctl(devno, IOCTL_REVALIDATE, NULL, 0);
+    rc = KeDevIoControl(devno, IOCTL_REVALIDATE, NULL, 0);
     if (rc < 0) return rc;
   }
 
-  if (dev_ioctl(devno, IOCTL_GETBLKSIZE, NULL, 0) != CDFS_BLOCKSIZE) return -ENXIO;
+  if (KeDevIoControl(devno, IOCTL_GETBLKSIZE, NULL, 0) != CDFS_BLOCKSIZE) return -ENXIO;
 
   // Allocate file system
   cdfs = (struct cdfs *) kmalloc(sizeof(struct cdfs));
   memset(cdfs, 0, sizeof(struct cdfs));
   cdfs->devno = devno;
-  cdfs->blks = dev_ioctl(devno, IOCTL_GETDEVSIZE, NULL, 0);
+  cdfs->blks = KeDevIoControl(devno, IOCTL_GETDEVSIZE, NULL, 0);
   if (cdfs->blks < 0) return cdfs->blks;
 
   // Allocate cache
@@ -335,21 +335,21 @@ int cdfs_mount(struct fs *fs, char *opts)
     buf  = get_buffer(cdfs->cache, blk);
     if (!buf) return -EIO;
     vd = (struct iso_volume_descriptor *) buf->data;
-    
+
     type = isonum_711(vd->type);
     esc = vd->escape_sequences;
 
     if (memcmp(vd->id, "CD001", 5) != 0) {
       free_buffer_pool(cdfs->cache);
-      dev_close(cdfs->devno);
+      KeDevClose(cdfs->devno);
       kfree(cdfs);
       return -EIO;
     }
 
     if (cdfs->vdblk == 0 && type == ISO_VD_PRIMARY) {
       cdfs->vdblk = blk;
-    } else if (type == ISO_VD_SUPPLEMENTAL && 
-               esc[0] == 0x25 && esc[1] == 0x2F && 
+    } else if (type == ISO_VD_SUPPLEMENTAL &&
+               esc[0] == 0x25 && esc[1] == 0x2F &&
                (esc[2] == 0x40 || esc[2] == 0x43 || esc[2] == 0x45)) {
       cdfs->vdblk = blk;
       cdfs->joliet = 1;
@@ -385,7 +385,7 @@ int cdfs_umount(struct fs *fs) {
   if (cdfs->cache) free_buffer_pool(cdfs->cache);
 
   // Close device
-  dev_close(cdfs->devno);
+  KeDevClose(cdfs->devno);
 
   // Deallocate file system
   if (cdfs->path_table_buffer) kfree(cdfs->path_table_buffer);
@@ -448,7 +448,7 @@ int cdfs_open(struct file *filp, char *name) {
 
 int cdfs_close(struct file *filp) {
   struct cdfs_file *cdfile = (struct cdfs_file *) filp->data;
-  
+
   if (cdfile) kfree(cdfile);
   return 0;
 }
@@ -486,7 +486,7 @@ int cdfs_read(struct file *filp, void *data, size_t size, off64_t pos) {
 
     if (filp->flags & O_DIRECT) {
       if (start != 0 || count != CDFS_BLOCKSIZE) return read;
-      if (dev_read(cdfs->devno, p, count, blk, 0) != (int) count) return read;
+      if (KeDevRead(cdfs->devno, p, count, blk, 0) != (int) count) return read;
     } else {
       buf = get_buffer(cdfs->cache, blk);
       if (!buf) return -EIO;
@@ -632,7 +632,7 @@ blkagain:
   // Get directory block
   buf = get_buffer(cdfs->cache, cdfile->extent + (int) filp->pos / CDFS_BLOCKSIZE);
   if (!buf) return -EIO;
-  
+
   // Locate directory record
 recagain:
   rec = (struct iso_directory_record *) (buf->data + (int) filp->pos % CDFS_BLOCKSIZE);
@@ -676,15 +676,15 @@ recagain:
     memcpy(dirp->name, name, namelen);
     dirp->name[namelen] = 0;
   }
-  
+
   filp->pos += reclen;
   release_buffer(cdfs->cache, buf);
   return 1;
 }
 
 struct fsops cdfsops = {
-  FSOP_OPEN | FSOP_CLOSE | FSOP_FSYNC | FSOP_READ | 
-  FSOP_TELL | FSOP_LSEEK | FSOP_STAT | FSOP_FSTAT | 
+  FSOP_OPEN | FSOP_CLOSE | FSOP_FSYNC | FSOP_READ |
+  FSOP_TELL | FSOP_LSEEK | FSOP_STAT | FSOP_FSTAT |
   FSOP_OPENDIR | FSOP_READDIR,
 
   NULL,

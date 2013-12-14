@@ -193,7 +193,8 @@ static __inline unsigned long get_cr0()
     __asm__
     (
         "mov eax, cr0;"
-        "mov val, eax;"
+        "mov %0, eax;"
+        : "=r" (val)
     );
 
     return val;
@@ -203,8 +204,10 @@ static __inline void set_cr0(unsigned long val)
 {
     __asm__
     (
-        "mov eax, val;"
+        //"mov eax, val;"
         "mov cr0, eax;"
+        :
+        : "a" (val)
     );
 }
 
@@ -214,7 +217,8 @@ static __inline unsigned long get_cr2() {
     __asm__
     (
         "mov eax, cr2;"
-        "mov val, eax;"
+        "mov %0, eax;"
+        : "=r" (val)
     );
 
   return val;
@@ -231,10 +235,12 @@ static __inline unsigned long get_cr2() {
 static void __inline wrmsr(unsigned long reg, unsigned long valuelow, unsigned long valuehigh) {
     __asm__
     (
-        "mov ecx, reg;"
-        "mov eax, valuelow;"
-        "mov edx, valuehigh;"
+        //"mov ecx, reg;"
+        //"mov eax, valuelow;"
+        //"mov edx, valuehigh;"
         "wrmsr;"
+        :
+        : "c" (reg), "a" (valuelow), "d" (valuehigh)
     );
 }
 

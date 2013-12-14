@@ -43,8 +43,10 @@
     __asm__
     (
         "mov eax, esp;"
-        "and eax, TCBMASK;"
+        "and eax, %0;"
         "ret;"
+        :
+        : "i" (TCBMASK)
     );
 }
 
@@ -61,15 +63,15 @@
 
         // Store kernel stack pointer in tcb
         "mov     eax, esp;"
-        "and     eax, TCBMASK;"
-        "add     eax, TCBESP;"
+        "and     eax, %0;"
+        "add     eax, %1;"
         "mov     [eax], esp;"
 
         // Get stack pointer for new thread and store in esp0
         "mov     eax, 20[esp];"
-        "add     eax, TCBESP;"
+        "add     eax, %1;"
         "mov     esp, [eax];"
-        "mov     ebp, TSS_ESP0;"
+        "mov     ebp, %2;"
         "mov     [ebp], eax;"
 
         // Restore registers from new kernel stack
@@ -79,6 +81,8 @@
         "pop     ebp;"
 
         "ret;"
+        :
+        : "i" (TCBMASK), "i" (TCBESP), "i" (TSS_ESP0)
     );
 }
 

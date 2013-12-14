@@ -33,7 +33,7 @@
 //
 
 // WARNING:
-#if defined(__GNUCxxx__) || defined(__TINYC__)
+#if (1)//defined(__GNUCxxx__) || defined(__TINYC__)
 
 #define W_TYPE_SIZE   32
 #define BITS_PER_UNIT 8
@@ -112,7 +112,7 @@ union float_long {
 #if defined(__i386__)
 
 #define sub_ddmmss(sh, sl, ah, al, bh, bl) \
-  __asm__ ("subl %5,%1\n\tsbbl %3,%0"                                   \
+  __asm__ ("sub %1,%5\n\tsbb %0,%3"                                   \
            : "=r" ((USItype) (sh)),                                     \
              "=&r" ((USItype) (sl))                                     \
            : "0" ((USItype) (ah)),                                      \
@@ -121,14 +121,14 @@ union float_long {
              "g" ((USItype) (bl)))
 
 #define umul_ppmm(w1, w0, u, v) \
-  __asm__ ("mull %3"                                                    \
+  __asm__ ("mul %3"                                                    \
            : "=a" ((USItype) (w0)),                                     \
              "=d" ((USItype) (w1))                                      \
            : "%0" ((USItype) (u)),                                      \
              "rm" ((USItype) (v)))
 
 #define udiv_qrnnd(q, r, n1, n0, dv) \
-  __asm__ ("divl %4"                                                    \
+  __asm__ ("div %4"                                                    \
            : "=a" ((USItype) (q)),                                      \
              "=d" ((USItype) (r))                                       \
            : "0" ((USItype) (n0)),                                      \
@@ -138,7 +138,7 @@ union float_long {
 #define count_leading_zeros(count, x) \
   do {                                                                  \
     USItype __cbtmp;                                                    \
-    __asm__ ("bsrl %1,%0"                                               \
+    __asm__ ("bsr %0, %1"                                               \
              : "=r" (__cbtmp) : "rm" ((USItype) (x)));                  \
     (count) = __cbtmp ^ 31;                                             \
   } while (0)

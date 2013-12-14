@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -56,7 +56,7 @@ struct virtio_console_config {
 
 struct virtiocon {
   struct virtio_device vd;
-  struct virtio_console_config config; 
+  struct virtio_console_config config;
   struct virtio_queue input_queue;
   struct virtio_queue output_queue;
   dev_t devno;
@@ -81,7 +81,7 @@ static int virtiocon_write(struct dev *dev, void *buffer, size_t count, blkno_t 
   rc = virtio_enqueue(&vcon->output_queue, sg, 1, 0, self());
   if (rc < 0) return rc;
   virtio_kick(&vcon->output_queue);
-  
+
   // Wait for request to complete
   enter_wait(THREAD_WAIT_DEVIO);
 
@@ -111,7 +111,7 @@ static int virtiocon_output_callback(struct virtio_queue *vq) {
   while ((thread = virtio_dequeue(vq, &len)) != NULL) {
     mark_thread_ready(thread, 1, 2);
   }
-  
+
   return 0;
 }
 
@@ -165,10 +165,10 @@ static int install_virtiocon(struct unit *unit) {
   virtio_kick(&vcon->input_queue);
 
   // Create device
-  vcon->devno = dev_make("vc#", &virtiocon_driver, unit, vcon);
+  vcon->devno = KeDevCreate("vc#", &virtiocon_driver, unit, vcon);
   virtio_setup_complete(&vcon->vd, 1);
-  kprintf(KERN_INFO "%s: virtio console, %dx%d, %d ports, feats=%d\n", 
-          device(vcon->devno)->name, 
+  kprintf(KERN_INFO "%s: virtio console, %dx%d, %d ports, feats=%d\n",
+          KeDevGet(vcon->devno)->name,
           vcon->config.cols, vcon->config.rows, vcon->config.max_ports, vcon->vd.features);
 
   return 0;

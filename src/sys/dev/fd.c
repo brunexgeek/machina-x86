@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -147,7 +147,7 @@ struct fdc {
 
   int type;                            // FDC controller type
   char *name;                          // FDC controller name
-  
+
   unsigned char bufp;                  // DMA buffer page
   unsigned char bufl;                  // DMA buffer address low
   unsigned char bufh;                  // DMA buffer address high
@@ -192,7 +192,7 @@ static int fd_command(unsigned char cmd) {
       outp(FDC_DATA, cmd);
       return 0;
     }
-    
+
     if (time_before(tmo, ticks)) break;
     yield(); // delay
   }
@@ -333,9 +333,9 @@ static int fd_recalibrate(struct fd *fd) {
 static int fd_initialize(struct fd *fd) {
   // Specify drive timings
   fd_command(CMD_SPECIFY);
-  fd_command(0xdf);  // SRT = 3ms, HUT = 240ms 
+  fd_command(0xdf);  // SRT = 3ms, HUT = 240ms
   fd_command(0x02);  // HLT = 16ms, ND = 0
-  
+
   //fd_recalibrate(fd);
 
   fd->drive_initialized = 1;
@@ -358,7 +358,7 @@ static int fd_transfer(struct fd *fd, int mode, void *buffer, size_t count, blkn
   blk2ths(fd, blkno, &track, &head, &sector);
   remaining = ((fd->geom->spt + 1 - sector) + fd->geom->spt * (fd->geom->heads - head - 1)) * SECTORSIZE;
   if (remaining < count) count = remaining;
-  
+
   if (mode == FD_MODE_WRITE) memcpy(fd->fdc->dmabuf, buffer, count);
 
   while (retries-- > 0) {
@@ -370,7 +370,7 @@ static int fd_transfer(struct fd *fd, int mode, void *buffer, size_t count, blkn
       fd_command(CMD_SEEK);
       fd_command((unsigned char) ((head << 2) | fd->drive));
       fd_command(track);
-    
+
       if (wait_for_object(&fd->fdc->done, FD_SEEK_TIMEOUT) < 0) {
         kprintf(KERN_WARNING "fd: timeout waiting for seek to complete\n");
         fd_recalibrate(fd);
@@ -428,7 +428,7 @@ static int fd_transfer(struct fd *fd, int mode, void *buffer, size_t count, blkn
     fd_command(fd->geom->spt);
     fd_command(fd->geom->gap3);
     fd_command(0xff); // DTL = unused
-    
+
     if (wait_for_object(&fd->fdc->done, FD_XFER_TIMEOUT) < 0) {
       kprintf(KERN_WARNING "fd: timeout waiting for transfer to complete\n");
       fd_recalibrate(fd);
@@ -446,9 +446,9 @@ static int fd_transfer(struct fd *fd, int mode, void *buffer, size_t count, blkn
 
       // Recalibrate before retrying.
       fd_recalibrate(fd);
-    } 
+    }
   }
-  
+
   return -ETIMEOUT;
 }
 
@@ -466,7 +466,7 @@ static int fd_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
     case IOCTL_GETBLKSIZE:
       return SECTORSIZE;
   }
-  
+
   return -ENOSYS;
 }
 
@@ -581,7 +581,7 @@ static void init_drive(char *devname, struct fd *fd, struct fdc *fdc, int drive,
   fd->drive_initialized = 0;
   init_timer(&fd->motortimer, fd_motor_timeout, fd);
 
-  dev_make(devname, &floppy_driver, NULL, fd);
+  KeDevCreate(devname, &floppy_driver, NULL, fd);
 
   kprintf(KERN_INFO "%s: %s, %d KB, THS=%u/%u/%u\n", devname, fd->geom->name,
     fd->geom->tracks * fd->geom->heads * fd->geom->spt * SECTORSIZE / 1024,
@@ -648,7 +648,7 @@ void init_fd() {
   for (i = 0; i < DMA_BUFFER_PAGES; i++) map_page(fdc.dmabuf + i * PAGESIZE, BTOP(DMA_BUFFER_START) + i, PT_WRITABLE | PT_PRESENT);
 
   register_interrupt(&fdc.intr, INTR_FD, fd_handler, &fdc);
-  enable_irq(IRQ_FD); 
+  enable_irq(IRQ_FD);
 
   //kprintf("fdc: %s\n", fdc.name);
 

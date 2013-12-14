@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -61,7 +61,7 @@ static void dfs_sync(void *arg) {
 
   // Write super block
   if (fs->super_dirty) {
-    dev_write(fs->devno, fs->super, SECTORSIZE, 1, 0);
+    KeDevWrite(fs->devno, fs->super, SECTORSIZE, 1, 0);
     fs->super_dirty = 0;
   }
 }
@@ -95,10 +95,10 @@ static struct filsys *create_filesystem(char *devname, struct fsoptions *fsopts)
   char *buffer;
 
   // Check device
-  devno = dev_open(devname);
+  devno = KeDevOpen(devname);
   if (devno == NODEV) return NULL;
-  if (device(devno)->driver->type != DEV_TYPE_BLOCK) return NULL;
-  sectcount = dev_ioctl(devno, IOCTL_GETDEVSIZE, NULL, 0);
+  if (KeDevGet(devno)->driver->type != DEV_TYPE_BLOCK) return NULL;
+  sectcount = KeDevIoControl(devno, IOCTL_GETDEVSIZE, NULL, 0);
   if (sectcount < 0) return NULL;
 
   // Allocate file system
@@ -158,7 +158,7 @@ static struct filsys *create_filesystem(char *devname, struct fsoptions *fsopts)
   fs->super->first_reserved_block = 1;
   if (fs->blocksize <= SECTORSIZE) fs->super->first_reserved_block++;
   fs->super->reserved_blocks = fsopts->reserved_blocks;
-  
+
   // The group descriptor table starts after the superblock and reserved blocks
   fs->super->groupdesc_table_block = fs->super->first_reserved_block + fs->super->reserved_blocks;
 
@@ -196,9 +196,9 @@ static struct filsys *create_filesystem(char *devname, struct fsoptions *fsopts)
       }
 
       if (i + blocks_per_io > fs->super->block_count) {
-        rc = dev_write(fs->devno, buffer, (fs->super->block_count - i) * fs->blocksize, i, 0);
+        rc = KeDevWrite(fs->devno, buffer, (fs->super->block_count - i) * fs->blocksize, i, 0);
       } else {
-        rc = dev_write(fs->devno, buffer, FORMAT_BLOCKSIZE, i, 0);
+        rc = KeDevWrite(fs->devno, buffer, FORMAT_BLOCKSIZE, i, 0);
       }
 
       if (rc < 0) {
@@ -286,10 +286,10 @@ static struct filsys *create_filesystem(char *devname, struct fsoptions *fsopts)
     for (i = 0; i < fs->super->group_count; i++) {
       gd = fs->groups[i].desc;
 
-      dev_write(fs->devno, buffer, fs->blocksize, gd->block_bitmap_block, 0);
-      dev_write(fs->devno, buffer, fs->blocksize, gd->inode_bitmap_block, 0);
+      KeDevWrite(fs->devno, buffer, fs->blocksize, gd->block_bitmap_block, 0);
+      KeDevWrite(fs->devno, buffer, fs->blocksize, gd->inode_bitmap_block, 0);
       for (j = 0; j < fs->inode_blocks_per_group; j++) {
-        dev_write(fs->devno, buffer, fs->blocksize, gd->inode_table_block + j, 0);
+        KeDevWrite(fs->devno, buffer, fs->blocksize, gd->inode_table_block + j, 0);
       }
     }
 
@@ -327,9 +327,9 @@ static struct filsys *open_filesystem(char *devname, struct fsoptions *fsopts) {
   unsigned int cache_buffers;
 
   // Check device
-  devno = dev_open(devname);
+  devno = KeDevOpen(devname);
   if (devno == NODEV) return NULL;
-  if (device(devno)->driver->type != DEV_TYPE_BLOCK) return NULL;
+  if (KeDevGet(devno)->driver->type != DEV_TYPE_BLOCK) return NULL;
 
   // Allocate file system
   fs = (struct filsys *) kmalloc(sizeof(struct filsys));
@@ -338,8 +338,8 @@ static struct filsys *open_filesystem(char *devname, struct fsoptions *fsopts) {
   // Allocate and read super block
   fs->super = (struct superblock *) kmalloc(SECTORSIZE);
   memset(fs->super, 0, SECTORSIZE);
-  if (dev_read(devno, fs->super, SECTORSIZE, 1, 0) != SECTORSIZE) {
-    kprintf(KERN_ERR "dfs: unable to read superblock on device %s\n", device(devno)->name);
+  if (KeDevRead(devno, fs->super, SECTORSIZE, 1, 0) != SECTORSIZE) {
+    kprintf(KERN_ERR "dfs: unable to read superblock on device %s\n", KeDevGet(devno)->name);
     free(fs->super);
     free(fs);
     return NULL;
@@ -348,14 +348,14 @@ static struct filsys *open_filesystem(char *devname, struct fsoptions *fsopts) {
 
   // Check signature and version
   if (fs->super->signature != DFS_SIGNATURE) {
-    kprintf(KERN_ERR "dfs: invalid DFS signature on device %s\n", device(devno)->name);
+    kprintf(KERN_ERR "dfs: invalid DFS signature on device %s\n", KeDevGet(devno)->name);
     free(fs->super);
     free(fs);
     return NULL;
   }
 
   if (fs->super->version != DFS_VERSION) {
-    kprintf(KERN_ERR "dfs: invalid DFS version on device %s\n", device(devno)->name);
+    kprintf(KERN_ERR "dfs: invalid DFS version on device %s\n", KeDevGet(devno)->name);
     free(fs->super);
     free(fs);
     return NULL;
@@ -417,11 +417,11 @@ static void close_filesystem(struct filsys *fs) {
   free_buffer_pool(fs->cache);
 
   // Write super block
-  if (fs->super_dirty) dev_write(fs->devno, fs->super, SECTORSIZE, 1, 0);
+  if (fs->super_dirty) KeDevWrite(fs->devno, fs->super, SECTORSIZE, 1, 0);
   kfree(fs->super);
 
   // Close device
-  dev_close(fs->devno);
+  KeDevClose(fs->devno);
 
   // Deallocate file system
   kfree(fs);

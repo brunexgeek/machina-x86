@@ -123,9 +123,9 @@ static unsigned char pnp_bios_thunk[] = {
 };
 
 static int pnp_bios_call(int func, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6, int arg7) {
-  int status;
+  int status = 0;
 // WARNING:
-    __asm__
+    /*__asm__
     (
         "CLI;"
         "push ebp;"
@@ -167,7 +167,7 @@ static int pnp_bios_call(int func, int arg1, int arg2, int arg3, int arg4, int a
         "STI;"
         "and eax, 0x0000FFFF;"
         "mov [status], eax;"
-    );
+    );*/
 
   return status;
 }
@@ -294,7 +294,7 @@ static void extract_node_resource_data(struct pnp_bios_node *node, struct unit *
         case 0x01: { // Memory
           int addr = *(short *) &p[4];
           int len = *(short *) &p[10];
-          add_resource(unit, RESOURCE_MEM, 0, addr, len);
+          KeDevAddResource(unit, RESOURCE_MEM, 0, addr, len);
           break;
         }
 
@@ -309,14 +309,14 @@ static void extract_node_resource_data(struct pnp_bios_node *node, struct unit *
         case 0x05: { // 32-bit memory
           int addr = *(int *) &p[4];
           int len = *(int *) &p[16];
-          add_resource(unit, RESOURCE_MEM, 0, addr, len);
+          KeDevAddResource(unit, RESOURCE_MEM, 0, addr, len);
           break;
         }
 
         case 0x06: { // Fixed location 32-bit memory
           int addr = *(int *) &p[4];
           int len = *(int *) &p[8];
-          add_resource(unit, RESOURCE_MEM, 0, addr, len);
+          KeDevAddResource(unit, RESOURCE_MEM, 0, addr, len);
           break;
         }
 
@@ -337,7 +337,7 @@ static void extract_node_resource_data(struct pnp_bios_node *node, struct unit *
         int i, mask, irq = -1;
         mask = p[1] + (p[2] << 8);
         for (i = 0; i < 16; i++, mask = mask >> 1) if (mask & 0x01) irq = i;
-        if (irq != -1) add_resource(unit, RESOURCE_IRQ, 0, irq, 1);
+        if (irq != -1) KeDevAddResource(unit, RESOURCE_IRQ, 0, irq, 1);
         break;
       }
 
@@ -345,21 +345,21 @@ static void extract_node_resource_data(struct pnp_bios_node *node, struct unit *
         int i, mask, dma = -1;
         mask = p[1];
         for (i = 0; i < 8;i++, mask = mask>>1) if (mask & 0x01) dma = i;
-        if (dma != -1) add_resource(unit, RESOURCE_DMA, 0, dma, 1);
+        if (dma != -1) KeDevAddResource(unit, RESOURCE_DMA, 0, dma, 1);
         break;
       }
 
       case 0x08: { // I/O
         int io = p[2] + (p[3] << 8);
         int len = p[7];
-        if (len != 0) add_resource(unit, RESOURCE_IO, 0, io, len);
+        if (len != 0) KeDevAddResource(unit, RESOURCE_IO, 0, io, len);
         break;
       }
 
       case 0x09: { // Fixed location io
         int io = p[1] + (p[2] << 8);
         int len = p[3];
-        add_resource(unit, RESOURCE_IO, 0, io, len);
+        KeDevAddResource(unit, RESOURCE_IO, 0, io, len);
         break;
       }
 
@@ -407,7 +407,7 @@ static void build_sys_devlist(struct bus *bus) {
 
     classcode = (node->type_code[0] << 16) + (node->type_code[1] << 8) + node->type_code[0];
     unitcode = node->eisa_id;
-    unit = add_unit(bus, classcode, unitcode, nodenum + 16);
+    unit = KeDevAddUnit(bus, classcode, unitcode, nodenum + 16);
     unit->classname = get_device_type_name(node->type_code);
 
     extract_node_resource_data(node, unit);
@@ -442,7 +442,7 @@ int enum_pnp_mem(struct unit *unit, unsigned char *b) {
     len = (b[i + 5] + b[i + 6] * 256) * 1024;
     if (len == 0) len = 64 * 1024 * 1024;
 
-    add_resource(unit, RESOURCE_MEM, 0, start, len);
+    KeDevAddResource(unit, RESOURCE_MEM, 0, start, len);
 
     i += 7;
   }
@@ -463,7 +463,7 @@ int enum_pnp_irq(struct unit *unit, unsigned char *b) {
     // b[i] & 0x10 must be 0
     // b[i + 1] set to 0 (reserved)
 
-    add_resource(unit, RESOURCE_IRQ, 0, irq, 1);
+    KeDevAddResource(unit, RESOURCE_IRQ, 0, irq, 1);
 
     i += 2;
   }
@@ -488,7 +488,7 @@ int enum_pnp_dma(struct unit *unit, unsigned char *b) {
     timing = (b[i + 1] >> 4) & 0x03;
     // b[i + 2] & 0xc3 set to 0 (reserved)
 
-    add_resource(unit, RESOURCE_DMA, 0, dma, 1);
+    KeDevAddResource(unit, RESOURCE_DMA, 0, dma, 1);
 
     i += 2;
   }
@@ -508,7 +508,7 @@ int enum_pnp_io(struct unit *unit, unsigned char *b) {
     // b[i] & 0x20 set 0 (reserved)
     io = b[i + 1] + b[i + 2] * 256;
 
-    add_resource(unit, RESOURCE_IO, 0, io, len);
+    KeDevAddResource(unit, RESOURCE_IO, 0, io, len);
 
     i += 3;
   }
@@ -533,7 +533,7 @@ static int enum_pnp_board(struct bus *bus, unsigned char *b) {
   if (slot < 1 || slot > 15) return size;
 
   // Allocate new unit
-  unit = add_unit(bus, 0, unitcode, slot);
+  unit = KeDevAddUnit(bus, 0, unitcode, slot);
   unit->classname = "PNPISA";
 
   // Enumerate resouces
@@ -677,6 +677,6 @@ int enum_isapnp(struct bus *bus) {
 int /*__declspec(dllexport)*/ isapnp(struct unit *unit) {
   struct bus *isabus;
 
-  isabus = add_bus(unit, BUSTYPE_ISA, 0);
+  isabus = KeDevAddBus(unit, BUSTYPE_ISA, 0);
   return enum_isapnp(isabus);
 }

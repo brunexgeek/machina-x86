@@ -9,16 +9,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,9 +28,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <net/net.h>
 
@@ -42,7 +42,7 @@
 #define ARP_MAXAGE         120         // 120 * 10 seconds = 20 minutes
 #define ARP_TIMER_INTERVAL 10000       // The ARP cache is checked every 10 seconds
 
-#define MAX_XMIT_DELAY     1000        // Maximum delay for packets in millisecs     
+#define MAX_XMIT_DELAY     1000        // Maximum delay for packets in millisecs
 
 #pragma pack(push, 1)
 
@@ -104,7 +104,7 @@ static int arp_proc(struct proc_file *pf, void *arg) {
 
 static void arp_tmr(void *arg) {
   int i;
-  
+
   arp_ctime++;
   for (i = 0; i < ARP_TABLE_SIZE; ++i) {
     if (!ip_addr_isany(&arp_table[i].ipaddr) && arp_ctime - arp_table[i].ctime >= ARP_MAXAGE) {
@@ -112,7 +112,7 @@ static void arp_tmr(void *arg) {
       ip_addr_set(&arp_table[i].ipaddr, IP_ADDR_ANY);
     }
   }
-  
+
   for (i = 0; i < ARP_XMIT_QUEUE_SIZE; i++) {
     struct xmit_queue_entry *entry = xmit_queue_table + i;
     if (entry->p && time_before(entry->expires, ticks)) {
@@ -128,7 +128,7 @@ static void arp_tmr(void *arg) {
 
 void arp_init() {
   int i;
-  
+
   for (i = 0; i < ARP_TABLE_SIZE; ++i) ip_addr_set(&arp_table[i].ipaddr, IP_ADDR_ANY);
   memset(xmit_queue_table, 0, sizeof(xmit_queue_table));
   init_timer(&arp_timer, arp_tmr, NULL);
@@ -140,7 +140,7 @@ static void add_arp_entry(struct ip_addr *ipaddr, struct eth_addr *ethaddr) {
   int i, j, k;
   int maxtime;
   int err;
-  
+
   //kprintf("arp: add %la -> %a\n", ethaddr, ipaddr);
 
   // Walk through the ARP mapping table and try to find an entry to
@@ -200,7 +200,7 @@ static void add_arp_entry(struct ip_addr *ipaddr, struct eth_addr *ethaddr) {
       }
       ethhdr->type = htons(ETHTYPE_IP);
 
-      err = dev_transmit((dev_t) entry->netif->state, p);
+      err = KeDevTransmit((dev_t) entry->netif->state, p);
       if (err < 0) {
         kprintf(KERN_ERR "arp: error %d in delayed transmit\n", err);
         pbuf_free(p);
@@ -211,9 +211,9 @@ static void add_arp_entry(struct ip_addr *ipaddr, struct eth_addr *ethaddr) {
 
 void arp_ip_input(struct netif *netif, struct pbuf *p) {
   struct ethip_hdr *hdr;
-  
+
   hdr = p->payload;
-  
+
   // Only insert/update an entry if the source IP address of the
   // incoming IP packet comes from a host on the local network.
   if (!ip_addr_maskcmp(&hdr->ip.src, &netif->ipaddr, &netif->netmask)) return;
@@ -224,14 +224,14 @@ void arp_ip_input(struct netif *netif, struct pbuf *p) {
 struct pbuf *arp_arp_input(struct netif *netif, struct eth_addr *ethaddr, struct pbuf *p) {
   struct arp_hdr *hdr;
   int i;
-  
+
   if (p->tot_len < sizeof(struct arp_hdr)) {
     pbuf_free(p);
     return NULL;
   }
 
   hdr = p->payload;
-  
+
   switch(htons(hdr->opcode)) {
     case ARP_REQUEST:
       // ARP request. If it asked for our address, we send out a reply
@@ -250,11 +250,11 @@ struct pbuf *arp_arp_input(struct netif *netif, struct eth_addr *ethaddr, struct
 
         hdr->hwtype = htons(HWTYPE_ETHERNET);
         ARPH_HWLEN_SET(hdr, 6);
-      
+
         hdr->proto = htons(ETHTYPE_IP);
-        ARPH_PROTOLEN_SET(hdr, sizeof(struct ip_addr));      
-      
-        hdr->ethhdr.type = htons(ETHTYPE_ARP);      
+        ARPH_PROTOLEN_SET(hdr, sizeof(struct ip_addr));
+
+        hdr->ethhdr.type = htons(ETHTYPE_ARP);
         return p;
       }
       break;
@@ -277,11 +277,11 @@ struct pbuf *arp_arp_input(struct netif *netif, struct eth_addr *ethaddr, struct
 
 struct eth_addr *arp_lookup(struct ip_addr *ipaddr) {
   int i;
-  
+
   for (i = 0; i < ARP_TABLE_SIZE; ++i) {
     if (ip_addr_cmp(ipaddr, &arp_table[i].ipaddr)) return &arp_table[i].ethaddr;
   }
-  return NULL;  
+  return NULL;
 }
 
 struct pbuf *arp_query(struct netif *netif, struct eth_addr *ethaddr, struct ip_addr *ipaddr) {
@@ -299,7 +299,7 @@ struct pbuf *arp_query(struct netif *netif, struct eth_addr *ethaddr, struct ip_
     hdr->dhwaddr.addr[i] = 0x00;
     hdr->shwaddr.addr[i] = ethaddr->addr[i];
   }
-  
+
   ip_addr_set(&hdr->dipaddr, ipaddr);
   ip_addr_set(&hdr->sipaddr, &netif->ipaddr);
 
@@ -313,8 +313,8 @@ struct pbuf *arp_query(struct netif *netif, struct eth_addr *ethaddr, struct ip_
     hdr->ethhdr.dest.addr[i] = 0xFF;
     hdr->ethhdr.src.addr[i] = ethaddr->addr[i];
   }
-  
-  hdr->ethhdr.type = htons(ETHTYPE_ARP);      
+
+  hdr->ethhdr.type = htons(ETHTYPE_ARP);
   return p;
 }
 
@@ -357,6 +357,6 @@ int arp_queue(struct netif *netif, struct pbuf *p, struct ip_addr *ipaddr) {
   entry->p = p;
   ip_addr_set(&entry->ipaddr, ipaddr);
   entry->expires = ticks + MAX_XMIT_DELAY / MSECS_PER_TICK;
-  
+
   return 0;
 }

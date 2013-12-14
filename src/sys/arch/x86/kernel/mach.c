@@ -102,22 +102,28 @@ static /*__declspec(naked)*/ unsigned long /*__fastcall*/ hw_ind(port_t port) {
 static void hw_insw(port_t port, void *buf, int count) {
     __asm__
     (
-        "mov edx, port;"
-        "mov edi, buf;"
-        "mov ecx, count;"
+        //"mov edx, port;"
+        "mov edi, %1;"
+        //"mov ecx, count;"
         "rep insw;"
+        :
+        : "d" (port), "m" (buf), "c" (count)
     );
 }
+
 
 static void hw_insd(port_t port, void *buf, int count) {
     __asm__
     (
-        "mov edx, port;"
-        "mov edi, buf;"
-        "mov ecx, count;"
+        //"mov edx, port;"
+        "mov edi, %0;"
+        //"mov ecx, count;"
         "rep insd;"
+        :
+        : "d" (port), "m" (buf), "c" (count)
     );
 }
+
 
 static /*__declspec(naked)*/ int /*__fastcall*/ hw_out(port_t port, int val) {
     __asm__
@@ -153,10 +159,12 @@ static void hw_outsw(port_t port, void *buf, int count)
 {
     __asm__
     (
-        "mov edx, port;"
-        "mov esi, buf;"
-        "mov ecx, count;"
+        //"mov edx, port;"
+        "mov esi, %1;"
+        //"mov ecx, count;"
         "rep outsw;"
+        :
+        : "d" (port), "m" (buf), "c" (count)
     );
 }
 
@@ -164,23 +172,27 @@ static void hw_outsd(port_t port, void *buf, int count)
 {
     __asm__
     (
-        "mov edx, port;"
-        "mov esi, buf;"
-        "mov ecx, count;"
+        //"mov edx, port;"
+        "mov esi, %1;"
+        //"mov ecx, count;"
         "rep outsd;"
+        :
+        : "d" (port), "m" (buf), "c" (count)
     );
 }
 
 static void hw_cpuid(unsigned long reg, unsigned long values[4]) {
     __asm__
     (
-        "mov    eax, reg;"
+        //"mov    eax, reg;"
         "cpuid;"
-        "mov    esi, values;"
+        "mov    esi, %1;"
         "mov    [esi], eax;"
         "mov    [esi+4], ebx;"
         "mov    [esi+8], ecx;"
         "mov    [esi+12], edx;"
+        :
+        : "a" (reg), "m" (values)
     );
 }
 
@@ -190,7 +202,8 @@ static unsigned long hw_get_cr0() {
     __asm__
     (
         "mov eax, cr0;"
-        "mov val, eax;"
+        "mov %0, eax;"
+        : "=r" (val)
     );
 
   return val;
@@ -199,21 +212,25 @@ static unsigned long hw_get_cr0() {
 static void hw_set_cr0(unsigned long val) {
     __asm__
     (
-        "mov eax, val;"
+        //"mov eax, %0;"
         "mov cr0, eax;"
+        :
+        : "a" (val)
     );
 }
 
-static unsigned long hw_get_cr2() {
-  unsigned long val;
+static unsigned long hw_get_cr2()
+{
+    unsigned long val;
 
     __asm__
     (
         "mov eax, cr2;"
-        "mov val, eax;"
+        "mov %0, eax;"
+        : "=r" (val)
     );
 
-  return val;
+    return val;
 }
 
 static /*__declspec(naked)*/ unsigned __int64 hw_rdtsc() {
@@ -224,13 +241,20 @@ static /*__declspec(naked)*/ unsigned __int64 hw_rdtsc() {
     );
 }
 
-static void hw_wrmsr(unsigned long reg, unsigned long valuelow, unsigned long valuehigh) {
+
+static void hw_wrmsr(
+    unsigned long reg,
+    unsigned long valuelow,
+    unsigned long valuehigh )
+{
     __asm__
     (
-        "mov ecx, reg;"
-        "mov eax, valuelow;"
-        "mov edx, valuehigh;"
+        //"mov ecx, reg;"
+        //"mov eax, valuelow;"
+        //"mov edx, valuehigh;"
         "wrmsr;"
+        :
+        : "c" (reg), "a" (valuelow), "d" (valuehigh)
     );
 }
 
@@ -277,8 +301,10 @@ static void hw_invlpage(void *addr) {
     {
         __asm__
         (
-            "mov eax, addr;"
+            //"mov eax, addr;"
             "invlpg [eax];"
+            :
+            : "a" (addr)
         );
     }
 }
@@ -301,20 +327,19 @@ static void hw_set_page_table_entry(pte_t *pte, unsigned long value) {
 
 static void hw_poweroff()
 {
-  if (apm_enabled)
-  {
-    apm_power_off();
-  } else {
-    kprintf("kernel: power management not enabled, system stopped...\n");
-  }
+    /*if (apm_enabled)
+        apm_power_off();
+    else*/
+        kprintf("kernel: power management not enabled, system stopped...\n");
 
-  while (1) {
+    while (1)
+    {
         __asm__
         (
-            "cli;"
-            "hlt;"
+        "cli;"
+        "hlt;"
         );
-  }
+    }
 }
 
 static void hw_reboot() {

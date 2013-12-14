@@ -476,16 +476,17 @@ target[FIELD_SOURCES] = \
     "vfs.c" ]
 generator.addTarget(target);
 #
-# Machina Kernel Image for x86
+# Machina Kernel for x86
 #
 target = {}
-target[FIELD_DESCRIPTION] = "Machina Kernel Image for x86"
+target[FIELD_NAME] = "kernel"
+target[FIELD_DESCRIPTION] = "Machina Kernel for x86"
 target[FIELD_PREFFIX] = "KERNEL32"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel"
-target[FIELD_LDFLAGS] = "-nostdlib -shared"
-target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
-target[FIELD_OUTPUT_FILE] = "kernel32.img"
+target[FIELD_LDFLAGS] = "-nostdlib -Wl,-T,src/sys/arch/x86/kernel/kernel.lds"
+target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/kernel"
+target[FIELD_OUTPUT_FILE] = "kernel32.elf"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
@@ -586,6 +587,20 @@ target[FIELD_SOURCES] = \
     "lib/libc/time.c", \
     "lib/libc/verinfo.c", \
     "lib/libc/vsprintf.c" ]
+generator.addTarget(target);
+#
+# Machina Kernel Image for x86
+#
+target = {}
+target[FIELD_NAME] = "kernel-image"
+target[FIELD_DESCRIPTION] = "Machina Kernel Image for x86"
+target[FIELD_PREFFIX] = "KRNLIMG32"
+target[FIELD_DEPENDENCIES] = ["$(KERNEL32_OUT_FILE)"]
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
+target[FIELD_OUTPUT_FILE] = "kernel32.bin"
+target[FIELD_COMMANDS] = [
+    "objcopy -O binary -j .text -j .rodata -j .bss -j .data --set-section-flags" \
+    " .bss=alloc,load,contents $(KERNEL32_OUT_FILE) $(KRNLIMG32_OUT_FILE)" ]
 generator.addTarget(target);
 #
 # Machina Kernel Library for x86
@@ -838,12 +853,12 @@ target = {}
 target[FIELD_NAME] = "iso"
 target[FIELD_DESCRIPTION] = "Machina CD image"
 target[FIELD_PREFFIX] = "ISO"
-target[FIELD_DEPENDENCIES] = ["cdemboot", "osloader"]
+target[FIELD_DEPENDENCIES] = ["cdemboot", "osloader", "kernel-image"]
 target[FIELD_OUTPUT_DIRECTORY] = "build"
 target[FIELD_OUTPUT_FILE] = "machina.iso"
 target[FIELD_COMMANDS] = [
     "build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE)" \
-    " -k ../sanos/linux/install/boot/krnl.dll -c 512 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
+    " -k $(KRNLIMG32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
     "genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install" ]
 generator.addTarget(target);
 

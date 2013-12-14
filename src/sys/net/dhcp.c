@@ -10,16 +10,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,9 +29,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <net/net.h>
 
@@ -130,7 +130,7 @@ static int dhcpstat_proc(struct proc_file *pf, void *arg) {
 //
 
 static void dhcp_handle_nak(struct dhcp_state *state) {
-  int msecs = 10 * 1000;  
+  int msecs = 10 * 1000;
   mod_timer(&state->request_timeout_timer, ticks + msecs / MSECS_PER_TICK);
   kprintf(KERN_WARNING "dhcp_handle_nak: request timeout %u msecs\n", msecs);
   dhcp_set_state(state, DHCP_BACKING_OFF);
@@ -151,7 +151,7 @@ static void dhcp_check(struct dhcp_state *state) {
   p = arp_query(state->netif, (struct eth_addr *) &state->netif->hwaddr, &state->offered_ip_addr);
   if (p != NULL) {
     kprintf("dhcp_check: sending ARP request len %u\n", p->tot_len);
-    result = dev_transmit((dev_t) state->netif->state, p);
+    result = KeDevTransmit((dev_t) state->netif->state, p);
     pbuf_free(p);
     //return result;
   }
@@ -216,7 +216,7 @@ static err_t dhcp_select(struct dhcp_state *state) {
     udp_connect(state->pcb, IP_ADDR_ANY, DHCP_SERVER_PORT);
     dhcp_delete_request(state);
   }
-  
+
   state->tries++;
   msecs = state->tries < 4 ? state->tries * 1000 : 4 * 1000;
   mod_timer(&state->request_timeout_timer, ticks + msecs / MSECS_PER_TICK);
@@ -389,7 +389,7 @@ struct dhcp_state *dhcp_start(struct netif *netif) {
   state = dhcp_find_client(netif);
   if (state != NULL) {
     kprintf("dhcp_start: already active on interface\n");
-    
+
     // Just restart the DHCP negotiation
     result = dhcp_discover(state);
     if (result < 0) return NULL;
@@ -426,7 +426,7 @@ struct dhcp_state *dhcp_start(struct netif *netif) {
     while (list_state->next != NULL) list_state = list_state->next;
     list_state->next = state;
   }
-  
+
   dhcp_discover(state);
   return state;
 }
@@ -610,14 +610,14 @@ static void dhcp_bind(struct dhcp_state *state) {
   if (state->offered_t2_rebind != 0xFFFFFFFF) {
     mod_timer(&state->t2_timeout_timer, ticks + state->offered_t2_rebind * TICKS_PER_SEC);
   }
-  
+
   ip_addr_set(&sn_mask, &state->offered_sn_mask);
   if (sn_mask.addr == 0) {
     // Subnet mask not given
     // Choose a safe subnet mask given the network class
 
     unsigned char first_octet = ip4_addr1(&sn_mask);
-    if (first_octet <= 127) { 
+    if (first_octet <= 127) {
       sn_mask.addr = htonl(0xFF000000);
     } else if (first_octet >= 192) {
       sn_mask.addr = htonl(0xFFFFFF00);
@@ -769,7 +769,7 @@ static err_t dhcp_release(struct dhcp_state *state) {
   netif_set_ipaddr(state->netif, IP_ADDR_ANY);
   netif_set_gw(state->netif, IP_ADDR_ANY);
   netif_set_netmask(state->netif, IP_ADDR_ANY);
-  
+
   // ... and idle DHCP client
   dhcp_set_state(state, DHCP_OFF);
   return result;
@@ -890,7 +890,7 @@ static err_t dhcp_unfold_reply(struct dhcp_state *state) {
   // Proceed through struct dhcp_msg
   for (i = 0; i < sizeof(struct dhcp_msg); i++) {
     *ptr++ = ((unsigned char *) p->payload)[j++];
-    
+
     if (j == p->len) {
       p = p->next;
       j = 0;
@@ -959,7 +959,7 @@ static err_t dhcp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p, struct ip
                 dhcp_bind(state);
               }
             } else if ((msg_type == DHCP_NAK) &&
-                       (state->state == DHCP_REBOOTING || state->state == DHCP_REQUESTING || 
+                       (state->state == DHCP_REBOOTING || state->state == DHCP_REQUESTING ||
                         state->state == DHCP_REBINDING || state->state == DHCP_RENEWING)) {
               // Received a DHCP_NAK in appropriate state
               kprintf("DHCP_NAK received\n");
@@ -1047,7 +1047,7 @@ static unsigned char *dhcp_get_option_ptr(struct dhcp_state *state, unsigned cha
     // Start with options field
     unsigned char *options = (unsigned char *) state->options_in;
     int offset = 0;
-    
+
     // At least 1 byte to read and no end marker, then at least 3 bytes to read?
     while ((offset < state->options_in_len) && (options[offset] != DHCP_OPTION_END)) {
       // Are the sname and/or file field overloaded with options?
@@ -1105,7 +1105,7 @@ static unsigned char *dhcp_get_option_ptr(struct dhcp_state *state, unsigned cha
 
 static unsigned char dhcp_get_option_byte(unsigned char *ptr) {
   return *ptr;
-}                            
+}
 
 //
 // dhcp_get_option_short
@@ -1116,9 +1116,9 @@ static unsigned short dhcp_get_option_short(unsigned char *ptr) {
 
   value = *ptr++ << 8;
   value |= *ptr;
-  
+
   return value;
-}                            
+}
 
 //
 // dhcp_get_option_long
@@ -1133,7 +1133,7 @@ static unsigned long dhcp_get_option_long(unsigned char *ptr) {
   value |= (unsigned long) (*ptr++);
 
   return value;
-}                            
+}
 
 //
 // dhcp_find_client
@@ -1165,7 +1165,7 @@ static void dhcp_dump_options(struct dhcp_state *state) {
     // Start with options field
     unsigned char *options = (unsigned char *) state->options_in;
     int offset = 0;
-    
+
     // At least 1 byte to read and no end marker, then at least 3 bytes to read?
     while ((offset < state->options_in_len) && (options[offset] != DHCP_OPTION_END)) {
       // Are the sname and/or file field overloaded with options?

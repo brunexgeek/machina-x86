@@ -220,7 +220,7 @@ static void init_filesystem() {
   }
 
   // If default boot device is not found try a virtual device.
-  if (devno(bootdev) == NODEV && devno("vd0") != NODEV) strcpy(bootdev, "vd0");
+  if (KeDevGetNumber(bootdev) == NODEV && KeDevGetNumber("vd0") != NODEV) strcpy(bootdev, "vd0");
 
   // Determine root file system
   get_option(krnlopts, "rootdev", rootdev, sizeof(rootdev), bootdev);
@@ -289,7 +289,7 @@ static int copyright_proc(struct proc_file *pf, void *arg) {
   return 0;
 }
 
-void /*__stdcall*/ start(void *hmod, char *opts, int reserved2) {
+__attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmod, char *opts, int reserved2) {
   // Copy kernel options
   strcpy(krnlopts, opts);
   if (get_option(opts, "silent", NULL, 0, NULL) != NULL) kprint_enabled = 0;
@@ -299,7 +299,7 @@ void /*__stdcall*/ start(void *hmod, char *opts, int reserved2) {
   init_console();
 
   // Display banner
-  kprintf(KERN_INFO ", kernel\n");
+  kprintf(KERN_INFO "Blevers\n");
   if (*krnlopts) kprintf(KERN_INFO "options: %s\n", krnlopts);
 
   // Initialize machine
@@ -499,8 +499,8 @@ void main(void *arg) {
   // Jump into user mode
     __asm__
     (
-        "mov eax, stacktop;"
-        "mov ebx, entrypoint;"
+        "mov eax, %3;"
+        "mov ebx, %4;"
 
         "push %0 + %2;"
         "push eax;"
@@ -512,6 +512,6 @@ void main(void *arg) {
         "mov es, ax;"
         "IRETD;"
         :
-        : "i" (SEL_UDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3)
+        : "i" (SEL_UDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3), "m" (stacktop), "m" (entrypoint)
     );
 }

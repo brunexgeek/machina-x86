@@ -32,6 +32,7 @@
 //
 
 #include <os/krnl.h>
+#include <os/buf.h>
 
 #define SYNC_INTERVAL  10      // Sync interval in seconds
 #define BUFWAIT_BOOST  1
@@ -51,7 +52,7 @@ static char *statename[] = {"free", "clean", "dirty", "read", "write", "lock", "
 void dump_pool_stat(struct bufpool *pool) {
   int i;
 
-  kprintf("pool %s: %dx%d, %dK total (", device(pool->devno)->name, pool->poolsize, pool->bufsize, pool->poolsize * pool->bufsize / 1024);
+  kprintf("pool %s: %dx%d, %dK total (", KeDevGet(pool->devno)->name, pool->poolsize, pool->bufsize, pool->poolsize * pool->bufsize / 1024);
   for (i = 0; i < BUF_STATES; i++)  {
     if (pool->bufcount[i] != 0) {
       kprintf("%s:%d ", statename[i], pool->bufcount[i]);
@@ -73,7 +74,7 @@ static int bufpools_proc(struct proc_file *pf, void *arg) {
 
   pool = bufpools;
   while (pool) {
-    pprintf(pf, "%-8s %7d %5dK", device(pool->devno)->name, pool->bufsize, pool->poolsize * pool->bufsize / 1024);
+    pprintf(pf, "%-8s %7d %5dK", KeDevGet(pool->devno)->name, pool->bufsize, pool->poolsize * pool->bufsize / 1024);
     for (i = 0; i < BUF_STATES; i++) pprintf(pf, "%6d", pool->bufcount[i]);
     pprintf(pf, "\n");
     pool = pool->next;
@@ -102,7 +103,7 @@ static int bufstats_proc(struct proc_file *pf, void *arg) {
     }
 
     pprintf(pf, "%-8s %8d %8d %6d%% %7d %7d %7d %7d %7d\n",
-      device(pool->devno)->name,
+      KeDevGet(pool->devno)->name,
       pool->blocks_read, pool->blocks_written, hitratio,
       pool->blocks_allocated, pool->blocks_freed,
       pool->blocks_updated, pool->blocks_lazywrite, pool->blocks_synched);
@@ -278,10 +279,10 @@ static int read_buffer(struct bufpool *pool, struct buf *buf) {
   // Read block from device into buffer
   change_state(pool, buf, BUF_STATE_READING);
   pool->ioactive = 1;
-  rc = dev_read(pool->devno, buf->data, pool->bufsize, buf->blkno * pool->blks_per_buffer, 0);
+  rc = KeDevRead(pool->devno, buf->data, pool->bufsize, buf->blkno * pool->blks_per_buffer, 0);
   if (rc != pool->bufsize) {
     // Set buffer in error state and release all waiters
-    kprintf(KERN_ERR "bufpool: error %d reading block %d from %s\n", rc, buf->blkno, device(pool->devno)->name);
+    kprintf(KERN_ERR "bufpool: error %d reading block %d from %s\n", rc, buf->blkno, KeDevGet(pool->devno)->name);
     change_state(pool, buf, BUF_STATE_ERROR);
     release_buffer_waiters(buf, rc);
   } else {
@@ -315,7 +316,7 @@ static int write_buffer(struct bufpool *pool, struct buf *buf, int flush)
     // Write block to device from buffer
     change_state(pool, buf, BUF_STATE_WRITING);
     if (!flush) pool->ioactive = 1;
-    rc = dev_write(pool->devno, buf->data, pool->bufsize, buf->blkno * pool->blks_per_buffer, 0);
+    rc = KeDevWrite(pool->devno, buf->data, pool->bufsize, buf->blkno * pool->blks_per_buffer, 0);
     pool->blocks_written++;
   } else {
     rc = pool->bufsize;
@@ -323,7 +324,7 @@ static int write_buffer(struct bufpool *pool, struct buf *buf, int flush)
 
   if (rc != pool->bufsize) {
     // Set buffer in error state and release all waiters
-    kprintf(KERN_ERR "bufpool: error %d writing block %d to %s\n", rc, buf->blkno, device(pool->devno)->name);
+    kprintf(KERN_ERR "bufpool: error %d writing block %d to %s\n", rc, buf->blkno, KeDevGet(pool->devno)->name);
     change_state(pool, buf, BUF_STATE_ERROR);
     release_buffer_waiters(buf, rc);
   } else {
@@ -454,7 +455,7 @@ struct bufpool *init_buffer_pool(dev_t devno, int poolsize, int bufsize, void (*
   int blksize;
 
   // Get blocksize from device
-  blksize = dev_ioctl(devno, IOCTL_GETBLKSIZE, NULL, 0);
+  blksize = KeDevIoControl(devno, IOCTL_GETBLKSIZE, NULL, 0);
   if (blksize < 0) return  NULL;
 
   // Allocate and initialize buffer pool structure
@@ -790,7 +791,7 @@ int sync_buffers(struct bufpool *pool, int interruptable) {
 
       // Flush buffer to device
       //kprintf("sync block %d\n", buf->blkno);
-      rc = dev_write(pool->devno, buf->data, pool->bufsize, buf->blkno * pool->blks_per_buffer, 0);
+      rc = KeDevWrite(pool->devno, buf->data, pool->bufsize, buf->blkno * pool->blks_per_buffer, 0);
       if (rc < 0) return rc;
 
       pool->blocks_written++;

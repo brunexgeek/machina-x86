@@ -32,7 +32,7 @@
 //
 
 #include <os/krnl.h>
-
+#include <os/trap.h>
 
 #if (TARGET_MACHINE==x86)
 #include "../arch/x86/kernel/trap.c"

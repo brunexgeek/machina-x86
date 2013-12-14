@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -235,7 +235,7 @@ void kbd_reboot() {
   kbd_write_command(0xFE);
   cli();
   halt();
-}               
+}
 
 //
 // Set keyboard LEDs
@@ -257,7 +257,7 @@ static void insert_key(unsigned char ch) {
     keyboard_buffer[keyboard_buffer_in] = ch;
     keyboard_buffer_in = (keyboard_buffer_in + 1) & (KEYBOARD_BUFFER_SIZE - 1);
     release_sem(&kbdsem, 1);
-    dev_setevt(kbddev, IOEVT_READ);
+    KeDevSetEvent(kbddev, IOEVT_READ);
   }
 }
 
@@ -335,7 +335,7 @@ static void process_scancode(unsigned int scancode) {
   // Alt key
   if (!ext && scancode == 0x38) control_keys |= CK_LALT;
   if (!ext && scancode == 0x80 + 0x38) control_keys &= ~CK_LALT;
-          
+
   // AltGr key
   if (ext && scancode == 0x38) control_keys |= CK_RALT;
   if (ext && scancode == (0x38 | 0x80)) control_keys &= ~CK_RALT;
@@ -428,7 +428,7 @@ int getch(unsigned int timeout) {
   keyboard_buffer_out = (keyboard_buffer_out + 1) & (KEYBOARD_BUFFER_SIZE - 1);
 
   if (keyboard_buffer_in == keyboard_buffer_out) {
-    dev_clrevt(kbddev, IOEVT_READ);
+    KeDevClearEvent(kbddev, IOEVT_READ);
   }
 
   return ch;
@@ -457,7 +457,7 @@ int reset_keyboard() {
     kprintf(KERN_WARNING "kbd: Keyboard failed self test\n");
     return -EIO;
   }
-  
+
   // Perform a keyboard interface test. This causes the controller
   // to test the keyboard clock and data lines.
   kbd_wait();
@@ -522,7 +522,7 @@ int reset_keyboard() {
     kprintf(KERN_ERR "kbd: Set rate: no ACK\n");
     return -EIO;
   }
-  
+
   kbd_wait();
   kbd_write_data(0x00);
   if (kbd_wait_for_data() != KBD_REPLY_ACK) {
@@ -531,7 +531,7 @@ int reset_keyboard() {
   }
 
   // Set all keyboard LEDs off
-  led_status = 0; 
+  led_status = 0;
   setleds();
 
   return 0;

@@ -7,91 +7,34 @@ NASM := build/tools/nasm
 help:
 	@echo "   all"
 	@echo "   clean"
-	@echo "   $(OSLDRS_OUT_FILE) (osloader-stub) "
+	@echo "   $(KERNEL32_OUT_FILE) (kernel) "
 	@echo "   $(MKDFS_OUT_FILE) "
-	@echo "   $(KERNEL32_OUT_FILE) "
+	@echo "   $(OSLDRS_OUT_FILE) (osloader-stub) "
 	@echo "   $(LIBC_OUT_FILE) (libc) "
 	@echo "   $(NETBOOT_OUT_FILE) (netboot) "
 	@echo "   $(CDEMBOOT_OUT_FILE) (cdemboot) "
 	@echo "   $(LIBKERNEL_OUT_FILE) "
 	@echo "   $(ISO_OUT_FILE) (iso) "
 	@echo "   $(DISKBOOT_OUT_FILE) (diskboot) "
+	@echo "   $(KRNLIMG32_OUT_FILE) (kernel-image) "
 	@echo "   $(OSLDR_OUT_FILE) (osloader) "
 	@echo "   $(OSLDRM_OUT_FILE) (osloader-main) "
 	@echo "   $(NASM_OUT_FILE) (nasm) "
 
-.PHONY: all clean osloader-stub libc netboot cdemboot iso diskboot osloader osloader-main nasm
+.PHONY: all clean kernel osloader-stub libc netboot cdemboot iso diskboot kernel-image osloader osloader-main nasm
 
 #
-# Machina OS Loader Stub 
-#
-OSLDRS_NFLAGS = $(NFLAGS) -f bin
-OSLDRS_OUT_DIR = build/machina/obj/osloader
-OSLDRS_OUT_FILE = $(OSLDRS_OUT_DIR)/osloader-stub.bin
-OSLDRS_SRC_FILES = \
-	src/sys/arch/x86/osloader/stub.asm
-
-$(OSLDRS_OUT_FILE) osloader-stub : nasm 
-	@echo
-	@echo Building Machina OS Loader Stub
-	@mkdir -p $(OSLDRS_OUT_DIR)
-	$(NASM) $(OSLDRS_NFLAGS) $(OSLDRS_SRC_FILES) -o $(OSLDRS_OUT_FILE)
-
-
-#
-# MKDFS Tool for GNU/Linux 
-#
-MKDFS_WELCOME:
-	@echo
-	@echo Building MKDFS Tool for GNU/Linux
-
-MKDFS_CFLAGS = $(CFLAGS)
-MKDFS_LDFLAGS = $(LDFLAGS)
-MKDFS_NFLAGS = $(NFLAGS)
-MKDFS_OUT_DIR = build/tools
-MKDFS_OUT_FILE = $(MKDFS_OUT_DIR)/mkdfs
-MKDFS_SRC_DIR = utils/dfs
-MKDFS_SRC_FILES = \
-	blockdev.c \
-	vmdk.c \
-	bitops.c \
-	buf.c \
-	dfs.c \
-	dir.c \
-	file.c \
-	group.c \
-	inode.c \
-	mkdfs.c \
-	super.c \
-	vfs.c
-MKDFS_OBJ_DIR = build/linux/obj/utils/dfs
-MKDFS_OBJ_FILES = $(patsubst %,$(MKDFS_OBJ_DIR)/%.o ,$(MKDFS_SRC_FILES))
-
-$(MKDFS_OBJ_FILES): | MKDFS_OBJ_MKDIR
-
-MKDFS_OBJ_MKDIR:
-	@mkdir -p build/linux/obj/utils/dfs
-
-$(MKDFS_OBJ_DIR)/%.c.o: $(MKDFS_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(MKDFS_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
-
-$(MKDFS_OUT_FILE) :  MKDFS_WELCOME $(MKDFS_OBJ_FILES)
-	@mkdir -p $(MKDFS_OUT_DIR)
-	$(CC) $(MKDFS_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(MKDFS_LDFLAGS) $(MKDFS_OBJ_FILES) -o $(MKDFS_OUT_FILE)
-
-
-#
-# Machina Kernel Image for x86 
+# Machina Kernel for x86 
 #
 KERNEL32_WELCOME:
 	@echo
-	@echo Building Machina Kernel Image for x86
+	@echo Building Machina Kernel for x86
 
 KERNEL32_CFLAGS = $(CFLAGS) -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel
-KERNEL32_LDFLAGS = $(LDFLAGS) -nostdlib -shared
+KERNEL32_LDFLAGS = $(LDFLAGS) -nostdlib -Wl,-T,src/sys/arch/x86/kernel/kernel.lds
 KERNEL32_NFLAGS = $(NFLAGS)
-KERNEL32_OUT_DIR = build/install/boot
-KERNEL32_OUT_FILE = $(KERNEL32_OUT_DIR)/kernel32.img
+KERNEL32_OUT_DIR = build/machina/obj/kernel
+KERNEL32_OUT_FILE = $(KERNEL32_OUT_DIR)/kernel32.elf
 KERNEL32_SRC_DIR = src
 KERNEL32_SRC_FILES = \
 	sys/kernel/buf.c \
@@ -206,9 +149,67 @@ KERNEL32_OBJ_MKDIR:
 $(KERNEL32_OBJ_DIR)/%.c.o: $(KERNEL32_SRC_DIR)/%.c
 	$(CC) -O2 -m32 $(KERNEL32_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
-$(KERNEL32_OUT_FILE) :  KERNEL32_WELCOME $(KERNEL32_OBJ_FILES)
+$(KERNEL32_OUT_FILE) kernel :  KERNEL32_WELCOME $(KERNEL32_OBJ_FILES)
 	@mkdir -p $(KERNEL32_OUT_DIR)
 	$(CC) $(KERNEL32_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(KERNEL32_LDFLAGS) $(KERNEL32_OBJ_FILES) -o $(KERNEL32_OUT_FILE)
+
+
+#
+# MKDFS Tool for GNU/Linux 
+#
+MKDFS_WELCOME:
+	@echo
+	@echo Building MKDFS Tool for GNU/Linux
+
+MKDFS_CFLAGS = $(CFLAGS)
+MKDFS_LDFLAGS = $(LDFLAGS)
+MKDFS_NFLAGS = $(NFLAGS)
+MKDFS_OUT_DIR = build/tools
+MKDFS_OUT_FILE = $(MKDFS_OUT_DIR)/mkdfs
+MKDFS_SRC_DIR = utils/dfs
+MKDFS_SRC_FILES = \
+	blockdev.c \
+	vmdk.c \
+	bitops.c \
+	buf.c \
+	dfs.c \
+	dir.c \
+	file.c \
+	group.c \
+	inode.c \
+	mkdfs.c \
+	super.c \
+	vfs.c
+MKDFS_OBJ_DIR = build/linux/obj/utils/dfs
+MKDFS_OBJ_FILES = $(patsubst %,$(MKDFS_OBJ_DIR)/%.o ,$(MKDFS_SRC_FILES))
+
+$(MKDFS_OBJ_FILES): | MKDFS_OBJ_MKDIR
+
+MKDFS_OBJ_MKDIR:
+	@mkdir -p build/linux/obj/utils/dfs
+
+$(MKDFS_OBJ_DIR)/%.c.o: $(MKDFS_SRC_DIR)/%.c
+	$(CC) -O2 -m32 $(MKDFS_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+
+$(MKDFS_OUT_FILE) :  MKDFS_WELCOME $(MKDFS_OBJ_FILES)
+	@mkdir -p $(MKDFS_OUT_DIR)
+	$(CC) $(MKDFS_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(MKDFS_LDFLAGS) $(MKDFS_OBJ_FILES) -o $(MKDFS_OUT_FILE)
+
+
+#
+# Machina OS Loader Stub 
+#
+OSLDRS_NFLAGS = $(NFLAGS) -f bin
+OSLDRS_OUT_DIR = build/machina/obj/osloader
+OSLDRS_OUT_FILE = $(OSLDRS_OUT_DIR)/osloader-stub.bin
+OSLDRS_SRC_FILES = \
+	src/sys/arch/x86/osloader/stub.asm
+
+$(OSLDRS_OUT_FILE) osloader-stub : nasm 
+	@echo
+	@echo Building Machina OS Loader Stub
+	@mkdir -p $(OSLDRS_OUT_DIR)
+	$(NASM) $(OSLDRS_NFLAGS) $(OSLDRS_SRC_FILES) -o $(OSLDRS_OUT_FILE)
 
 
 #
@@ -430,11 +431,11 @@ $(LIBKERNEL_OUT_FILE) : build/tools/nasm  LIBKERNEL_WELCOME $(LIBKERNEL_OBJ_FILE
 #
 ISO_OUT_DIR = build
 ISO_OUT_FILE = $(ISO_OUT_DIR)/machina.iso
-$(ISO_OUT_FILE) iso : cdemboot osloader 
+$(ISO_OUT_FILE) iso : cdemboot osloader kernel-image 
 	@echo
 	@echo Building Machina CD image
 	@mkdir -p $(ISO_OUT_DIR)
-	build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE) -k ../sanos/linux/install/boot/krnl.dll -c 512 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs
+	build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE) -k $(KRNLIMG32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs
 	genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install
 
 
@@ -452,6 +453,18 @@ $(DISKBOOT_OUT_FILE) diskboot : nasm
 	@echo Building Machina Stage 1 Bootloader
 	@mkdir -p $(DISKBOOT_OUT_DIR)
 	$(NASM) $(DISKBOOT_NFLAGS) $(DISKBOOT_SRC_FILES) -o $(DISKBOOT_OUT_FILE)
+
+
+#
+# Machina Kernel Image for x86 
+#
+KRNLIMG32_OUT_DIR = build/install/boot
+KRNLIMG32_OUT_FILE = $(KRNLIMG32_OUT_DIR)/kernel32.bin
+$(KRNLIMG32_OUT_FILE) kernel-image : $(KERNEL32_OUT_FILE) 
+	@echo
+	@echo Building Machina Kernel Image for x86
+	@mkdir -p $(KRNLIMG32_OUT_DIR)
+	objcopy -O binary -j .text -j .rodata -j .bss -j .data --set-section-flags .bss=alloc,load,contents $(KERNEL32_OUT_FILE) $(KRNLIMG32_OUT_FILE)
 
 
 #
@@ -577,5 +590,5 @@ $(NASM_OUT_FILE) nasm :  NASM_WELCOME $(NASM_OBJ_FILES)
 	@mkdir -p $(NASM_OUT_DIR)
 	$(CC) $(NASM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
 
-all: $(OSLDRS_OUT_FILE) $(MKDFS_OUT_FILE) $(KERNEL32_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(ISO_OUT_FILE) $(DISKBOOT_OUT_FILE) $(OSLDR_OUT_FILE) $(OSLDRM_OUT_FILE) $(NASM_OUT_FILE) 
+all: $(KERNEL32_OUT_FILE) $(MKDFS_OUT_FILE) $(OSLDRS_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(ISO_OUT_FILE) $(DISKBOOT_OUT_FILE) $(KRNLIMG32_OUT_FILE) $(OSLDR_OUT_FILE) $(OSLDRM_OUT_FILE) $(NASM_OUT_FILE) 
 

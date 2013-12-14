@@ -82,10 +82,10 @@ static int eflag_supported(unsigned long flag) {
     "pop     eax;"
 
     // Store eflags in f1
-    "mov     f1, eax;"
+    "mov     %1, eax;"
 
     // Toggle the flag we are testing
-    "xor     eax, flag;"
+    "xor     eax, %2;"
 
     // Load eax into eflags
     "push    eax;"
@@ -96,11 +96,12 @@ static int eflag_supported(unsigned long flag) {
     "pop     eax;"
 
     // Save in f2
-    "mov     f2, eax;"
+    "mov     %0, eax;"
 
     // Restore eflags
     "popfd;"
-
+    : "=r" (f2)
+    : "m" (f1), "m" (flag)
   );
 
   return ((f1 ^ f2) & flag) != 0;

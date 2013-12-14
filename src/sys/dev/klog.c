@@ -186,6 +186,6 @@ struct driver klog_driver = {
 };
 
 int /*__declspec(dllexport)*/ klog(struct unit *unit, char *opts) {
-  dev_make("klog", &klog_driver, NULL, NULL);
+  KeDevCreate("klog", &klog_driver, NULL, NULL);
   return 0;
 }

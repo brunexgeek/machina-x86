@@ -209,14 +209,14 @@ struct driver console_driver = {
 };
 
 int /*__declspec(dllexport)*/ console(struct unit *unit, char *opts) {
-  dev_t devno = dev_make("console", &console_driver, NULL, NULL);
+  dev_t devno = KeDevCreate("console", &console_driver, NULL, NULL);
   init_keyboard(devno, get_num_option(opts, "resetkbd", 0));
 
   if (serial_console) {
     init_serial();
-    consdev = dev_open("com1");
+    consdev = KeDevOpen("com1");
   } else {
-    consdev = dev_open("console");
+    consdev = KeDevOpen("console");
   }
 
   register_proc_inode("screen", screen_proc, NULL);
@@ -226,7 +226,7 @@ int /*__declspec(dllexport)*/ console(struct unit *unit, char *opts) {
 
 void console_print(char *buffer, int size) {
   if (consdev != NODEV) {
-    dev_write(consdev, buffer, size, 0, 0);
+    KeDevWrite(consdev, buffer, size, 0, 0);
   } else if (serial_console) {
     serial_console_write(buffer, size);
   } else {

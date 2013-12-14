@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -162,12 +162,12 @@ static int virtioblk_read(struct dev *dev, void *buffer, size_t count, blkno_t b
   req.hdr.type = VIRTIO_BLK_T_IN;
   req.hdr.ioprio = 0;
   req.hdr.sector = blkno;
-  
+
   // Issue request
   rc = virtio_enqueue(&vblk->vq, sg, 1, 2, &req);
   if (rc < 0) return rc;
   virtio_kick(&vblk->vq);
-  
+
   // Wait for request to complete
   enter_wait(THREAD_WAIT_DEVIO);
 
@@ -193,12 +193,12 @@ static int virtioblk_write(struct dev *dev, void *buffer, size_t count, blkno_t 
   req.hdr.type = VIRTIO_BLK_T_OUT;
   req.hdr.ioprio = 0;
   req.hdr.sector = blkno;
-  
+
   // Issue request
   rc = virtio_enqueue(&vblk->vq, sg, 2, 1, &req);
   if (rc < 0) return rc;
   virtio_kick(&vblk->vq);
-  
+
   // Wait for request to complete
   enter_wait(THREAD_WAIT_DEVIO);
 
@@ -221,7 +221,7 @@ static int virtioblk_callback(struct virtio_queue *vq) {
     req->size = len;
     mark_thread_ready(req->thread, 1, 2);
   }
-  
+
   return 0;
 }
 
@@ -241,7 +241,7 @@ static int install_virtioblk(struct unit *unit) {
   if (!unit) return -ENOSYS;
   unit->vendorname = "VIRTIO";
   unit->productname = "VIRTIO Virtual Block Device";
-  
+
   // Allocate memory for device
   vblk = kmalloc(sizeof(struct virtioblk));
   if (vblk == NULL) return -ENOMEM;
@@ -250,7 +250,7 @@ static int install_virtioblk(struct unit *unit) {
   // Initialize virtual device
   rc = virtio_device_init(&vblk->vd, unit, VIRTIO_BLK_F_SEG_MAX | VIRTIO_BLK_F_SIZE_MAX | VIRTIO_BLK_F_GEOMETRY | VIRTIO_BLK_F_RO | VIRTIO_BLK_F_BLK_SIZE | VIRTIO_BLK_F_FLUSH);
   if (rc < 0) return rc;
-  
+
   // Get block device configuration
   virtio_get_config(&vblk->vd, &vblk->config, sizeof(vblk->config));
   if ((vblk->config.capacity & ~0x7FFFFFFF)) {
@@ -264,9 +264,9 @@ static int install_virtioblk(struct unit *unit) {
   if (rc < 0) return rc;
 
   // Create device
-  vblk->devno = dev_make("vd#", &virtioblk_driver, unit, vblk);
+  vblk->devno = KeDevCreate("vd#", &virtioblk_driver, unit, vblk);
   virtio_setup_complete(&vblk->vd, 1);
-  kprintf(KERN_INFO "%s: virtio disk, %dMB\n", device(vblk->devno)->name, vblk->capacity / (1024 * 1024 / SECTORSIZE));
+  kprintf(KERN_INFO "%s: virtio disk, %dMB\n", KeDevGet(vblk->devno)->name, vblk->capacity / (1024 * 1024 / SECTORSIZE));
 
   return 0;
 }
@@ -277,6 +277,6 @@ int __declspec(dllexport) virtioblk(struct unit *unit, char *opts) {
 
 void init_vblk() {
   // Try to find a virtio block device for booting
-  struct unit *unit = lookup_unit_by_subunit(NULL, 0x1AF40002, 0xFFFFFFFF);
+  struct unit *unit = KeDevLookupUnitBySubunit(NULL, 0x1AF40002, 0xFFFFFFFF);
   if (unit) install_virtioblk(unit);
 }

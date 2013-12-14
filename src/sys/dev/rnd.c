@@ -757,8 +757,8 @@ int /*__declspec(dllexport)*/ random() {
   //memset(&extract_timer_state, 0, sizeof(struct timer_rand_state));
   extract_timer_state.dont_count_entropy = 1;
 
-  dev_make("random", &random_driver, NULL, NULL);
-  dev_make("urandom", &urandom_driver, NULL, NULL);
+  KeDevCreate("random", &random_driver, NULL, NULL);
+  KeDevCreate("urandom", &urandom_driver, NULL, NULL);
 
   return 0;
 }

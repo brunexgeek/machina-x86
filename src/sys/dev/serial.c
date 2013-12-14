@@ -682,14 +682,14 @@ static void init_serial_port(char *devname, int iobase, int irq, struct unit *un
   outp(sp->iobase + UART_MCR, sp->mcr);
 
   // Create device
-  devno = dev_make(devname, &serial_driver, unit, sp);
+  devno = KeDevCreate(devname, &serial_driver, unit, sp);
 
   // Enable interrupts
   register_interrupt(&sp->intr, IRQ2INTR(sp->irq), serial_handler, sp);
   enable_irq(sp->irq);
   outp((unsigned short) (sp->iobase + UART_IER), IER_ERXRDY | IER_ETXRDY | IER_ERLS | IER_EMSC);
 
-  kprintf(KERN_INFO "%s: %s iobase 0x%x irq %d\n", device(devno)->name, uart_name[sp->type], sp->iobase, sp->irq);
+  kprintf(KERN_INFO "%s: %s iobase 0x%x irq %d\n", KeDevGet(devno)->name, uart_name[sp->type], sp->iobase, sp->irq);
 }
 
 int __declspec(dllexport) serial(struct unit *unit) {
@@ -697,8 +697,8 @@ int __declspec(dllexport) serial(struct unit *unit) {
   int irq;
   char devname[8];
 
-  iobase = get_unit_iobase(unit);
-  irq = get_unit_irq(unit);
+  iobase = KeDevGetUnitIoBase(unit);
+  irq = KeDevGetUnitIrq(unit);
 
   if (iobase < 0) iobase = serial_default_iobase[next_serial_portno - 1];
   if (irq < 0) irq = serial_default_irq[next_serial_portno - 1];

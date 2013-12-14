@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -106,7 +106,7 @@
 #define HDCS_BSY                0x80   // Controller busy
 
 //
-// Device control 
+// Device control
 //
 
 #define HDDC_HD15               0x00  // Use 4 bits for head (not used, was 0x08)
@@ -132,7 +132,7 @@
 #define HDXFER_MODE_UDMA        0x40
 
 //
-// Controller error conditions 
+// Controller error conditions
 //
 
 #define HDCE_AMNF               0x01   // Address mark not found
@@ -294,14 +294,14 @@ struct hdparam  {
                                        // 2     locked
                                        // 1     en/disabled
                                        // 0     capability
-                                        
+
   unsigned short csfo;                 // Current set features options
                                        // 15:4 reserved
                                        // 3      auto reassign
                                        // 2      reverting
                                        // 1      read-look-ahead
                                        // 0      write cache
-                                         
+
   unsigned short words130_155[26];     // Reserved vendor words 130-155
   unsigned short word156;
   unsigned short words157_159[3];      // Reserved vendor words 157-159
@@ -320,7 +320,7 @@ struct hdc  {
   struct event ready;                  // Controller interrupt event
   struct interrupt intr;               // Interrupt object
   struct dpc xfer_dpc;                 // DPC for data transfer
-  
+
   int status;                          // Controller status
 
   int iobase;                          // I/O port registers base address
@@ -419,7 +419,7 @@ static int hd_wait(struct hdc *hdc, unsigned char mask, unsigned int timeout) {
     status = inp(hdc->iobase + HDC_ALT_STATUS);
     if (status & HDCS_ERR) {
       unsigned char error;
- 
+
       error = inp(hdc->iobase + HDC_ERR);
       hd_error("hdwait", error);
 
@@ -506,7 +506,7 @@ static void setup_dma(struct hdc *hdc, char *buffer, int count, int cmd) {
 
   // Setup PRD table
   outpd(hdc->bmregbase + BM_PRD_ADDR, hdc->prds_phys);
-  
+
   // Specify read/write
   outp(hdc->bmregbase + BM_COMMAND_REG, cmd | BM_CR_STOP);
 
@@ -524,7 +524,7 @@ static int stop_dma(struct hdc *hdc) {
 
   // Stop DMA channel and check DMA status
   outp(hdc->bmregbase + BM_COMMAND_REG, inp(hdc->bmregbase + BM_COMMAND_REG) & ~BM_CR_START);
-  
+
   // Get DMA status
   dmastat = inp(hdc->bmregbase + BM_STATUS_REG);
 
@@ -552,7 +552,7 @@ static int hd_identify(struct hd *hd) {
 
   // Wait for data ready
   if (wait_for_object(&hd->hdc->ready, HDTIMEOUT_CMD) < 0) return -ETIMEOUT;
-  
+
   // Some controllers issues the interrupt before data is ready to be read
   // Make sure data is ready by waiting for DRQ to be set
   if (hd_wait(hd->hdc, HDCS_DRQ, HDTIMEOUT_DRQ) < 0) return -EIO;
@@ -621,7 +621,7 @@ static int atapi_packet_read(struct hd *hd, unsigned char *pkt, int pktlen, void
   char *bufp;
   int bufleft;
   unsigned short bytes;
-  
+
   //kprintf("atapi_read_packet(0x%x) %d bytes, buflen=%d\n", pkt[0], pktlen, bufsize);
 
   hdc = hd->hdc;
@@ -640,7 +640,7 @@ static int atapi_packet_read(struct hd *hd, unsigned char *pkt, int pktlen, void
   outp(hdc->iobase + HDC_TRACKLSB, (unsigned char) (bufsize & 0xFF));
   outp(hdc->iobase + HDC_TRACKMSB, (unsigned char) (bufsize >> 8));
   outp(hdc->iobase + HDC_DRVHD, (unsigned char) hd->drvsel);
-  
+
   // Send packet command
   outp(hdc->iobase + HDC_COMMAND, HDCMD_PACKET);
 
@@ -690,7 +690,7 @@ static int atapi_packet_read(struct hd *hd, unsigned char *pkt, int pktlen, void
     //kprintf("%d bytes\n", bytes);
     if (bytes == 0) break;
     if (bytes > bufleft) {
-      kprintf(KERN_ERR "%s: buffer overrun\n", device(hd->devno)->name);
+      kprintf(KERN_ERR "%s: buffer overrun\n", KeDevGet(hd->devno)->name);
       hdc->result = -EBUF;
       break;
     }
@@ -725,7 +725,7 @@ static int atapi_read_capacity(struct hd *hd) {
 
   blks = ntohl(buf[0]);
   blksize = ntohl(buf[1]);
-  if (blksize != CDSECTORSIZE) kprintf("%s: unexpected block size (%d)\n", device(hd->devno)->name, blksize);
+  if (blksize != CDSECTORSIZE) kprintf("%s: unexpected block size (%d)\n", KeDevGet(hd->devno)->name, blksize);
   return blks;
 }
 
@@ -904,7 +904,7 @@ static int hd_write_pio(struct dev *dev, void *buffer, size_t count, blkno_t blk
         break;
       }
     }
-    
+
     // Write first sector(s)
     n = hd->multsect;
     if (n > nsects) n = nsects;
@@ -983,7 +983,7 @@ static int hd_read_udma(struct dev *dev, void *buffer, size_t count, blkno_t blk
     reset_event(&hdc->ready);
 
     hd_setup_transfer(hd, blkno, nsects);
-    
+
     // Setup DMA
     setup_dma(hdc, bufp, nsects * SECTORSIZE, BM_CR_WRITE);
 
@@ -1076,7 +1076,7 @@ static int hd_write_udma(struct dev *dev, void *buffer, size_t count, blkno_t bl
 
     // Setup DMA
     setup_dma(hdc, bufp, nsects * SECTORSIZE, BM_CR_READ);
-    
+
     // Start write
     outp(hdc->iobase + HDC_COMMAND, HDCMD_WRITEDMA);
     start_dma(hdc);
@@ -1161,7 +1161,7 @@ static int cd_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
 
       rc = hd->blks = atapi_read_capacity(hd);
       if (rc < 0) return rc;
-      
+
       return 0;
   }
 
@@ -1200,7 +1200,7 @@ void hd_dpc(void *arg) {
         hdc->nsects -= nsects;
         if (hdc->nsects == 0) set_event(&hdc->ready);
       }
-      
+
       break;
 
     case HD_XFER_WRITE:
@@ -1273,7 +1273,7 @@ static int part_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
       return part->len;
 
     case IOCTL_GETBLKSIZE:
-      return dev_ioctl(part->dev, IOCTL_GETBLKSIZE, NULL, 0);
+      return KeDevIoControl(part->dev, IOCTL_GETBLKSIZE, NULL, 0);
   }
 
   return -ENOSYS;
@@ -1282,13 +1282,13 @@ static int part_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
 static int part_read(struct dev *dev, void *buffer, size_t count, blkno_t blkno, int flags) {
   struct partition *part = (struct partition *) dev->privdata;
   if (blkno + count / SECTORSIZE > part->len) return -EFAULT;
-  return dev_read(part->dev, buffer, count, blkno + part->start, 0);
+  return KeDevRead(part->dev, buffer, count, blkno + part->start, 0);
 }
 
 static int part_write(struct dev *dev, void *buffer, size_t count, blkno_t blkno, int flags) {
   struct partition *part = (struct partition *) dev->privdata;
   if (blkno + count / SECTORSIZE > part->len) return -EFAULT;
-  return dev_write(part->dev, buffer, count, blkno + part->start, 0);
+  return KeDevWrite(part->dev, buffer, count, blkno + part->start, 0);
 }
 
 struct driver harddisk_udma_driver = {
@@ -1316,7 +1316,7 @@ struct driver cdrom_pio_driver = {
 };
 
 struct driver partition_driver = {
-  "partition", 
+  "partition",
   DEV_TYPE_BLOCK,
   part_ioctl,
   part_read,
@@ -1332,15 +1332,15 @@ static int create_partitions(struct hd *hd) {
   char devname[DEVNAMELEN];
 
   // Read partition table
-  rc = dev_read(hd->devno, mbr, SECTORSIZE, 0, 0);
+  rc = KeDevRead(hd->devno, mbr, SECTORSIZE, 0, 0);
   if (rc < 0) {
-    kprintf(KERN_ERR "%s: error %d reading partition table\n", device(hd->devno)->name, rc);
+    kprintf(KERN_ERR "%s: error %d reading partition table\n", KeDevGet(hd->devno)->name, rc);
     return rc;
   }
 
   // Create partition devices
   if (mbr->signature != MBR_SIGNATURE) {
-    kprintf(KERN_ERR "%s: illegal boot sector signature\n", device(hd->devno)->name);
+    kprintf(KERN_ERR "%s: illegal boot sector signature\n", KeDevGet(hd->devno)->name);
     return -EIO;
   }
 
@@ -1352,13 +1352,13 @@ static int create_partitions(struct hd *hd) {
     hd->parts[i].len = mbr->parttab[i].numsect;
 
     if (mbr->parttab[i].systid != 0) {
-      sprintf(devname, "%s%c", device(hd->devno)->name, 'a' + i);
-      devno = dev_open(devname);
+      sprintf(devname, "%s%c", KeDevGet(hd->devno)->name, 'a' + i);
+      devno = KeDevOpen(devname);
       if (devno == NODEV) {
-        devno = dev_make(devname, &partition_driver, NULL, &hd->parts[i]);
-        kprintf(KERN_INFO "%s: partition %d on %s, %dMB (type %02x)\n", devname, i, device(hd->devno)->name, mbr->parttab[i].numsect / ((1024 * 1024) / SECTORSIZE), mbr->parttab[i].systid);
+        devno = KeDevCreate(devname, &partition_driver, NULL, &hd->parts[i]);
+        kprintf(KERN_INFO "%s: partition %d on %s, %dMB (type %02x)\n", devname, i, KeDevGet(hd->devno)->name, mbr->parttab[i].numsect / ((1024 * 1024) / SECTORSIZE), mbr->parttab[i].systid);
       } else {
-        dev_close(devno);
+        KeDevClose(devno);
       }
     }
   }
@@ -1577,18 +1577,18 @@ static void setup_hd(struct hd *hd, struct hdc *hdc, char *devname, int drvsel, 
   // Make new device
   if (hd->media == IDE_DISK) {
     if (hd->udmamode != -1) {
-      hd->devno = dev_make(devname, &harddisk_udma_driver, NULL, hd);
+      hd->devno = KeDevCreate(devname, &harddisk_udma_driver, NULL, hd);
     } else {
-      hd->devno = dev_make(devname, &harddisk_pio_driver, NULL, hd);
+      hd->devno = KeDevCreate(devname, &harddisk_pio_driver, NULL, hd);
     }
   } else if (hd->media == IDE_CDROM) {
-    hd->devno = dev_make("cd#", &cdrom_pio_driver, NULL, hd);
+    hd->devno = KeDevCreate("cd#", &cdrom_pio_driver, NULL, hd);
   } else {
     kprintf(KERN_ERR "%s: unknown media type 0x%02x (iftype %d, config 0x%04x)\n", devname, hd->media, hd->iftype, hd->param.config);
     return;
   }
 
-  kprintf(KERN_INFO "%s: %s", device(hd->devno)->name, hd->param.model);
+  kprintf(KERN_INFO "%s: %s", KeDevGet(hd->devno)->name, hd->param.model);
   if (hd->size > 0) kprintf(" (%d MB)", hd->size);
   if (hd->lba) kprintf(", LBA");
   if (hd->udmamode != -1) kprintf(", UDMA%d", udma_speed[hd->udmamode]);
@@ -1618,7 +1618,7 @@ void init_hd() {
     kprintf("hd: %d IDE device(s) reported by BIOS\n", numhd);
   }
 
-  ide = lookup_unit_by_class(NULL, PCI_CLASS_STORAGE_IDE, PCI_SUBCLASS_MASK);
+  ide = KeDevLookupUnitByClass(NULL, PCI_CLASS_STORAGE_IDE, PCI_SUBCLASS_MASK);
   if (ide) {
     bmiba = pci_read_config_dword(ide, PCI_CONFIG_BASE_ADDR_4) & 0xFFF0;
     pci_enable_busmastering(ide);

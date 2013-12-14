@@ -498,7 +498,9 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
         "push 0;"
         "push dword ptr [krnlopts];"
         "push %2;"
-        "call dword ptr [krnlentry];"
+        //"call dword ptr [krnlentry];"
+        "mov eax, 0x80000000;"
+        "call eax;"
         "cli;"
         "hlt;"
         :

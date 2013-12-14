@@ -9,16 +9,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,9 +28,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <net/net.h>
 
@@ -52,9 +52,9 @@ struct netif *ether_netif_add(char *name, char *devname, struct ip_addr *ipaddr,
   dev_t devno;
 
   // Open device
-  devno = dev_open(devname);
+  devno = KeDevOpen(devname);
   if (devno == NODEV) return NULL;
-  if (device(devno)->driver->type != DEV_TYPE_PACKET) return NULL;
+  if (KeDevGet(devno)->driver->type != DEV_TYPE_PACKET) return NULL;
 
   // Attach device to network interface
   netif = netif_add(name, ipaddr, netmask, gw);
@@ -63,7 +63,7 @@ struct netif *ether_netif_add(char *name, char *devname, struct ip_addr *ipaddr,
   netif->output = ether_output;
   netif->state = (void *) devno;
 
-  dev_attach(devno, netif, ether_input);
+  KeDevAttach(devno, netif, ether_input);
 
   // Obtain network parameters using DHCP
   if (ip_addr_isany(ipaddr)) {
@@ -94,7 +94,7 @@ int register_ether_netifs() {
   noaddr.addr = IP_ADDR_ANY;
 
   for (devno = 0; devno < num_devs; devno++) {
-    dev = device(devno);
+    dev = KeDevGet(devno);
     if (!dev) continue;
     if (!dev->driver) continue;
     if (dev->driver->type != DEV_TYPE_PACKET) continue;
@@ -105,7 +105,7 @@ int register_ether_netifs() {
     netif->output = ether_output;
     netif->state = (void *) devno;
 
-    rc = dev_attach(devno, netif, ether_input);
+    rc = KeDevAttach(devno, netif, ether_input);
     if (rc < 0) kprintf(KERN_ERR "ether: unable to attach to device %s (error %d)\n", dev->name, rc);
   }
 
@@ -119,8 +119,8 @@ int register_ether_netifs() {
 //
 
 char *ether2str(struct eth_addr *hwaddr, char *s) {
-  sprintf(s, "%02x:%02x:%02x:%02x:%02x:%02x",  
-          hwaddr->addr[0], hwaddr->addr[1], hwaddr->addr[2], 
+  sprintf(s, "%02x:%02x:%02x:%02x:%02x:%02x",
+          hwaddr->addr[0], hwaddr->addr[1], hwaddr->addr[2],
           hwaddr->addr[3], hwaddr->addr[4], hwaddr->addr[5]);
   return s;
 }
@@ -207,7 +207,7 @@ err_t ether_output(struct netif *netif, struct pbuf *p, struct ip_addr *ipaddr) 
   if (dest == NULL) {
     q = arp_query(netif, &netif->hwaddr, queryaddr);
     if (q != NULL) {
-      err = dev_transmit((dev_t) netif->state, q);
+      err = KeDevTransmit((dev_t) netif->state, q);
       if (err < 0) {
         kprintf(KERN_ERR "ether: error %d sending arp packet\n", err);
         pbuf_free(q);
@@ -235,7 +235,7 @@ err_t ether_output(struct netif *netif, struct pbuf *p, struct ip_addr *ipaddr) 
     ethhdr->src.addr[i] = netif->hwaddr.addr[i];
   }
   ethhdr->type = htons(ETHTYPE_IP);
-  
+
   if (loopback) {
     struct pbuf *q;
 
@@ -248,7 +248,7 @@ err_t ether_output(struct netif *netif, struct pbuf *p, struct ip_addr *ipaddr) 
       return err;
     }
   } else {
-    err = dev_transmit((dev_t) netif->state, p);
+    err = KeDevTransmit((dev_t) netif->state, p);
     if (err < 0) {
       kprintf(KERN_ERR "ether: error %d sending packet\n", err);
       return err;
@@ -262,7 +262,7 @@ err_t ether_output(struct netif *netif, struct pbuf *p, struct ip_addr *ipaddr) 
 // ether_input
 //
 // This function should be called when a packet is received
-// from the interface. 
+// from the interface.
 //
 
 err_t ether_input(struct netif *netif, struct pbuf *p) {
@@ -297,8 +297,8 @@ err_t ether_input(struct netif *netif, struct pbuf *p) {
 //
 // ether_dispatcher
 //
-// This task dispatches received packets from the network interfaces 
-// to the TCP/IP stack. 
+// This task dispatches received packets from the network interfaces
+// to the TCP/IP stack.
 //
 
 void ether_dispatcher(void *arg) {
@@ -319,7 +319,7 @@ void ether_dispatcher(void *arg) {
       ethhdr = p->payload;
 
       //if (!eth_addr_isbroadcast(&ethhdr->dest)) kprintf("ether: recv src=%la dst=%la type=%04X len=%d\n", &ethhdr->src, &ethhdr->dest, htons(ethhdr->type), p->len);
-      
+
       switch (htons(ethhdr->type)) {
         case ETHTYPE_IP:
           arp_ip_input(netif, p);
@@ -330,7 +330,7 @@ void ether_dispatcher(void *arg) {
         case ETHTYPE_ARP:
           p = arp_arp_input(netif, &netif->hwaddr, p);
           if (p != NULL) {
-            if (dev_transmit((dev_t) netif->state, p) < 0) pbuf_free(p);
+            if (KeDevTransmit((dev_t) netif->state, p) < 0) pbuf_free(p);
           }
           break;
 

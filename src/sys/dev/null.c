@@ -64,7 +64,7 @@ struct driver null_driver = {
 };
 
 int /*__declspec(dllexport)*/ null() {
-  dev_make("null", &null_driver, NULL, NULL);
-  nulldev = dev_open("null");
+  KeDevCreate("null", &null_driver, NULL, NULL);
+  nulldev = KeDevOpen("null");
   return 0;
 }

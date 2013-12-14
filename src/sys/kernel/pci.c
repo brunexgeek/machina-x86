@@ -309,7 +309,7 @@ void enum_pci_bus(struct bus *bus) {
       if (bus->busno == 0 && devno == 0 && funcno == 0 && bus->self) {
         unit = bus->self;
       } else {
-        unit = add_unit(bus, classcode, PCI_UNITCODE(vendorid, deviceid), PCI_UNITNO(devno, funcno));
+        unit = KeDevAddUnit(bus, classcode, PCI_UNITCODE(vendorid, deviceid), PCI_UNITNO(devno, funcno));
       }
 
 
@@ -328,7 +328,7 @@ void enum_pci_bus(struct bus *bus) {
         busno = (value >> 8) & 0xFF;
 
         // Allocate and initialize new PCI bus
-        bridge = add_bus(unit, BUSTYPE_PCI, busno);
+        bridge = KeDevAddBus(unit, BUSTYPE_PCI, busno);
 
         // Scan for devices on secondary bus
         enum_pci_bus(bridge);
@@ -346,9 +346,9 @@ void enum_pci_bus(struct bus *bus) {
             if (value == 0xFFFFFFFF) value = 0;
 
             if (value & 1) {
-              add_resource(unit, RESOURCE_IO, 0, value & PCI_BASE_ADDRESS_IO_MASK, pci_size(len, PCI_BASE_ADDRESS_IO_MASK & 0xFFFF));
+              KeDevAddResource(unit, RESOURCE_IO, 0, value & PCI_BASE_ADDRESS_IO_MASK, pci_size(len, PCI_BASE_ADDRESS_IO_MASK & 0xFFFF));
             } else {
-              add_resource(unit, RESOURCE_MEM, 0, value & PCI_BASE_ADDRESS_MEM_MASK, pci_size(len, PCI_BASE_ADDRESS_MEM_MASK));
+              KeDevAddResource(unit, RESOURCE_MEM, 0, value & PCI_BASE_ADDRESS_MEM_MASK, pci_size(len, PCI_BASE_ADDRESS_MEM_MASK));
             }
           }
         }
@@ -358,7 +358,7 @@ void enum_pci_bus(struct bus *bus) {
         if ((value & 0xFF) > 0 && (value & 0xFF) < 32) {
           intrpin = (value >> 8) & 0xFF;
           irq = value & 0xFF;
-          add_resource(unit, RESOURCE_IRQ, 0, irq, 1);
+          KeDevAddResource(unit, RESOURCE_IRQ, 0, irq, 1);
         }
       }
     }

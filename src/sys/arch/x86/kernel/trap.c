@@ -33,6 +33,7 @@
 //
 
 #include <os/krnl.h>
+#include <os/trap.h>
 
 
 
@@ -243,7 +244,7 @@ static void /*__declspec(naked)*/ sysentry(void) {
         "push    %2 + %3;"    // Push cs (fixed)
         "push    ecx;"                     // Push eip (return address set by caller)
         "push    0;"                       // Push errcode
-        "push    INTR_SYSENTER;"           // Push traptype (always sysenter)
+        "push    %4;"           // Push traptype (always sysenter)
 
         "push    eax;"                     // Push registers
         "push    ecx;"
@@ -287,7 +288,7 @@ static void /*__declspec(naked)*/ sysentry(void) {
 
         "SYSEXIT;"                         // Return
         :
-        : "i" (SEL_UDATA), "i" (SEL_KDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3)
+        : "i" (SEL_UDATA), "i" (SEL_KDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3), "i" (INTR_SYSENTER)
     );
 }
 
@@ -296,16 +297,27 @@ static void /*__declspec(naked)*/ sysentry(void) {
 //
 
 #define ISR(n)                                \
-static void /*__declspec(naked)*/ isr##n(void) {  \
-  __asm__("push 0");                            \
-  __asm__("push n");                            \
-  __asm__("jmp isr");                           \
+static void /*__declspec(naked)*/ isr##n(void) \
+{                     \
+    __asm__(          \
+        "push 0;"     \
+        "push %0;"    \
+        "jmp isr;"    \
+        :             \
+        : "r" (n)     \
+    );                \
 }
 
 #define ISRE(n)                               \
-static void /*__declspec(naked)*/ isr##n(void) {  \
-  __asm__("push n");                            \
-  __asm__("jmp isr");                           \
+static void /*__declspec(naked)*/ isr##n(void)  \
+{                     \
+    __asm__           \
+    (                 \
+        "push %0;"    \
+        "jmp isr;"    \
+        :             \
+        : "r" (n)     \
+    );                \
 }
 
 ISR(0)  ISR(1)  ISR(2)   ISR(3)   ISR(4)   ISR(5)   ISR(6)   ISR(7)

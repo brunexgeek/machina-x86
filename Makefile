@@ -37,6 +37,7 @@ KERNEL32_OUT_DIR = build/machina/obj/kernel
 KERNEL32_OUT_FILE = $(KERNEL32_OUT_DIR)/kernel32.elf
 KERNEL32_SRC_DIR = src
 KERNEL32_SRC_FILES = \
+	sys/kernel/assert.c \
 	sys/kernel/buf.c \
 	sys/kernel/cpu.c \
 	sys/kernel/dbg.c \
@@ -435,7 +436,7 @@ $(ISO_OUT_FILE) iso : cdemboot osloader kernel-image
 	@echo
 	@echo Building Machina CD image
 	@mkdir -p $(ISO_OUT_DIR)
-	build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE) -k $(KRNLIMG32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs
+	build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE) -k ../sanos/linux/install/boot/krnl.dll -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs
 	genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install
 
 

@@ -92,19 +92,19 @@ struct pdirstat {
 extern pte_t *pdir;
 extern pte_t *ptab;
 
-krnlapi void map_page(void *vaddr, unsigned long pfn, unsigned long flags);
-krnlapi void unmap_page(void *vaddr);
-krnlapi unsigned long virt2phys(void *vaddr);
-krnlapi unsigned long virt2pfn(void *vaddr);
-krnlapi pte_t get_page_flags(void *vaddr);
-krnlapi void set_page_flags(void *vaddr, unsigned long flags);
-krnlapi int page_mapped(void *vaddr);
-krnlapi int page_directory_mapped(void *vaddr);
-krnlapi void unguard_page(void *vaddr);
-krnlapi void clear_dirty(void *vaddr);
+KERNELAPI void map_page(void *vaddr, unsigned long pfn, unsigned long flags);
+KERNELAPI void unmap_page(void *vaddr);
+KERNELAPI unsigned long virt2phys(void *vaddr);
+KERNELAPI unsigned long virt2pfn(void *vaddr);
+KERNELAPI pte_t get_page_flags(void *vaddr);
+KERNELAPI void set_page_flags(void *vaddr, unsigned long flags);
+KERNELAPI int page_mapped(void *vaddr);
+KERNELAPI int page_directory_mapped(void *vaddr);
+KERNELAPI void unguard_page(void *vaddr);
+KERNELAPI void clear_dirty(void *vaddr);
 
-krnlapi int mem_access(void *vaddr, int size, pte_t access);
-krnlapi int str_access(char *s, pte_t access);
+KERNELAPI int mem_access(void *vaddr, int size, pte_t access);
+KERNELAPI int str_access(char *s, pte_t access);
 
 void init_pdir();
 int pdir_proc(struct proc_file *pf, void *arg);

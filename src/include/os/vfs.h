@@ -166,63 +166,63 @@ extern char pathsep;
 int init_vfs();
 int fnmatch(char *fn1, int len1, char *fn2, int len2);
 
-krnlapi struct filesystem *register_filesystem(char *name, struct fsops *ops);
-krnlapi int fslookup(char *name, int full, struct fs **mntfs, char **rest);
-krnlapi struct file *newfile(struct fs *fs, char *path, int flags, int mode);
+KERNELAPI struct filesystem *register_filesystem(char *name, struct fsops *ops);
+KERNELAPI int fslookup(char *name, int full, struct fs **mntfs, char **rest);
+KERNELAPI struct file *newfile(struct fs *fs, char *path, int flags, int mode);
 
-krnlapi int mkfs(char *devname, char *type, char *opts);
-krnlapi int mount(char *type, char *mntto, char *mntfrom, char *opts, struct fs **newfs);
-krnlapi int umount(char *path);
+KERNELAPI int mkfs(char *devname, char *type, char *opts);
+KERNELAPI int mount(char *type, char *mntto, char *mntfrom, char *opts, struct fs **newfs);
+KERNELAPI int umount(char *path);
 
 int umount_all();
 
-krnlapi int getfsstat(struct statfs *buf, size_t size);
-krnlapi int fstatfs(struct file *filp, struct statfs *buf);
-krnlapi int statfs(char *name, struct statfs *buf);
+KERNELAPI int getfsstat(struct statfs *buf, size_t size);
+KERNELAPI int fstatfs(struct file *filp, struct statfs *buf);
+KERNELAPI int statfs(char *name, struct statfs *buf);
 
-krnlapi int open(char *name, int flags, int mode, struct file **retval);
-krnlapi int close(struct file *filp);
-krnlapi int destroy(struct file *filp);
-krnlapi int fsync(struct file *filp);
-krnlapi int setmode(struct file *filp, int mode);
+KERNELAPI int open(char *name, int flags, int mode, struct file **retval);
+KERNELAPI int close(struct file *filp);
+KERNELAPI int destroy(struct file *filp);
+KERNELAPI int fsync(struct file *filp);
+KERNELAPI int setmode(struct file *filp, int mode);
 
-krnlapi int read(struct file *filp, void *data, size_t size);
-krnlapi int write(struct file *filp, void *data, size_t size);
-krnlapi int pread(struct file *filp, void *data, size_t size, off64_t offset);
-krnlapi int pwrite(struct file *filp, void *data, size_t size, off64_t offset);
-krnlapi int ioctl(struct file *filp, int cmd, void *data, size_t size);
+KERNELAPI int read(struct file *filp, void *data, size_t size);
+KERNELAPI int write(struct file *filp, void *data, size_t size);
+KERNELAPI int pread(struct file *filp, void *data, size_t size, off64_t offset);
+KERNELAPI int pwrite(struct file *filp, void *data, size_t size, off64_t offset);
+KERNELAPI int ioctl(struct file *filp, int cmd, void *data, size_t size);
 
-krnlapi int readv(struct file *filp, struct iovec *iov, int count);
-krnlapi int writev(struct file *filp, struct iovec *iov, int count);
+KERNELAPI int readv(struct file *filp, struct iovec *iov, int count);
+KERNELAPI int writev(struct file *filp, struct iovec *iov, int count);
 
-krnlapi off64_t tell(struct file *filp);
-krnlapi off64_t lseek(struct file *filp, off64_t offset, int origin);
-krnlapi int ftruncate(struct file *filp, off64_t size);
+KERNELAPI off64_t tell(struct file *filp);
+KERNELAPI off64_t lseek(struct file *filp, off64_t offset, int origin);
+KERNELAPI int ftruncate(struct file *filp, off64_t size);
 
-krnlapi int futime(struct file *filp, struct utimbuf *times);
-krnlapi int utime(char *name, struct utimbuf *times);
+KERNELAPI int futime(struct file *filp, struct utimbuf *times);
+KERNELAPI int utime(char *name, struct utimbuf *times);
 
-krnlapi int fstat(struct file *filp, struct stat64 *buffer);
-krnlapi int stat(char *name, struct stat64 *buffer);
+KERNELAPI int fstat(struct file *filp, struct stat64 *buffer);
+KERNELAPI int stat(char *name, struct stat64 *buffer);
 
-krnlapi int access(char *name, int mode);
+KERNELAPI int access(char *name, int mode);
 
-krnlapi int fchmod(struct file *filp, int mode);
-krnlapi int chmod(char *name, int mode);
-krnlapi int fchown(struct file *filp, int owner, int group);
-krnlapi int chown(char *name, int owner, int group);
+KERNELAPI int fchmod(struct file *filp, int mode);
+KERNELAPI int chmod(char *name, int mode);
+KERNELAPI int fchown(struct file *filp, int owner, int group);
+KERNELAPI int chown(char *name, int owner, int group);
 
-krnlapi int chdir(char *name);
-krnlapi int getcwd(char *buf, size_t size);
-krnlapi int mkdir(char *name, int mode);
-krnlapi int rmdir(char *name);
+KERNELAPI int chdir(char *name);
+KERNELAPI int getcwd(char *buf, size_t size);
+KERNELAPI int mkdir(char *name, int mode);
+KERNELAPI int rmdir(char *name);
 
-krnlapi int rename(char *oldname, char *newname);
-krnlapi int link(char *oldname, char *newname);
-krnlapi int unlink(char *name);
+KERNELAPI int rename(char *oldname, char *newname);
+KERNELAPI int link(char *oldname, char *newname);
+KERNELAPI int unlink(char *name);
 
-krnlapi int opendir(char *name, struct file **retval);
-krnlapi int readdir(struct file *filp, struct direntry *dirp, int count);
+KERNELAPI int opendir(char *name, struct file **retval);
+KERNELAPI int readdir(struct file *filp, struct direntry *dirp, int count);
 
 #endif
 

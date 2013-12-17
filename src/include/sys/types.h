@@ -3,6 +3,7 @@
 //
 // Basic type definitions
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,8 +36,8 @@
 #pragma once
 #endif
 
-#ifndef SYS_TYPES_H
-#define SYS_TYPES_H
+#ifndef MACHINA_SYS_TYPES_H
+#define MACHINA_SYS_TYPES_H
 
 #ifdef __GNUC__
 #define __int64 long long
@@ -203,6 +204,6 @@ typedef unsigned short WORD;
 typedef unsigned long DWORD;
 typedef unsigned __int64 QWORD;
 
-#endif
+#endif  // _ONLY_STD_TYPES
 
-#endif
+#endif  // MACHINA_SYS_TYPES_H

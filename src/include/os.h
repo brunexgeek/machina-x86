@@ -3,6 +3,7 @@
 //
 // Operating system API
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,32 +36,27 @@
 #pragma once
 #endif
 
-#ifndef OS_H
-#define OS_H
+#ifndef MACHINA_OS_H
+#define MACHINA_OS_H
 
-#ifndef VERSION_H
 #include <os/version.h>
-#endif
-
-#ifndef SYS_TYPES_H
 #include <sys/types.h>
+
+#ifndef MACHINA
+#define MACHINA
 #endif
 
-#ifndef SANOS
-#define SANOS
+#ifndef MACHINA_VERSION
+#define MACHINA_VERSION (OS_VERSION_MAJOR * 10000 + OS_VERSION_MINOR * 100 + OS_RELEASE)
 #endif
 
-#ifndef SANOS_VER
-#define SANOS_VER (OS_MAJ_VERS * 10000 + OS_MIN_VERS * 100 + OS_RELEASE)
-#endif
-
-#if defined(OSLDR)
-#define krnlapi
+#if defined(OSLOADER)
+#define KERNELAPI
 #else
 #ifdef KRNL_LIB
-#define krnlapi /*__declspec(dllexport)*/
+#define KERNELAPI /*__declspec(dllexport)*/
 #else
-#define krnlapi /*__declspec(dllimport)*/
+#define KERNELAPI /*__declspec(dllimport)*/
 #endif
 #endif
 
@@ -71,18 +67,23 @@
 #ifndef _TM_DEFINED
 #define _TM_DEFINED
 
-struct tm {
-  int tm_sec;                   // Seconds after the minute [0, 59]
-  int tm_min;                   // Minutes after the hour [0, 59]
-  int tm_hour;                  // Hours since midnight [0, 23]
-  int tm_mday;                  // Day of the month [1, 31]
-  int tm_mon;                   // Months since January [0, 11]
-  int tm_year;                  // Years since 1900
-  int tm_wday;                  // Days since Sunday [0, 6]
-  int tm_yday;                  // Days since January 1 [0, 365]
-  int tm_isdst;                 // Daylight Saving Time flag
-  int tm_gmtoff;                // Seconds east of UTC
-  char *tm_zone;                // Timezone abbreviation
+
+/**
+ * ANSI/C Time Structure
+ */
+struct tm
+{
+    int tm_sec;                   // Seconds after the minute [0, 59]
+    int tm_min;                   // Minutes after the hour [0, 59]
+    int tm_hour;                  // Hours since midnight [0, 23]
+    int tm_mday;                  // Day of the month [1, 31]
+    int tm_mon;                   // Months since January [0, 11]
+    int tm_year;                  // Years since 1900
+    int tm_wday;                  // Days since Sunday [0, 6]
+    int tm_yday;                  // Days since January 1 [0, 365]
+    int tm_isdst;                 // Daylight Saving Time flag
+    int tm_gmtoff;                // Seconds east of UTC
+    char *tm_zone;                // Timezone abbreviation
 };
 
 #endif
@@ -90,9 +91,10 @@ struct tm {
 #ifndef _TIMEVAL_DEFINED
 #define _TIMEVAL_DEFINED
 
-struct timeval {
-  long tv_sec;                  // Seconds
-  long tv_usec;                 // Microseconds
+struct timeval
+{
+    long tv_sec;                  // Seconds
+    long tv_usec;                 // Microseconds
 };
 
 #endif
@@ -1677,4 +1679,4 @@ osapi char ***_environ();
 
 #endif
 
-#endif
+#endif // MACHINA_OS_H

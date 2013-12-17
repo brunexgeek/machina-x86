@@ -492,6 +492,7 @@ target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
     [ \
     #"sys/kernel/apm.c", \
+    "sys/kernel/assert.c", \
     "sys/kernel/buf.c", \
     "sys/kernel/cpu.c", \
     "sys/kernel/dbg.c", \
@@ -858,7 +859,7 @@ target[FIELD_OUTPUT_DIRECTORY] = "build"
 target[FIELD_OUTPUT_FILE] = "machina.iso"
 target[FIELD_COMMANDS] = [
     "build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE)" \
-    " -k $(KRNLIMG32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
+    " -k ../sanos/linux/install/boot/krnl.dll -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
     "genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install" ]
 generator.addTarget(target);
 

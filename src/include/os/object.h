@@ -246,38 +246,38 @@ void release_waiters(struct object *o, int waitkey);
 void init_thread(struct thread *t, int priority);
 void exit_thread(struct thread *t);
 
-krnlapi void init_event(struct event *e, int manual_reset, int initial_state);
-krnlapi void pulse_event(struct event *e);
-krnlapi void set_event(struct event *e);
-krnlapi void reset_event(struct event *e);
+KERNELAPI void init_event(struct event *e, int manual_reset, int initial_state);
+KERNELAPI void pulse_event(struct event *e);
+KERNELAPI void set_event(struct event *e);
+KERNELAPI void reset_event(struct event *e);
 
-krnlapi void init_sem(struct sem *s, unsigned int initial_count);
-krnlapi unsigned int release_sem(struct sem *s, unsigned int count);
-krnlapi unsigned int set_sem(struct sem *s, unsigned int count);
+KERNELAPI void init_sem(struct sem *s, unsigned int initial_count);
+KERNELAPI unsigned int release_sem(struct sem *s, unsigned int count);
+KERNELAPI unsigned int set_sem(struct sem *s, unsigned int count);
 
-krnlapi void init_mutex(struct mutex *m, int owned);
-krnlapi int release_mutex(struct mutex *m);
+KERNELAPI void init_mutex(struct mutex *m, int owned);
+KERNELAPI int release_mutex(struct mutex *m);
 
 int unlock_filemap(struct filemap *m);
 
-krnlapi void init_waitable_timer(struct waitable_timer *t, unsigned int expires);
-krnlapi void modify_waitable_timer(struct waitable_timer *t, unsigned int expires);
-krnlapi void cancel_waitable_timer(struct waitable_timer *t);
+KERNELAPI void init_waitable_timer(struct waitable_timer *t, unsigned int expires);
+KERNELAPI void modify_waitable_timer(struct waitable_timer *t, unsigned int expires);
+KERNELAPI void cancel_waitable_timer(struct waitable_timer *t);
 
-krnlapi int wait_for_object(object_t hobj, unsigned int timeout);
-krnlapi int wait_for_one_object(object_t hobj, unsigned int timeout, int alertable);
-krnlapi int wait_for_all_objects(struct object **objs, int count, unsigned int timeout, int alertable);
-krnlapi int wait_for_any_object(struct object **objs, int count, unsigned int timeout, int alertable);
+KERNELAPI int wait_for_object(object_t hobj, unsigned int timeout);
+KERNELAPI int wait_for_one_object(object_t hobj, unsigned int timeout, int alertable);
+KERNELAPI int wait_for_all_objects(struct object **objs, int count, unsigned int timeout, int alertable);
+KERNELAPI int wait_for_any_object(struct object **objs, int count, unsigned int timeout, int alertable);
 
 // iomux.c
 
-krnlapi void init_iomux(struct iomux *iomux, int flags);
+KERNELAPI void init_iomux(struct iomux *iomux, int flags);
 int close_iomux(struct iomux *iomux);
-krnlapi int queue_ioobject(struct iomux *iomux, object_t hobj, int events, int context);
-krnlapi void init_ioobject(struct ioobject *iob, int type);
-krnlapi void detach_ioobject(struct ioobject *iob);
-krnlapi void set_io_event(struct ioobject *iob, int events);
-krnlapi void clear_io_event(struct ioobject *iob, int events);
+KERNELAPI int queue_ioobject(struct iomux *iomux, object_t hobj, int events, int context);
+KERNELAPI void init_ioobject(struct ioobject *iob, int type);
+KERNELAPI void detach_ioobject(struct ioobject *iob);
+KERNELAPI void set_io_event(struct ioobject *iob, int events);
+KERNELAPI void clear_io_event(struct ioobject *iob, int events);
 int dequeue_event_from_iomux(struct iomux *iomux);
 int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
 int poll(struct pollfd fds[], unsigned int nfds, int timeout);
@@ -286,15 +286,15 @@ int poll(struct pollfd fds[], unsigned int nfds, int timeout);
 
 void init_handles();
 
-krnlapi struct object *hlookup(handle_t h);
-krnlapi handle_t halloc(struct object *o);
-krnlapi int hassign(struct object *o, handle_t h);
-krnlapi int hfree(handle_t h);
-krnlapi int hprotect(handle_t h);
-krnlapi int hunprotect(handle_t h);
+KERNELAPI struct object *hlookup(handle_t h);
+KERNELAPI handle_t halloc(struct object *o);
+KERNELAPI int hassign(struct object *o, handle_t h);
+KERNELAPI int hfree(handle_t h);
+KERNELAPI int hprotect(handle_t h);
+KERNELAPI int hunprotect(handle_t h);
 
-krnlapi struct object *olock(handle_t h, int type);
-krnlapi int orel(object_t hobj);
+KERNELAPI struct object *olock(handle_t h, int type);
+KERNELAPI int orel(object_t hobj);
 
 #endif
 

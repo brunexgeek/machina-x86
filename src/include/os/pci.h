@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #ifndef PCI_H
 #define PCI_H
@@ -97,7 +97,7 @@
 #define  PCI_STATUS_FAST_BACK           0x080  // Accept fast-back to back
 #define  PCI_STATUS_PARITY              0x100  // Detected parity error
 #define  PCI_STATUS_DEVSEL_MASK         0x600  // DEVSEL timing
-#define  PCI_STATUS_DEVSEL_FAST         0x000   
+#define  PCI_STATUS_DEVSEL_FAST         0x000
 #define  PCI_STATUS_DEVSEL_MEDIUM       0x200
 #define  PCI_STATUS_DEVSEL_SLOW         0x400
 
@@ -148,18 +148,18 @@
 #define PCI_DEVNO(unitno) ((unitno) >> 3)
 #define PCI_FUNCNO(unitno) ((unitno) & 7)
 
-krnlapi unsigned char pci_read_config_byte(struct unit *unit, int addr);
-krnlapi unsigned short pci_read_config_word(struct unit *unit, int addr);
-krnlapi unsigned long pci_read_config_dword(struct unit *unit, int addr);
+KERNELAPI unsigned char pci_read_config_byte(struct unit *unit, int addr);
+KERNELAPI unsigned short pci_read_config_word(struct unit *unit, int addr);
+KERNELAPI unsigned long pci_read_config_dword(struct unit *unit, int addr);
 
-krnlapi void pci_write_config_byte(struct unit *unit, int addr, unsigned char value);
-krnlapi void pci_write_config_word(struct unit *unit, int addr, unsigned short value);
-krnlapi void pci_write_config_dword(struct unit *unit, int addr, unsigned long value);
+KERNELAPI void pci_write_config_byte(struct unit *unit, int addr, unsigned char value);
+KERNELAPI void pci_write_config_word(struct unit *unit, int addr, unsigned short value);
+KERNELAPI void pci_write_config_dword(struct unit *unit, int addr, unsigned long value);
 
-krnlapi void pci_read_buffer(struct unit *unit, int addr, void *buffer, int len);
-krnlapi void pci_write_buffer(struct unit *unit, int addr, void *buffer, int len);
+KERNELAPI void pci_read_buffer(struct unit *unit, int addr, void *buffer, int len);
+KERNELAPI void pci_write_buffer(struct unit *unit, int addr, void *buffer, int len);
 
-krnlapi void pci_enable_busmastering(struct unit *unit);
+KERNELAPI void pci_enable_busmastering(struct unit *unit);
 
 void enum_pci_bus(struct bus *bus);
 unsigned long get_pci_hostbus_unitcode();

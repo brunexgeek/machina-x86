@@ -260,7 +260,7 @@ static int version_proc(struct proc_file *pf, void *arg) {
     if (ver->file_flags & VER_FLAG_PRIVATEBUILD) pprintf(pf, " private");
     if (ver->file_flags & VER_FLAG_DEBUG) pprintf(pf, " debug");
   } else {
-    pprintf(pf, "%s version %d.%d.%d.%d", OS_NAME, OS_MAJ_VERS, OS_MIN_VERS, OS_RELEASE, OS_BUILD);
+    pprintf(pf, "%s version %d.%d.%d.%d", OS_NAME, OS_VERSION_MAJOR, OS_VERSION_MINOR, OS_RELEASE, OS_BUILD);
   }
 
   pprintf(pf, " (Built %04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
@@ -444,8 +444,8 @@ void main(void *arg) {
     memcpy(&peb->osversion, ver, sizeof(struct verinfo));
   } else {
     strcpy(peb->osname, OS_NAME);
-    peb->osversion.file_major_version = OS_MAJ_VERS;
-    peb->osversion.file_minor_version = OS_MIN_VERS;
+    peb->osversion.file_major_version = OS_VERSION_MAJOR;
+    peb->osversion.file_minor_version = OS_VERSION_MINOR;
     peb->osversion.file_release_number = OS_RELEASE;
     peb->osversion.file_build_number = OS_BUILD;
   }

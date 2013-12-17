@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -80,7 +80,7 @@ int thread_ready_to_run(struct thread *t) {
   struct waitblock *wb = t->waitlist;
   while (wb) {
     //kprintf("check wb %p type %d key %d signaled %d\n", wb, wb->waittype, wb->waitkey, wb->object->signaled);
-    
+
     if (wb->waittype == WAIT_ANY) {
       if (wb->object->signaled) {
         any = 1;
@@ -533,7 +533,7 @@ int close_object(struct object *o) {
     case OBJECT_TIMER:
       cancel_waitable_timer((struct waitable_timer *) o);
       return 0;
-    
+
     case OBJECT_FILE:
       return close((struct file *) o);
 
@@ -669,7 +669,7 @@ void set_event(struct event *e) {
     if (thread_ready_to_run(wb->thread)) {
       // Release waiting thread
       release_thread(wb->thread);
-      
+
       // Auto reset only releases one thread
       if (!e->manual_reset) {
         e->object.signaled = 0;
@@ -904,15 +904,15 @@ static void expire_waitable_timer(void *arg) {
 
 void init_waitable_timer(struct waitable_timer *t, unsigned int expires) {
   init_object(&t->object, OBJECT_TIMER);
-  init_timer(&t->timer, expire_waitable_timer, t);
+  ktimer_init(&t->timer, expire_waitable_timer, t);
   t->timer.expires = expires;
-  
+
   if (time_before_eq(expires, ticks)) {
     // Set timer to signaled state immediately
     t->object.signaled = 1;
   } else {
     // Start timer
-    add_timer(&t->timer);
+    ktimer_add(&t->timer);
   }
 }
 
@@ -923,7 +923,7 @@ void init_waitable_timer(struct waitable_timer *t, unsigned int expires) {
 //
 
 void modify_waitable_timer(struct waitable_timer *t, unsigned int expires) {
-  mod_timer(&t->timer, expires);
+  ktimer_modify(&t->timer, expires);
 }
 
 //
@@ -933,5 +933,5 @@ void modify_waitable_timer(struct waitable_timer *t, unsigned int expires) {
 //
 
 void cancel_waitable_timer(struct waitable_timer *t) {
-  if (t->timer.active) del_timer(&t->timer);
+  if (t->timer.active) ktimer_remove(&t->timer);
 }

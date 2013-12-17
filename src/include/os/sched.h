@@ -132,12 +132,12 @@ struct thread *self();
 
 void mark_thread_running();
 
-krnlapi void mark_thread_ready(struct thread *t, int charge, int boost);
-krnlapi void enter_wait(int reason);
-krnlapi int enter_alertable_wait(int reason);
-krnlapi int interrupt_thread(struct thread *t);
+KERNELAPI void mark_thread_ready(struct thread *t, int charge, int boost);
+KERNELAPI void enter_wait(int reason);
+KERNELAPI int enter_alertable_wait(int reason);
+KERNELAPI int interrupt_thread(struct thread *t);
 
-krnlapi struct thread *create_kernel_thread(threadproc_t startaddr, void *arg, int priority, char *name);
+KERNELAPI struct thread *create_kernel_thread(threadproc_t startaddr, void *arg, int priority, char *name);
 
 int create_user_thread(void *entrypoint, unsigned long stacksize, char *name, struct thread **retval);
 int init_user_thread(struct thread *t, void *entrypoint);
@@ -155,22 +155,22 @@ int schedule_alarm(unsigned int seconds);
 int get_thread_priority(struct thread *t);
 int set_thread_priority(struct thread *t, int priority);
 
-krnlapi int init_task_queue(struct task_queue *tq, int priority, int maxsize, char *name);
-krnlapi void init_task(struct task *task);
-krnlapi int queue_task(struct task_queue *tq, struct task *task, taskproc_t proc, void *arg);
+KERNELAPI int init_task_queue(struct task_queue *tq, int priority, int maxsize, char *name);
+KERNELAPI void init_task(struct task *task);
+KERNELAPI int queue_task(struct task_queue *tq, struct task *task, taskproc_t proc, void *arg);
 
-krnlapi void init_dpc(struct dpc *dpc);
-krnlapi void queue_dpc(struct dpc *dpc, dpcproc_t proc, void *arg);
-krnlapi void queue_irq_dpc(struct dpc *dpc, dpcproc_t proc, void *arg);
+KERNELAPI void init_dpc(struct dpc *dpc);
+KERNELAPI void queue_dpc(struct dpc *dpc, dpcproc_t proc, void *arg);
+KERNELAPI void queue_irq_dpc(struct dpc *dpc, dpcproc_t proc, void *arg);
 
-krnlapi void add_idle_task(struct task *task, taskproc_t proc, void *arg);
+KERNELAPI void add_idle_task(struct task *task, taskproc_t proc, void *arg);
 
 void idle_task();
-krnlapi void yield();
+KERNELAPI void yield();
 void dispatch_dpc_queue();
 void preempt_thread();
-krnlapi void dispatch();
-krnlapi int system_idle();
+KERNELAPI void dispatch();
+KERNELAPI int system_idle();
 
 void init_sched();
 

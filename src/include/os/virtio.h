@@ -155,14 +155,14 @@ struct scatterlist {
 // Virtual I/O API
 //
 
-krnlapi int virtio_device_init(struct virtio_device *vd, struct unit *unit, int features);
-krnlapi void virtio_setup_complete(struct virtio_device *vd, int success);
-krnlapi void virtio_get_config(struct virtio_device *vd, void *buf, int len);
+KERNELAPI int virtio_device_init(struct virtio_device *vd, struct unit *unit, int features);
+KERNELAPI void virtio_setup_complete(struct virtio_device *vd, int success);
+KERNELAPI void virtio_get_config(struct virtio_device *vd, void *buf, int len);
 
-krnlapi int virtio_queue_init(struct virtio_queue *vq, struct virtio_device *vd, int index, virtio_callback_t callback);
-krnlapi int virtio_queue_size(struct virtio_queue *vq);
-krnlapi int virtio_enqueue(struct virtio_queue *vq, struct scatterlist sg[], unsigned int out, unsigned int in, void *data);
-krnlapi void virtio_kick(struct virtio_queue *vq);
-krnlapi void *virtio_dequeue(struct virtio_queue *vq, unsigned int *len);
+KERNELAPI int virtio_queue_init(struct virtio_queue *vq, struct virtio_device *vd, int index, virtio_callback_t callback);
+KERNELAPI int virtio_queue_size(struct virtio_queue *vq);
+KERNELAPI int virtio_enqueue(struct virtio_queue *vq, struct scatterlist sg[], unsigned int out, unsigned int in, void *data);
+KERNELAPI void virtio_kick(struct virtio_queue *vq);
+KERNELAPI void *virtio_dequeue(struct virtio_queue *vq, unsigned int *len);
 
 #endif

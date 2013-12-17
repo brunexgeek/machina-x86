@@ -3,6 +3,7 @@
 //
 // Device Manager
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -219,39 +220,39 @@ extern struct bus *buses;
 void enum_host_bus();
 void install_drivers();
 
-krnlapi struct bus *KeDevAddBus(struct unit *self, unsigned long bustype, unsigned long busno);
-krnlapi struct unit *KeDevAddUnit(struct bus *bus, unsigned long classcode, unsigned long unitcode, unsigned long unitno);
-krnlapi struct resource *KeDevAddResource(struct unit *unit, unsigned short type, unsigned short flags, unsigned long start, unsigned long len);
+KERNELAPI struct bus *add_bus(struct unit *self, unsigned long bustype, unsigned long busno);
+KERNELAPI struct unit *add_unit(struct bus *bus, unsigned long classcode, unsigned long unitcode, unsigned long unitno);
+KERNELAPI struct resource *add_resource(struct unit *unit, unsigned short type, unsigned short flags, unsigned long start, unsigned long len);
 
-krnlapi struct resource *KeDevGetUnitResource(struct unit *unit, int type, int num);
-krnlapi int KeDevGetUnitIrq(struct unit *unit);
-krnlapi int KeDevGetUnitIoBase(struct unit *unit);
-krnlapi void *KeDevGetUnitMemBase(struct unit *unit);
-krnlapi char *KeDevGetUnitName(struct unit *unit);
+KERNELAPI struct resource *get_unit_resource(struct unit *unit, int type, int num);
+KERNELAPI int get_unit_irq(struct unit *unit);
+KERNELAPI int get_unit_iobase(struct unit *unit);
+KERNELAPI void *get_unit_membase(struct unit *unit);
+KERNELAPI char *get_unit_name(struct unit *unit);
 
-krnlapi struct unit *KeDevLookupUnit(struct unit *start, unsigned long unitcode, unsigned long unitmask);
-krnlapi struct unit *KeDevLookupUnitBySubunit(struct unit *start, unsigned long subunitcode, unsigned long subunitmask);
-krnlapi struct unit *KeDevLookupUnitByClass(struct unit *start, unsigned long classcode, unsigned long classmask);
+KERNELAPI struct unit *lookup_unit(struct unit *start, unsigned long unitcode, unsigned long unitmask);
+KERNELAPI struct unit *lookup_unit_by_subunit(struct unit *start, unsigned long subunitcode, unsigned long subunitmask);
+KERNELAPI struct unit *lookup_unit_by_class(struct unit *start, unsigned long classcode, unsigned long classmask);
 
-krnlapi struct board *KeDevLookupBoard(struct board *board_tbl, struct unit *unit);
+KERNELAPI struct board *lookup_board(struct board *board_tbl, struct unit *unit);
 
-krnlapi struct dev *KeDevGet(dev_t devno);
+KERNELAPI struct dev *device(dev_t devno);
 
-krnlapi dev_t KeDevCreate(char *name, struct driver *driver, struct unit *unit, void *privdata);
-krnlapi dev_t KeDevGetNumber(char *name);
-krnlapi dev_t KeDevOpen(char *name);
-krnlapi int KeDevClose(dev_t devno);
+KERNELAPI dev_t dev_make(char *name, struct driver *driver, struct unit *unit, void *privdata);
+KERNELAPI dev_t devno(char *name);
+KERNELAPI dev_t dev_open(char *name);
+KERNELAPI int dev_close(dev_t devno);
 
-krnlapi int KeDevIoControl(dev_t devno, int cmd, void *args, size_t size);
-krnlapi int KeDevRead(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags);
-krnlapi int KeDevWrite(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags);
+KERNELAPI int dev_ioctl(dev_t devno, int cmd, void *args, size_t size);
+KERNELAPI int dev_read(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags);
+KERNELAPI int dev_write(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags);
 
-krnlapi int KeDevAttach(dev_t dev, struct netif *netif, int (*receive)(struct netif *netif, struct pbuf *p));
-krnlapi int KeDevDetach(dev_t devno);
-krnlapi int KeDevTransmit(dev_t devno, struct pbuf *p);
-krnlapi int KeDevReceive(dev_t devno, struct pbuf *p);
+KERNELAPI int dev_attach(dev_t dev, struct netif *netif, int (*receive)(struct netif *netif, struct pbuf *p));
+KERNELAPI int dev_detach(dev_t devno);
+KERNELAPI int dev_transmit(dev_t devno, struct pbuf *p);
+KERNELAPI int dev_receive(dev_t devno, struct pbuf *p);
 
-krnlapi int KeDevSetEvent(dev_t devno, int events);
-krnlapi int KeDevClearEvent(dev_t devno, int events);
+KERNELAPI int dev_setevt(dev_t devno, int events);
+KERNELAPI int dev_clrevt(dev_t devno, int events);
 
 #endif

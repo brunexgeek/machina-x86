@@ -40,17 +40,17 @@ extern struct rmap *vmap;
 
 void init_vmm();
 
-krnlapi void *vmalloc(void *addr, unsigned long size, int type, int protect, unsigned long tag, int *rc);
-krnlapi void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off64_t offset, int *rc);
-krnlapi int vmsync(void *addr, unsigned long size);
-krnlapi int vmfree(void *addr, unsigned long size, int type);
-krnlapi void *vmrealloc(void *addr, unsigned long oldsize, unsigned long newsize, int type, int protect, unsigned long tag);
-krnlapi int vmprotect(void *addr, unsigned long size, int protect);
-krnlapi int vmlock(void *addr, unsigned long size);
-krnlapi int vmunlock(void *addr, unsigned long size);
+KERNELAPI void *vmalloc(void *addr, unsigned long size, int type, int protect, unsigned long tag, int *rc);
+KERNELAPI void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off64_t offset, int *rc);
+KERNELAPI int vmsync(void *addr, unsigned long size);
+KERNELAPI int vmfree(void *addr, unsigned long size, int type);
+KERNELAPI void *vmrealloc(void *addr, unsigned long oldsize, unsigned long newsize, int type, int protect, unsigned long tag);
+KERNELAPI int vmprotect(void *addr, unsigned long size, int protect);
+KERNELAPI int vmlock(void *addr, unsigned long size);
+KERNELAPI int vmunlock(void *addr, unsigned long size);
 
-krnlapi void *miomap(unsigned long addr, int size, int protect);
-krnlapi void miounmap(void *addr, int size);
+KERNELAPI void *miomap(unsigned long addr, int size, int protect);
+KERNELAPI void miounmap(void *addr, int size);
 
 int guard_page_handler(void *addr);
 int fetch_page(void *addr);

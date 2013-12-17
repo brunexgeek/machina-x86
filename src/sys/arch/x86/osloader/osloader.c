@@ -1,8 +1,9 @@
 //
-// osldr.c
+// osloader.c
 //
 // Operating system loader
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -50,7 +51,7 @@
 #define VIDEO_BASE           0xB8000
 #define HEAP_START           (1024 * 1024)
 
-unsigned long mem_end;          // Size of memory
+unsigned long mem_end = 0;      // Size of memory
 char *heap;                     // Heap pointer point to next free page in memory
 pte_t *pdir;                    // Page directory
 struct syspage *syspage;        // System page with tss and gdt
@@ -77,6 +78,7 @@ int bios_read_disk(int drive, int cyl, int head, int sect, int nsect, void *buff
 int unzip(void *src, unsigned long srclen, void *dst, unsigned long dstlen, char *heap, int heapsize);
 void load_kernel();
 
+
 void kprintf(const char *fmt,...) {
   va_list args;
   char buffer[1024];
@@ -88,10 +90,13 @@ void kprintf(const char *fmt,...) {
   bios_print_string(buffer);
 }
 
-void panic(char *msg) {
-  kprintf("panic: %s\n", msg);
-  while (1);
+
+void panic( char *message )
+{
+    kprintf("panic: %s\n", message);
+    while (1);
 }
+
 
 void init_biosdisk() {
   int status;
@@ -100,7 +105,8 @@ void init_biosdisk() {
   if (status != 0) panic("Unable to initialize boot device");
 }
 
-int biosdisk_read(void *buffer, size_t count, blkno_t blkno) {
+
+int biosdisk_read(void *buffer, size_t count, blkno_t blkno){
   static char scratch[4096];
 
   char *buf = buffer;
@@ -154,25 +160,35 @@ int boot_read(void *buffer, size_t count, blkno_t blkno) {
   }
 }
 
-char *check_heap(int numpages) {
-  // Check for out of memory
-  if ((unsigned long) heap + numpages * PAGESIZE >= mem_end) panic("out of memory");
-  return heap;
+char *heap_check( int numpages )
+{
+    // check for out of memory
+    if ((unsigned long) heap + numpages * PAGESIZE >= mem_end)
+        panic("out of memory");
+    return heap;
 }
 
-char *alloc_heap(int numpages) {
-  char *p = check_heap(numpages);
 
-  // Zero allocated pages
-  memset(p, 0, numpages * PAGESIZE);
+char *heap_alloc( int numpages )
+{
+    char *p = heap_check(numpages);
 
-  // Update heap pointer
-  heap += numpages * PAGESIZE;
+    // initialize the pages
+    memset(p, 0, numpages * PAGESIZE);
+    // update heap pointer
+    heap += numpages * PAGESIZE;
 
-  return p;
+    return p;
 }
 
-unsigned long memsize()
+/**
+ * Calculate the memory size through brute force. This function try to write a fixed
+ * value on several memory locations and detect valid addresses reading their content.
+ *
+ * This function is only used if the OS loader stub can not use the BIOS int 15 ax=0xE80
+ * interruption.
+ */
+unsigned long memory_getSize()
 {
     volatile unsigned long *mem;
     unsigned long addr;
@@ -209,19 +225,17 @@ unsigned long memsize()
     {
         addr += 1024 * 1024;
         mem = (unsigned long *) addr;
-
         value = *mem;
+        // test the memory location
         *mem = 0x55AA55AA;
-
         if (*mem != 0x55AA55AA) break;
-
         *mem = 0xAA55AA55;
         if(*mem != 0xAA55AA55) break;
-
+        // restore the old value
         *mem = value;
     }
 
-    // Restore
+    // restore the CR0 value
     __asm__
     (
         "mov eax, %0;"
@@ -234,7 +248,7 @@ unsigned long memsize()
 }
 
 
-void setup_memory(struct memmap *memmap)
+void memory_setup( struct memmap *memmap )
 {
     int i;
 
@@ -252,8 +266,8 @@ void setup_memory(struct memmap *memmap)
     }
     else
     {
-        // No BIOS memory map, probe memory and create a simple map with 640K:1M hole
-        mem_end = memsize();
+        // no BIOS memory map, probe memory and create a simple map with 640K:1M hole
+        mem_end = memory_getSize();
 
         memmap->entry[0].addr = 0;
         memmap->entry[0].size = 0xA0000;
@@ -358,7 +372,7 @@ void copy_ramdisk(char *bootimg) {
 
   initrd_size = (1 << super->log_block_size) * super->block_count;
   rdpages = PAGES(initrd_size);
-  initrd = alloc_heap(rdpages);
+  initrd = heap_alloc(rdpages);
 
   if (super->compress_size != 0) {
     char *zheap;
@@ -371,7 +385,7 @@ void copy_ramdisk(char *bootimg) {
     memcpy(initrd, bootimg, super->compress_offset);
 
     // Uncompress compressed part of image
-    zheap = check_heap(64 * 1024 / PAGESIZE);
+    zheap = heap_check(64 * 1024 / PAGESIZE);
     zofs = super->compress_offset;
     zsize = super->compress_size;
     unzip(bootimg + zofs, zsize, initrd + zofs, initrd_size - zofs, zheap, 64 * 1024);
@@ -395,26 +409,26 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
     char *bootimg = bootparams->bootimg;
 
     // create the memory mapping
-    setup_memory(&bootparams->memmap);
+    memory_setup(&bootparams->memmap);
     kprintf("\nmemory: %d MB\n", mem_end / (1024 * 1024) + 1);
 
     // Page allocation starts at 1MB
     heap = (char *) HEAP_START;
 
     // Allocate page for page directory
-    pdir = (pte_t *) alloc_heap(1);
+    pdir = (pte_t *) heap_alloc(1);
 
     // Make recursive entry for access to page tables
     pdir[PDEIDX(PTBASE)] = (unsigned long) pdir | PT_PRESENT | PT_WRITABLE;
 
     // Allocate system page
-    syspage = (struct syspage *) alloc_heap(1);
+    syspage = (struct syspage *) heap_alloc(1);
 
     // Allocate initial thread control block
-    inittcb = (struct tcb *) alloc_heap(PAGES_PER_TCB);
+    inittcb = (struct tcb *) heap_alloc(PAGES_PER_TCB);
 
     // Allocate system page directory page
-    syspagetable = (pte_t *) alloc_heap(1);
+    syspagetable = (pte_t *) heap_alloc(1);
 
     // Map system page, page directory and and video buffer
     pdir[PDEIDX(SYSBASE)] = (unsigned long) syspagetable | PT_PRESENT | PT_WRITABLE;
@@ -429,7 +443,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
     }
 
     // Map first 4MB to physical memory
-    pt = (pte_t *) alloc_heap(1);
+    pt = (pte_t *) heap_alloc(1);
     pdir[0] = (unsigned long) pt | PT_PRESENT | PT_WRITABLE | PT_USER;
     for (i = 0; i < PTES_PER_PAGE; i++) pt[i] = (i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
 
@@ -498,9 +512,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
         "push 0;"
         "push dword ptr [krnlopts];"
         "push %2;"
-        //"call dword ptr [krnlentry];"
-        "mov eax, 0x80000000;"
-        "call eax;"
+        "call dword ptr [krnlentry];"
         "cli;"
         "hlt;"
         :

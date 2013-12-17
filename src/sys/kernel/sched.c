@@ -350,7 +350,7 @@ int create_user_thread(void *entrypoint, unsigned long stacksize, char *name, st
     hprotect(t->hndl);
 
     // Initialize signal alarm timer
-    init_timer(&t->alarm, tmr_alarm, t);
+    ktimer_init(&t->alarm, tmr_alarm, t);
 
     // Notify debugger
     dbg_notify_create_thread(t, entrypoint);
@@ -531,11 +531,11 @@ int schedule_alarm(unsigned int seconds)
     if (t->alarm.active) rc = (t->alarm.expires - ticks) / HZ;
     if (seconds == 0)
     {
-        del_timer(&t->alarm);
+        ktimer_remove(&t->alarm);
     }
     else
     {
-        mod_timer(&t->alarm, ticks + seconds * HZ);
+        ktimer_modify(&t->alarm, ticks + seconds * HZ);
     }
 
     return rc;
@@ -545,7 +545,7 @@ void terminate_thread(int exitcode) {
   struct thread *t = self();
   t->state = THREAD_STATE_TERMINATED;
   t->exitcode = exitcode;
-  del_timer(&t->alarm);
+  ktimer_remove(&t->alarm);
   exit_thread(t);
   hunprotect(t->hndl);
   hfree(t->hndl);

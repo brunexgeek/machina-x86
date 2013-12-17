@@ -123,7 +123,7 @@ static void arp_tmr(void *arg) {
     }
   }
 
-  mod_timer(&arp_timer, ticks + ARP_TIMER_INTERVAL / MSECS_PER_TICK);
+  ktimer_modify(&arp_timer, ticks + ARP_TIMER_INTERVAL / MSECS_PER_TICK);
 }
 
 void arp_init() {
@@ -131,8 +131,8 @@ void arp_init() {
 
   for (i = 0; i < ARP_TABLE_SIZE; ++i) ip_addr_set(&arp_table[i].ipaddr, IP_ADDR_ANY);
   memset(xmit_queue_table, 0, sizeof(xmit_queue_table));
-  init_timer(&arp_timer, arp_tmr, NULL);
-  mod_timer(&arp_timer, ticks + ARP_TIMER_INTERVAL / MSECS_PER_TICK);
+  ktimer_init(&arp_timer, arp_tmr, NULL);
+  ktimer_modify(&arp_timer, ticks + ARP_TIMER_INTERVAL / MSECS_PER_TICK);
   register_proc_inode("arp", arp_proc, NULL);
 }
 

@@ -20,7 +20,7 @@
 // Scyld Computing Corporation
 // 410 Severn Ave., Suite 210
 // Annapolis MD 21403
-// 
+//
 
 #include <os/krnl.h>
 
@@ -75,8 +75,8 @@ static int multicast_filter_limit = 64;
 
 // This table drives the PCI probe routines
 
-enum chip_capability_flags  { 
-  ResetMII = 1, 
+enum chip_capability_flags  {
+  ResetMII = 1,
   HasChksum = 2
 };
 
@@ -114,13 +114,13 @@ enum speedo_offsets {
 // Commands that can be put in a command list entry
 
 enum commands {
-  CmdNOp           = 0x00000000, 
-  CmdIASetup       = 0x00010000, 
+  CmdNOp           = 0x00000000,
+  CmdIASetup       = 0x00010000,
   CmdConfigure     = 0x00020000,
-  CmdMulticastList = 0x00030000, 
-  CmdTx            = 0x00040000, 
+  CmdMulticastList = 0x00030000,
+  CmdTx            = 0x00040000,
   CmdTDR           = 0x00050000,
-  CmdDump          = 0x00060000, 
+  CmdDump          = 0x00060000,
   CmdDiagnose      = 0x00070000,
   CmdTxFlex        = 0x00080000,   // Use "Flexible mode" for CmdTx command
 
@@ -129,45 +129,45 @@ enum commands {
 };
 
 enum SCBCmdBits {
-  SCBMaskCmdDone      = 0x8000, 
-  SCBMaskRxDone       = 0x4000, 
+  SCBMaskCmdDone      = 0x8000,
+  SCBMaskRxDone       = 0x4000,
   SCBMaskCmdIdle      = 0x2000,
-  SCBMaskRxSuspend    = 0x1000, 
-  SCBMaskEarlyRx      = 0x0800, 
+  SCBMaskRxSuspend    = 0x1000,
+  SCBMaskEarlyRx      = 0x0800,
   SCBMaskFlowCtl      = 0x0400,
-  SCBTriggerIntr      = 0x0200, 
+  SCBTriggerIntr      = 0x0200,
   SCBMaskAll          = 0x0100,
-  
+
   // The rest are Rx and Tx commands
-  CUStart             = 0x0010, 
-  CUResume            = 0x0020, 
-  CUHiPriStart        = 0x0030, 
+  CUStart             = 0x0010,
+  CUResume            = 0x0020,
+  CUHiPriStart        = 0x0030,
   CUStatsAddr         = 0x0040,
   CUShowStats         = 0x0050,
   CUCmdBase           = 0x0060,  // CU Base address (set to zero)
   CUDumpStats         = 0x0070,  // Dump then reset stats counters
   CUHiPriResume       = 0x00b0,  // Resume for the high priority Tx queue
-  RxStart             = 0x0001, 
-  RxResume            = 0x0002, 
-  RxAbort             = 0x0004, 
+  RxStart             = 0x0001,
+  RxResume            = 0x0002,
+  RxAbort             = 0x0004,
   RxAddrLoad          = 0x0006,
   RxResumeNoResources = 0x0007,
 };
 
 enum intr_status_bits {
-  IntrCmdDone   = 0x8000,  
-  IntrRxDone    = 0x4000, 
+  IntrCmdDone   = 0x8000,
+  IntrRxDone    = 0x4000,
   IntrCmdIdle   = 0x2000,
-  IntrRxSuspend = 0x1000, 
-  IntrMIIDone   = 0x0800, 
+  IntrRxSuspend = 0x1000,
+  IntrMIIDone   = 0x0800,
   IntrDrvrIntr  = 0x0400,
   IntrAllNormal = 0xfc00,
 };
 
 enum SCBPort_cmds {
-  PortReset        = 0, 
-  PortSelfTest     = 1, 
-  PortPartialReset = 2, 
+  PortReset        = 0,
+  PortSelfTest     = 1,
+  PortPartialReset = 2,
   PortDump         = 3,
 };
 
@@ -197,14 +197,14 @@ struct RxFD {
 enum RxFD_bits {
   RxComplete     = 0x8000,
   RxOK           = 0x2000,
-  RxErrCRC       = 0x0800, 
-  RxErrAlign     = 0x0400, 
-  RxErrTooBig    = 0x0200, 
+  RxErrCRC       = 0x0800,
+  RxErrAlign     = 0x0400,
+  RxErrTooBig    = 0x0200,
   RxErrSymbol    = 0x0010,
-  RxEth2Type     = 0x0020, 
-  RxNoMatch      = 0x0004, 
+  RxEth2Type     = 0x0020,
+  RxNoMatch      = 0x0004,
   RxNoIAMatch    = 0x0002,
-  TxUnderrun     = 0x1000,  
+  TxUnderrun     = 0x1000,
   StatusComplete = 0x8000,
 };
 
@@ -217,7 +217,7 @@ struct TxFD {
   long count;                   // # of TBD (=1), Tx start thresh., etc.
 
   // This constitutes two "TBD" entries. Non-zero-copy uses only one
-  unsigned long tx_buf_addr0;   // void *, frame to be transmitted. 
+  unsigned long tx_buf_addr0;   // void *, frame to be transmitted.
   long tx_buf_size0;            // Length of Tx frame.
   unsigned long tx_buf_addr1;   // Used only for zero-copy data section.
   long tx_buf_size1;            // Length of second data buffer (0).
@@ -251,7 +251,7 @@ struct speedo_stats {
 struct nic {
   struct TxFD tx_ring[TX_RING_SIZE];       // Commands (usually CmdTxPacket)
   struct RxFD *rx_ringp[RX_RING_SIZE];     // Rx descriptor, used as ring
-  
+
   // The addresses of a Tx/Rx-in-place packets/buffers.
   struct pbuf *tx_pbuf[TX_RING_SIZE];
   struct pbuf *rx_pbuf[RX_RING_SIZE];
@@ -260,7 +260,7 @@ struct nic {
   unsigned long tx_threshold;              // The value for txdesc.count
   unsigned long last_cmd_time;
   struct sem tx_sem;                       // Semaphore for Tx ring not full
-  
+
   // Rx control, one cache line.
   struct RxFD *last_rxf;                   // Most recent Rx frame
   unsigned int cur_rx, dirty_rx;           // The next free ring entry
@@ -307,14 +307,14 @@ const unsigned char i82557_config_cmd[22] = {
   22, 0x08, 0, 0,  0, 0, 0x32, 0x03,  1, // 1=Use MII  0=Use AUI
   0, 0x2E, 0,  0x60, 0,
   0xf2, 0x48,   0, 0x40, 0xf2, 0x80,    // 0x40=Force full-duplex
-  0x3f, 0x05, 
+  0x3f, 0x05,
 };
 
 const unsigned char i82558_config_cmd[22] = {
   22, 0x08, 0, 1,  0, 0, 0x22, 0x03,  1, // 1=Use MII  0=Use AUI
   0, 0x2E, 0,  0x60, 0x08, 0x88,
   0x68, 0, 0x40, 0xf2, 0xBD,    // 0xBD->0xFD=Force full-duplex
-  0x31, 0x05, 
+  0x31, 0x05,
 };
 
 // PHY media interface chips
@@ -342,13 +342,13 @@ static const char is_mii[] = { 0, 1, 1, 0, 1, 1, 0, 1 };
 __inline static void wait_for_cmd_done(long cmd_ioaddr) {
   int wait = 0;
   int delayed_cmd;
-  
+
   while (++wait <= 100) {
     if (inp(cmd_ioaddr) == 0) return;
   }
 
   delayed_cmd = inp(cmd_ioaddr);
-  
+
   while (++wait <= 10000) {
     if (inp(cmd_ioaddr) == 0) break;
   }
@@ -408,7 +408,7 @@ static int mdio_read(long ioaddr, int phy_id, int location) {
       break;
     }
   } while (!(val & 0x10000000));
-  
+
   return val & 0xffff;
 }
 
@@ -545,13 +545,13 @@ static int speedo_open(struct dev *dev) {
   // power-up errors
   if ((sp->flags & ResetMII) && (sp->phy[0] & 0x8000) == 0) {
     int phy_addr = sp->phy[0] & 0x1f ;
-    
+
     // Use 0x3300 for restarting NWay, other values to force xcvr:
     //   0x0000 10-HD
     //   0x0100 10-FD
     //   0x2000 100-HD
     //   0x2100 100-FD
-   
+
     mdio_write(ioaddr, phy_addr, 0, 0x3300);
   }
 
@@ -581,8 +581,8 @@ static int speedo_open(struct dev *dev) {
   // 2) to monitor Rx activity, and restart the Rx process if the receiver
   //    hangs.
 
-  init_timer(&sp->timer, speedo_timer, dev);
-  mod_timer(&sp->timer, get_ticks() + 3*HZ);
+  ktimer_init(&sp->timer, speedo_timer, dev);
+  ktimer_modify(&sp->timer, get_ticks() + 3*HZ);
 
   // No need to wait for the command unit to accept here.
   if ((sp->phy[0] & 0x8000) == 0) mdio_read(ioaddr, sp->phy[0] & 0x1f, 0);
@@ -598,7 +598,7 @@ static int speedo_close(struct dev *dev) {
   kprintf("%s: Shutting down ethercard, status was %4.4x. Allocation failures: %d\n",  dev->name, inpw(ioaddr + SCBStatus), sp->alloc_failures);
 
   // Shut off the media monitoring timer
-  del_timer(&sp->timer);
+  ktimer_remove(&sp->timer);
 
   // Shutting down the chip nicely fails to disable flow control. So..
   outpd(ioaddr + SCBPort, PortPartialReset);
@@ -746,7 +746,7 @@ static int speedo_set_rx_mode(struct dev *dev) {
   if (!dev->netif) {
     // Network interface not attached yet -- accept all multicasts
     new_rx_mode = 1;
-  } else if (dev->netif->flags & NETIF_PROMISC) {     
+  } else if (dev->netif->flags & NETIF_PROMISC) {
     // Set promiscuous.
     new_rx_mode = 3;
   } else if ((dev->netif->flags & NETIF_ALLMULTI) || dev->netif->mccount > multicast_filter_limit) {
@@ -820,7 +820,7 @@ static int speedo_set_rx_mode(struct dev *dev) {
     sp->tx_ring[entry].tx_desc_addr = 0; // Really MC list count
     setup_params = (unsigned short *) &sp->tx_ring[entry].tx_desc_addr;
     *setup_params++ = dev->netif->mccount * 6;
-    
+
     // Fill in the multicast addresses.
     for (i = 0, mclist = dev->netif->mclist; i < dev->netif->mccount; i++, mclist = mclist->next) {
       eaddrs = (unsigned short *) &mclist->hwaddr;
@@ -865,11 +865,11 @@ static int speedo_set_rx_mode(struct dev *dev) {
     // Fill the setup frame
     kprintf("%s: Constructing a setup frame at %p, %d bytes\n", dev->name, sp->mc_setup_frm, sp->mc_setup_frm_len);
     mc_setup_frm->cmd_status =  CmdSuspend | CmdIntr | CmdMulticastList;
-    
+
     // Link set below
     setup_params = (unsigned short *) &mc_setup_frm->params;
     *setup_params++ = dev->netif->mccount * 6;
-    
+
     // Fill in the multicast addresses
     for (i = 0, mclist = dev->netif->mclist; i < dev->netif->mccount; i++, mclist = mclist->next) {
       eaddrs = (unsigned short *) &mclist->hwaddr;
@@ -935,7 +935,7 @@ static void speedo_timer(void *arg) {
     } else if (get_ticks() - sp->last_reset > 10*HZ) {
       sp->polling = 0;
     }
-    
+
     expires = get_ticks() + 2;
   }
 
@@ -952,7 +952,7 @@ static void speedo_timer(void *arg) {
 
       // Clear sticky bit
       mdio_read(ioaddr, phy_num, 1);
-      
+
       // If link beat has returned...
       //if (mdio_read(ioaddr, phy_num, 1) & 0x0004)
       //  netif_link_up(dev);
@@ -979,7 +979,7 @@ static void speedo_timer(void *arg) {
         sp->polling = 1;
       }
       speedo_interrupt(dev);
-      expires = get_ticks() + 2;  // Avoid 
+      expires = get_ticks() + 2;  // Avoid
     } else {
       speedo_tx_timeout(dev);
       sp->last_reset = get_ticks();
@@ -993,7 +993,7 @@ static void speedo_timer(void *arg) {
     speedo_set_rx_mode(dev);
   }
 
-  mod_timer(&sp->timer, expires);
+  ktimer_modify(&sp->timer, expires);
 }
 
 static void speedo_tx_timeout(struct dev *dev) {
@@ -1125,7 +1125,7 @@ static int speedo_rx(struct dev *dev) {
   for (; sp->cur_rx - sp->dirty_rx > 0; sp->dirty_rx++) {
     struct RxFD *rxf;
     entry = sp->dirty_rx % RX_RING_SIZE;
-    
+
     if (sp->rx_pbuf[entry] == NULL) {
       struct pbuf *p;
 
@@ -1135,7 +1135,7 @@ static int speedo_rx(struct dev *dev) {
       if (p == NULL) {
         sp->rx_ringp[entry] = NULL;
         sp->alloc_failures++;
-        break;      // Better luck next time! 
+        break;      // Better luck next time!
       }
       rxf = sp->rx_ringp[entry] = (struct RxFD *) p->payload;
       pbuf_header(p, - (int) sizeof(struct RxFD));
@@ -1209,14 +1209,14 @@ static void speedo_interrupt(struct dev *dev) {
         // Free the original pbuf
         if (sp->tx_pbuf[entry]) {
           // Count only user packets
-          sp->stats.tx_packets++; 
+          sp->stats.tx_packets++;
           sp->stats.tx_bytes += sp->tx_pbuf[entry]->len;
           pbuf_free(sp->tx_pbuf[entry]);
           sp->tx_pbuf[entry] = NULL;
         } else if ((status & 0x70000) == CmdNOp) {
           sp->mc_setup_busy = 0;
         }
-        
+
         dirty_tx++;
         entries_freed++;
       }
@@ -1291,7 +1291,7 @@ static int speedo_transmit(struct dev *dev, struct pbuf *p) {
   sp->tx_ring[entry].count = sp->tx_threshold;
   sp->tx_ring[entry].tx_buf_addr0 = virt2phys(p->payload);
   sp->tx_ring[entry].tx_buf_size0 = p->tot_len;
-  
+
   // TODO: perhaps leave the interrupt bit set if the Tx queue is more
   // than half full.  Argument against: we should be receiving packets
   // and scavenging the queue.  Argument for: if so, it shouldn't
@@ -1302,7 +1302,7 @@ static int speedo_transmit(struct dev *dev, struct pbuf *p) {
     sp->last_cmd = (struct descriptor *) &sp->tx_ring[entry];
     clear_suspend(last_cmd);
   }
-  
+
   wait_for_cmd_done(ioaddr + SCBCmd);
   outp(ioaddr + SCBCmd, CUResume);
   sp->trans_start = get_ticks();
@@ -1372,7 +1372,7 @@ int __declspec(dllexport) install(struct unit *unit, char *opts) {
   // Nominally his should even be done before accepting the device, but
   // then we wouldn't have a device name with which to report the error.
   // The size test is for 6 bit vs. 8 bit address serial EEPROMs.
- 
+
   {
     unsigned short sum = 0;
     int j;

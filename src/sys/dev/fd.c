@@ -290,7 +290,7 @@ static void fd_motor_on(struct fd *fd) {
 static void fd_motor_off(struct fd *fd) {
   if (fd->motor_status == FD_MOTOR_ON) {
     fd->motor_status = FD_MOTOR_DELAY;
-    mod_timer(&fd->motortimer, ticks + FD_MOTOR_TIMEOUT / MSECS_PER_TICK);
+    ktimer_modify(&fd->motortimer, ticks + FD_MOTOR_TIMEOUT / MSECS_PER_TICK);
   }
 }
 
@@ -579,7 +579,7 @@ static void init_drive(char *devname, struct fd *fd, struct fdc *fdc, int drive,
   fd->drive = drive;
   fd->curtrack = 0xFF;
   fd->drive_initialized = 0;
-  init_timer(&fd->motortimer, fd_motor_timeout, fd);
+  ktimer_init(&fd->motortimer, fd_motor_timeout, fd);
 
   KeDevCreate(devname, &floppy_driver, NULL, fd);
 

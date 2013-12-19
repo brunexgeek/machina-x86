@@ -157,54 +157,55 @@ struct waitable_timer {
   struct timer timer;
 };
 
-struct thread {
-  struct object object;
+struct thread
+{
+    struct object object;
 
-  int state;
-  int quantum;
-  int wait_reason;
-  int flags;
-  int priority;
-  int base_priority;
-  tid_t id;
-  handle_t hndl;
-  struct tib *tib;
-  int suspend_count;
-  void *entrypoint;
-  int exitcode;
-  char name[THREAD_NAME_LEN];
+    int state;
+    int quantum;
+    int wait_reason;
+    int flags;
+    int priority;
+    int base_priority;
+    tid_t id;
+    handle_t hndl;
+    struct tib *tib;
+    int suspend_count;
+    void *entrypoint;
+    int exitcode;
+    char name[THREAD_NAME_LEN];
 
-  uid_t ruid;
-  uid_t rgid;
-  uid_t euid;
-  gid_t egid;
-  int ngroups;
-  gid_t groups[NGROUPS_MAX];
-  char curdir[MAXPATH];
+    uid_t ruid;
+    uid_t rgid;
+    uid_t euid;
+    gid_t egid;
+    int ngroups;
+    gid_t groups[NGROUPS_MAX];
+    char curdir[MAXPATH];
 
-  sigset_t blocked_signals;
-  sigset_t pending_signals;
-  struct timer alarm;
+    sigset_t blocked_signals;
+    sigset_t pending_signals;
+    struct timer alarm;
 
-  unsigned long utime;
-  unsigned long stime;
-  unsigned long context_switches;
-  unsigned long preempts;
+    unsigned long utime;
+    unsigned long stime;
+    unsigned long context_switches;
+    unsigned long preempts;
 
-  struct thread *next;
-  struct thread *prev;
+    struct thread *next;
+    struct thread *prev;
 
-  struct thread *next_ready;
-  struct thread *prev_ready;
+    struct thread *next_ready;
+    struct thread *prev_ready;
 
-  struct waitblock *waitlist;
-  int waitkey;
+    struct waitblock *waitlist;
+    int waitkey;
 
-  struct thread *next_waiter;
+    struct thread *next_waiter;
 
-  struct context *ctxt;
+    struct context *ctxt;
 
-  struct fpu fpustate;
+    struct fpu fpustate;
 };
 
 struct filemap {

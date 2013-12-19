@@ -206,9 +206,9 @@ static void tsc_delay(unsigned long cycles) {
 static void timed_delay(unsigned long loops) {
     __asm__
     (
-        "delay_loop:"
+        "1:"
         "dec %0;"
-        "jns delay_loop;"
+        "jns 1b;"
         :
         : "ir" (loops)
     );

@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -51,7 +51,7 @@ static char *krnlname = "krnl.dll";
 static void init_debug_port() {
   // Turn off interrupts
   outp(DEBUGPORT + 1, 0);
-  
+
   // Set 115200 baud, 8 bits, no parity, one stopbit
   outp(DEBUGPORT + 3, 0x80);
   outp(DEBUGPORT + 0, 0x01); // 0x0C = 9600, 0x01 = 115200
@@ -127,7 +127,7 @@ static void dbg_recv_rle(void *data, unsigned int len) {
       unsigned char value;
       unsigned char count;
       int n;
-  
+
       dbg_recv(&value, 1);
       dbg_recv(&count, 1);
       n = (count == 0) ? 256 : count;
@@ -242,11 +242,11 @@ static void dbg_suspend_thread(struct dbg_hdr *hdr, union dbg_body *body) {
 
   for (n = 0; n < body->thr.count; n++) {
     tid = body->thr.threadids[n];
-    t = get_thread(tid);
+    t = kthread_get(tid);
     if (t == NULL) {
       body->thr.threadids[n] = -ENOENT;
     } else if (t != self()) {
-      body->thr.threadids[n] = suspend_thread(t);
+      body->thr.threadids[n] = kthread_suspend(t);
     }
   }
 
@@ -260,11 +260,11 @@ static void dbg_resume_thread(struct dbg_hdr *hdr, union dbg_body *body) {
 
   for (n = 0; n < body->thr.count; n++) {
     tid = body->thr.threadids[n];
-    t = get_thread(tid);
+    t = kthread_get(tid);
     if (t == NULL) {
       body->thr.threadids[n] = -ENOENT;
     } else if (t != self()) {
-      body->thr.threadids[n] = resume_thread(t);
+      body->thr.threadids[n] = kthread_resume(t);
     }
   }
 
@@ -274,7 +274,7 @@ static void dbg_resume_thread(struct dbg_hdr *hdr, union dbg_body *body) {
 static void dbg_get_thread_context(struct dbg_hdr *hdr, union dbg_body *body) {
   struct thread *t;
 
-  t = get_thread(body->ctx.tid);
+  t = kthread_get(body->ctx.tid);
   if (!t) {
     dbg_send_error(DBGERR_INVALIDTHREAD, hdr->id);
     return;
@@ -282,7 +282,7 @@ static void dbg_get_thread_context(struct dbg_hdr *hdr, union dbg_body *body) {
 
   if (t->ctxt) {
     memcpy(&body->ctx.ctxt, t->ctxt, sizeof(struct context));
-  
+
     // DS and ES are 16 bit register, clear upper bits
     body->ctx.ctxt.ds &= 0xFFFF;
     body->ctx.ctxt.es &= 0xFFFF;
@@ -317,7 +317,7 @@ static void dbg_get_thread_context(struct dbg_hdr *hdr, union dbg_body *body) {
 static void dbg_set_thread_context(struct dbg_hdr *hdr, union dbg_body *body) {
   struct thread *t;
 
-  t = get_thread(body->ctx.tid);
+  t = kthread_get(body->ctx.tid);
   if (!t) {
     dbg_send_error(DBGERR_INVALIDTHREAD, hdr->id);
     return;

@@ -165,10 +165,10 @@ static int install_virtiocon(struct unit *unit) {
   virtio_kick(&vcon->input_queue);
 
   // Create device
-  vcon->devno = KeDevCreate("vc#", &virtiocon_driver, unit, vcon);
+  vcon->devno = kdev_create("vc#", &virtiocon_driver, unit, vcon);
   virtio_setup_complete(&vcon->vd, 1);
   kprintf(KERN_INFO "%s: virtio console, %dx%d, %d ports, feats=%d\n",
-          KeDevGet(vcon->devno)->name,
+          kdev_get(vcon->devno)->name,
           vcon->config.cols, vcon->config.rows, vcon->config.max_ports, vcon->vd.features);
 
   return 0;

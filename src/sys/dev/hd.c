@@ -690,7 +690,7 @@ static int atapi_packet_read(struct hd *hd, unsigned char *pkt, int pktlen, void
     //kprintf("%d bytes\n", bytes);
     if (bytes == 0) break;
     if (bytes > bufleft) {
-      kprintf(KERN_ERR "%s: buffer overrun\n", KeDevGet(hd->devno)->name);
+      kprintf(KERN_ERR "%s: buffer overrun\n", kdev_get(hd->devno)->name);
       hdc->result = -EBUF;
       break;
     }
@@ -725,7 +725,7 @@ static int atapi_read_capacity(struct hd *hd) {
 
   blks = ntohl(buf[0]);
   blksize = ntohl(buf[1]);
-  if (blksize != CDSECTORSIZE) kprintf("%s: unexpected block size (%d)\n", KeDevGet(hd->devno)->name, blksize);
+  if (blksize != CDSECTORSIZE) kprintf("%s: unexpected block size (%d)\n", kdev_get(hd->devno)->name, blksize);
   return blks;
 }
 
@@ -1273,7 +1273,7 @@ static int part_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
       return part->len;
 
     case IOCTL_GETBLKSIZE:
-      return KeDevIoControl(part->dev, IOCTL_GETBLKSIZE, NULL, 0);
+      return kdev_ioctl(part->dev, IOCTL_GETBLKSIZE, NULL, 0);
   }
 
   return -ENOSYS;
@@ -1282,13 +1282,13 @@ static int part_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
 static int part_read(struct dev *dev, void *buffer, size_t count, blkno_t blkno, int flags) {
   struct partition *part = (struct partition *) dev->privdata;
   if (blkno + count / SECTORSIZE > part->len) return -EFAULT;
-  return KeDevRead(part->dev, buffer, count, blkno + part->start, 0);
+  return kdev_read(part->dev, buffer, count, blkno + part->start, 0);
 }
 
 static int part_write(struct dev *dev, void *buffer, size_t count, blkno_t blkno, int flags) {
   struct partition *part = (struct partition *) dev->privdata;
   if (blkno + count / SECTORSIZE > part->len) return -EFAULT;
-  return KeDevWrite(part->dev, buffer, count, blkno + part->start, 0);
+  return kdev_write(part->dev, buffer, count, blkno + part->start, 0);
 }
 
 struct driver harddisk_udma_driver = {
@@ -1332,15 +1332,15 @@ static int create_partitions(struct hd *hd) {
   char devname[DEVNAMELEN];
 
   // Read partition table
-  rc = KeDevRead(hd->devno, mbr, SECTORSIZE, 0, 0);
+  rc = kdev_read(hd->devno, mbr, SECTORSIZE, 0, 0);
   if (rc < 0) {
-    kprintf(KERN_ERR "%s: error %d reading partition table\n", KeDevGet(hd->devno)->name, rc);
+    kprintf(KERN_ERR "%s: error %d reading partition table\n", kdev_get(hd->devno)->name, rc);
     return rc;
   }
 
   // Create partition devices
   if (mbr->signature != MBR_SIGNATURE) {
-    kprintf(KERN_ERR "%s: illegal boot sector signature\n", KeDevGet(hd->devno)->name);
+    kprintf(KERN_ERR "%s: illegal boot sector signature\n", kdev_get(hd->devno)->name);
     return -EIO;
   }
 
@@ -1352,13 +1352,13 @@ static int create_partitions(struct hd *hd) {
     hd->parts[i].len = mbr->parttab[i].numsect;
 
     if (mbr->parttab[i].systid != 0) {
-      sprintf(devname, "%s%c", KeDevGet(hd->devno)->name, 'a' + i);
-      devno = KeDevOpen(devname);
+      sprintf(devname, "%s%c", kdev_get(hd->devno)->name, 'a' + i);
+      devno = kdev_open(devname);
       if (devno == NODEV) {
-        devno = KeDevCreate(devname, &partition_driver, NULL, &hd->parts[i]);
-        kprintf(KERN_INFO "%s: partition %d on %s, %dMB (type %02x)\n", devname, i, KeDevGet(hd->devno)->name, mbr->parttab[i].numsect / ((1024 * 1024) / SECTORSIZE), mbr->parttab[i].systid);
+        devno = kdev_create(devname, &partition_driver, NULL, &hd->parts[i]);
+        kprintf(KERN_INFO "%s: partition %d on %s, %dMB (type %02x)\n", devname, i, kdev_get(hd->devno)->name, mbr->parttab[i].numsect / ((1024 * 1024) / SECTORSIZE), mbr->parttab[i].systid);
       } else {
-        KeDevClose(devno);
+        kdev_close(devno);
       }
     }
   }
@@ -1577,18 +1577,18 @@ static void setup_hd(struct hd *hd, struct hdc *hdc, char *devname, int drvsel, 
   // Make new device
   if (hd->media == IDE_DISK) {
     if (hd->udmamode != -1) {
-      hd->devno = KeDevCreate(devname, &harddisk_udma_driver, NULL, hd);
+      hd->devno = kdev_create(devname, &harddisk_udma_driver, NULL, hd);
     } else {
-      hd->devno = KeDevCreate(devname, &harddisk_pio_driver, NULL, hd);
+      hd->devno = kdev_create(devname, &harddisk_pio_driver, NULL, hd);
     }
   } else if (hd->media == IDE_CDROM) {
-    hd->devno = KeDevCreate("cd#", &cdrom_pio_driver, NULL, hd);
+    hd->devno = kdev_create("cd#", &cdrom_pio_driver, NULL, hd);
   } else {
     kprintf(KERN_ERR "%s: unknown media type 0x%02x (iftype %d, config 0x%04x)\n", devname, hd->media, hd->iftype, hd->param.config);
     return;
   }
 
-  kprintf(KERN_INFO "%s: %s", KeDevGet(hd->devno)->name, hd->param.model);
+  kprintf(KERN_INFO "%s: %s", kdev_get(hd->devno)->name, hd->param.model);
   if (hd->size > 0) kprintf(" (%d MB)", hd->size);
   if (hd->lba) kprintf(", LBA");
   if (hd->udmamode != -1) kprintf(", UDMA%d", udma_speed[hd->udmamode]);
@@ -1618,7 +1618,7 @@ void init_hd() {
     kprintf("hd: %d IDE device(s) reported by BIOS\n", numhd);
   }
 
-  ide = KeDevLookupUnitByClass(NULL, PCI_CLASS_STORAGE_IDE, PCI_SUBCLASS_MASK);
+  ide = kdev_lookup_unit_by_class(NULL, PCI_CLASS_STORAGE_IDE, PCI_SUBCLASS_MASK);
   if (ide) {
     bmiba = pci_read_config_dword(ide, PCI_CONFIG_BASE_ADDR_4) & 0xFFF0;
     pci_enable_busmastering(ide);

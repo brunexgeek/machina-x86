@@ -34,6 +34,10 @@
 #ifndef SCHED_H
 #define SCHED_H
 
+
+#include <stdint.h>
+
+
 typedef void (*threadproc_t)(void *arg);
 typedef void (*dpcproc_t)(void *arg);
 typedef void (*taskproc_t)(void *arg);
@@ -42,12 +46,16 @@ typedef void (*taskproc_t)(void *arg);
 
 #define DEFAULT_QUANTUM          36
 #define QUANTUM_UNITS_PER_TICK   3
+
+/// Amount of priority levels. Lesser values is high priority.
 #define THREAD_PRIORITY_LEVELS   32
 
+/// Number of the pages per TCB
 #define PAGES_PER_TCB     2
-
+/// Size (in bytes) of a TCB
 #define TCBSIZE           (PAGES_PER_TCB * PAGESIZE)
 #define TCBMASK           (~(TCBSIZE - 1))
+/// Offset of the ESP stored in a TCB structure
 #define TCBESP            (TCBSIZE - 4)
 
 #define DPC_QUEUED_BIT        0
@@ -64,17 +72,27 @@ typedef void (*taskproc_t)(void *arg);
 #define TASK_QUEUED       1
 #define TASK_EXECUTING    2
 
-struct tcb {
-  struct thread thread;
-  unsigned long stack[(TCBSIZE - sizeof(struct thread)) / sizeof(unsigned long) - 1];
-  unsigned long *esp;
+/**
+ * Thread Control Block (TCB) structure.
+ */
+struct tcb
+{
+    struct thread thread;
+    uint32_t stack[(TCBSIZE - sizeof(struct thread)) / sizeof(uint32_t) - 1];
+    uint32_t *esp;
 };
 
-struct dpc {
-  dpcproc_t proc;
-  void *arg;
-  struct dpc *next;
-  int flags;
+/**
+ * Deferred Procedure Call (DPC) structure.
+ *
+ * @remark This is based on Microsoft Windows DPC.
+ */
+struct dpc
+{
+    dpcproc_t proc;
+    void *arg;
+    struct dpc *next;
+    int flags;
 };
 
 struct task {
@@ -135,19 +153,32 @@ void mark_thread_running();
 KERNELAPI void mark_thread_ready(struct thread *t, int charge, int boost);
 KERNELAPI void enter_wait(int reason);
 KERNELAPI int enter_alertable_wait(int reason);
-KERNELAPI int interrupt_thread(struct thread *t);
+KERNELAPI int kthread_interrupt(struct thread *t);
 
-KERNELAPI struct thread *create_kernel_thread(threadproc_t startaddr, void *arg, int priority, char *name);
+KERNELAPI struct thread *kthread_create_kland(threadproc_t startaddr, void *arg, int priority, char *name);
 
-int create_user_thread(void *entrypoint, unsigned long stacksize, char *name, struct thread **retval);
+int kthread_create_uland(void *entrypoint, unsigned long stacksize, char *name, struct thread **retval);
 int init_user_thread(struct thread *t, void *entrypoint);
 int allocate_user_stack(struct thread *t, unsigned long stack_reserve, unsigned long stack_commit);
-int destroy_thread(struct thread *t);
+int kthread_destroy(struct thread *t);
 
 struct thread *get_thread(tid_t tid);
 
-int suspend_thread(struct thread *t);
-int resume_thread(struct thread *t);
+/**
+ * @brief Increase the 'suspended' counter of the given thread.
+ *
+ * The thread will also set to THREAD_STATE_SUSPENDED state. If the thread are running,
+ * it will be preepted.
+ */
+int kthread_suspend(struct thread *t);
+
+/**
+ * @brief Decrease the 'suspended' counter of the given thread.
+ *
+ * If the 'suspended' count reach zero, the thread is marked as ready to run again.
+ */
+int kthread_resume(struct thread *t);
+
 void terminate_thread(int exitcode);
 void suspend_all_user_threads();
 int schedule_alarm(unsigned int seconds);
@@ -168,7 +199,7 @@ KERNELAPI void add_idle_task(struct task *task, taskproc_t proc, void *arg);
 void idle_task();
 KERNELAPI void yield();
 void dispatch_dpc_queue();
-void preempt_thread();
+void kthread_preempt();
 KERNELAPI void dispatch();
 KERNELAPI int system_idle();
 
@@ -180,7 +211,7 @@ static __inline void check_dpc_queue() {
 
 static __inline void check_preempt() {
 #ifndef NOPREEMPTION
-  if (preempt) preempt_thread();
+  if (preempt) kthread_preempt();
 #endif
 }
 

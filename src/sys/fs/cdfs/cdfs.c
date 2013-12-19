@@ -301,23 +301,23 @@ int cdfs_mount(struct fs *fs, char *opts)
   struct iso_volume_descriptor *vd;
 
   // Check device
-  devno = KeDevOpen(fs->mntfrom);
+  devno = kdev_open(fs->mntfrom);
   if (devno == NODEV) return -NODEV;
-  if (KeDevGet(devno)->driver->type != DEV_TYPE_BLOCK) return -ENOTBLK;
+  if (kdev_get(devno)->driver->type != DEV_TYPE_BLOCK) return -ENOTBLK;
 
   // Revalidate device and check block size
   if (get_option(opts, "revalidate", NULL, 0, NULL)) {
-    rc = KeDevIoControl(devno, IOCTL_REVALIDATE, NULL, 0);
+    rc = kdev_ioctl(devno, IOCTL_REVALIDATE, NULL, 0);
     if (rc < 0) return rc;
   }
 
-  if (KeDevIoControl(devno, IOCTL_GETBLKSIZE, NULL, 0) != CDFS_BLOCKSIZE) return -ENXIO;
+  if (kdev_ioctl(devno, IOCTL_GETBLKSIZE, NULL, 0) != CDFS_BLOCKSIZE) return -ENXIO;
 
   // Allocate file system
   cdfs = (struct cdfs *) kmalloc(sizeof(struct cdfs));
   memset(cdfs, 0, sizeof(struct cdfs));
   cdfs->devno = devno;
-  cdfs->blks = KeDevIoControl(devno, IOCTL_GETDEVSIZE, NULL, 0);
+  cdfs->blks = kdev_ioctl(devno, IOCTL_GETDEVSIZE, NULL, 0);
   if (cdfs->blks < 0) return cdfs->blks;
 
   // Allocate cache
@@ -341,7 +341,7 @@ int cdfs_mount(struct fs *fs, char *opts)
 
     if (memcmp(vd->id, "CD001", 5) != 0) {
       free_buffer_pool(cdfs->cache);
-      KeDevClose(cdfs->devno);
+      kdev_close(cdfs->devno);
       kfree(cdfs);
       return -EIO;
     }
@@ -385,7 +385,7 @@ int cdfs_umount(struct fs *fs) {
   if (cdfs->cache) free_buffer_pool(cdfs->cache);
 
   // Close device
-  KeDevClose(cdfs->devno);
+  kdev_close(cdfs->devno);
 
   // Deallocate file system
   if (cdfs->path_table_buffer) kfree(cdfs->path_table_buffer);
@@ -486,7 +486,7 @@ int cdfs_read(struct file *filp, void *data, size_t size, off64_t pos) {
 
     if (filp->flags & O_DIRECT) {
       if (start != 0 || count != CDFS_BLOCKSIZE) return read;
-      if (KeDevRead(cdfs->devno, p, count, blk, 0) != (int) count) return read;
+      if (kdev_read(cdfs->devno, p, count, blk, 0) != (int) count) return read;
     } else {
       buf = get_buffer(cdfs->cache, blk);
       if (!buf) return -EIO;

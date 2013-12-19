@@ -220,7 +220,7 @@ static void init_filesystem() {
   }
 
   // If default boot device is not found try a virtual device.
-  if (KeDevGetNumber(bootdev) == NODEV && KeDevGetNumber("vd0") != NODEV) strcpy(bootdev, "vd0");
+  if (kdev_get_number(bootdev) == NODEV && kdev_get_number("vd0") != NODEV) strcpy(bootdev, "vd0");
 
   // Determine root file system
   get_option(krnlopts, "rootdev", rootdev, sizeof(rootdev), bootdev);
@@ -357,7 +357,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
   calibrate_delay();
 
   // Start main task and dispatch to idle task
-  mainthread = create_kernel_thread(main, 0, PRIORITY_NORMAL, "init");
+  mainthread = kthread_create_kland(main, 0, PRIORITY_NORMAL, "init");
 
   idle_task();
 }

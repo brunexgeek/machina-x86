@@ -557,7 +557,7 @@ int close_object(struct object *o) {
 int destroy_object(struct object *o) {
   switch (o->type) {
     case OBJECT_THREAD:
-      return destroy_thread((struct thread *) o);
+      return kthread_destroy((struct thread *) o);
 
     case OBJECT_EVENT:
     case OBJECT_TIMER:

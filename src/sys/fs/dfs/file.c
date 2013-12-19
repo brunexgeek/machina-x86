@@ -353,7 +353,7 @@ int dfs_read(struct file *filp, void *data, size_t size, off64_t pos) {
 
     if (filp->flags & O_DIRECT) {
       if (start != 0 || count != inode->fs->blocksize) return read;
-      if (KeDevRead(inode->fs->devno, p, count, blk, 0) != (int) count) return read;
+      if (kdev_read(inode->fs->devno, p, count, blk, 0) != (int) count) return read;
     } else {
       buf = get_buffer(inode->fs->cache, blk);
       if (!buf) return -EIO;
@@ -415,7 +415,7 @@ int dfs_write(struct file *filp, void *data, size_t size, off64_t pos) {
 
     if (filp->flags & O_DIRECT) {
       if (start != 0 || count != inode->fs->blocksize) return written;
-      if (KeDevWrite(inode->fs->devno, p, count, blk, 0) != (int) count) return written;
+      if (kdev_write(inode->fs->devno, p, count, blk, 0) != (int) count) return written;
     } else {
       if (count == inode->fs->blocksize) {
         buf = alloc_buffer(inode->fs->cache, blk);

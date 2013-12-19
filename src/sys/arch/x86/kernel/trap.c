@@ -443,13 +443,13 @@ int send_user_signal(struct thread *t, int signum) {
   t->pending_signals |= (1 << signum);
 
   // Resume thread if signal is SIGCONT
-  if (signum == SIGCONT) resume_thread(t);
+  if (signum == SIGCONT) kthread_resume(t);
 
   // If not signals are ready for delivery just return
   if (!signals_ready(t)) return 0;
 
   // Interrupt thread if it is in an alertable wait
-  if (t->state == THREAD_STATE_WAITING) interrupt_thread(t);
+  if (t->state == THREAD_STATE_WAITING) kthread_interrupt(t);
 
   return 0;
 }
@@ -483,7 +483,7 @@ int set_signal_mask(int how, sigset_t *set, sigset_t *oldset) {
         return -EINVAL;
     }
 
-    if (signals_ready(t) && t->state == THREAD_STATE_WAITING) interrupt_thread(t);
+    if (signals_ready(t) && t->state == THREAD_STATE_WAITING) kthread_interrupt(t);
   }
 
   return 0;

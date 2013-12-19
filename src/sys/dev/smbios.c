@@ -159,6 +159,6 @@ int __declspec(dllexport) smbios(struct unit *unit) {
   rc = init_smbios();
   if (rc < 0) return rc;
 
-  KeDevCreate("smbios", &smbios_driver, NULL, NULL);
+  kdev_create("smbios", &smbios_driver, NULL, NULL);
   return 0;
 }

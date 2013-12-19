@@ -151,7 +151,7 @@ static void dhcp_check(struct dhcp_state *state) {
   p = arp_query(state->netif, (struct eth_addr *) &state->netif->hwaddr, &state->offered_ip_addr);
   if (p != NULL) {
     kprintf("dhcp_check: sending ARP request len %u\n", p->tot_len);
-    result = dev_transmit((dev_t) state->netif->state, p);
+    result = kdev_transmit((dev_t) state->netif->state, p);
     pbuf_free(p);
     //return result;
   }

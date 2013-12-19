@@ -52,9 +52,9 @@ struct netif *ether_netif_add(char *name, char *devname, struct ip_addr *ipaddr,
   dev_t devno;
 
   // Open device
-  devno = KeDevOpen(devname);
+  devno = kdev_open(devname);
   if (devno == NODEV) return NULL;
-  if (KeDevGet(devno)->driver->type != DEV_TYPE_PACKET) return NULL;
+  if (kdev_get(devno)->driver->type != DEV_TYPE_PACKET) return NULL;
 
   // Attach device to network interface
   netif = netif_add(name, ipaddr, netmask, gw);
@@ -63,7 +63,7 @@ struct netif *ether_netif_add(char *name, char *devname, struct ip_addr *ipaddr,
   netif->output = ether_output;
   netif->state = (void *) devno;
 
-  KeDevAttach(devno, netif, ether_input);
+  kdev_attach(devno, netif, ether_input);
 
   // Obtain network parameters using DHCP
   if (ip_addr_isany(ipaddr)) {
@@ -94,7 +94,7 @@ int register_ether_netifs() {
   noaddr.addr = IP_ADDR_ANY;
 
   for (devno = 0; devno < num_devs; devno++) {
-    dev = KeDevGet(devno);
+    dev = kdev_get(devno);
     if (!dev) continue;
     if (!dev->driver) continue;
     if (dev->driver->type != DEV_TYPE_PACKET) continue;
@@ -105,7 +105,7 @@ int register_ether_netifs() {
     netif->output = ether_output;
     netif->state = (void *) devno;
 
-    rc = KeDevAttach(devno, netif, ether_input);
+    rc = kdev_attach(devno, netif, ether_input);
     if (rc < 0) kprintf(KERN_ERR "ether: unable to attach to device %s (error %d)\n", dev->name, rc);
   }
 
@@ -207,7 +207,7 @@ err_t ether_output(struct netif *netif, struct pbuf *p, struct ip_addr *ipaddr) 
   if (dest == NULL) {
     q = arp_query(netif, &netif->hwaddr, queryaddr);
     if (q != NULL) {
-      err = KeDevTransmit((dev_t) netif->state, q);
+      err = kdev_transmit((dev_t) netif->state, q);
       if (err < 0) {
         kprintf(KERN_ERR "ether: error %d sending arp packet\n", err);
         pbuf_free(q);
@@ -248,7 +248,7 @@ err_t ether_output(struct netif *netif, struct pbuf *p, struct ip_addr *ipaddr) 
       return err;
     }
   } else {
-    err = KeDevTransmit((dev_t) netif->state, p);
+    err = kdev_transmit((dev_t) netif->state, p);
     if (err < 0) {
       kprintf(KERN_ERR "ether: error %d sending packet\n", err);
       return err;
@@ -330,7 +330,7 @@ void ether_dispatcher(void *arg) {
         case ETHTYPE_ARP:
           p = arp_arp_input(netif, &netif->hwaddr, p);
           if (p != NULL) {
-            if (KeDevTransmit((dev_t) netif->state, p) < 0) pbuf_free(p);
+            if (kdev_transmit((dev_t) netif->state, p) < 0) pbuf_free(p);
           }
           break;
 
@@ -354,5 +354,5 @@ void ether_init() {
   struct thread *ethertask;
 
   ether_queue = alloc_queue(256);
-  ethertask = create_kernel_thread(ether_dispatcher, NULL, /*PRIORITY_ABOVE_NORMAL*/ PRIORITY_NORMAL, "ethertask");
+  ethertask = kthread_create_kland(ether_dispatcher, NULL, /*PRIORITY_ABOVE_NORMAL*/ PRIORITY_NORMAL, "ethertask");
 }

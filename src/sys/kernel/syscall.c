@@ -3,6 +3,7 @@
 //
 // System call interface
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -1108,7 +1109,7 @@ static int sys_mkthread(char *params) {
   if (entrypoint >= (void *) OSBASE) return -EFAULT;
   if (lock_string(name) < 0) return -EFAULT;
 
-  rc = create_user_thread(entrypoint, stacksize, name, &t);
+  rc = kthread_create_uland(entrypoint, stacksize, name, &t);
   if (rc < 0) return rc;
 
   h = halloc(&t->object);
@@ -1134,7 +1135,7 @@ static int sys_suspend(char *params) {
   t = (struct thread *) olock(h, OBJECT_THREAD);
   if (!t || t->id == 0) return -EBADF;
 
-  rc = suspend_thread(t);
+  rc = kthread_suspend(t);
 
   orel(t);
   return rc;
@@ -1150,7 +1151,7 @@ static int sys_resume(char *params) {
   t = (struct thread *) olock(h, OBJECT_THREAD);
   if (!t) return -EBADF;
 
-  rc = resume_thread(t);
+  rc = kthread_resume(t);
 
   orel(t);
   return rc;

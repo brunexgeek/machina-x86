@@ -49,7 +49,7 @@ static int devstat_proc(struct proc_file *pf, void *arg);
 static char *busnames[] = {"HOST", "PCI", "ISA", "?", "?"};
 static char *devtypenames[] = {"?", "stream", "block", "packet"};
 
-struct bus *KeDevAddBus(struct unit *self, unsigned long bustype, unsigned long busno) {
+struct bus *kdev_add_bus(struct unit *self, unsigned long bustype, unsigned long busno) {
   struct bus *bus;
   struct bus *b;
 
@@ -86,7 +86,7 @@ struct bus *KeDevAddBus(struct unit *self, unsigned long bustype, unsigned long 
   return bus;
 }
 
-struct unit *KeDevAddUnit(struct bus *bus, unsigned long classcode, unsigned long unitcode, unsigned long unitno) {
+struct unit *kdev_add_unit(struct bus *bus, unsigned long classcode, unsigned long unitcode, unsigned long unitno) {
   struct unit *unit;
   struct unit *u;
 
@@ -127,7 +127,7 @@ struct unit *KeDevAddUnit(struct bus *bus, unsigned long classcode, unsigned lon
   return unit;
 }
 
-struct resource *KeDevAddResource(struct unit *unit, unsigned short type, unsigned short flags, unsigned long start, unsigned long len) {
+struct resource *kdev_add_resource(struct unit *unit, unsigned short type, unsigned short flags, unsigned long start, unsigned long len) {
   struct resource *res;
   struct resource *r;
 
@@ -153,7 +153,7 @@ struct resource *KeDevAddResource(struct unit *unit, unsigned short type, unsign
   return res;
 }
 
-struct resource *KeDevGetUnitResource(struct unit *unit, int type, int num) {
+struct resource *kdev_get_unit_resource(struct unit *unit, int type, int num) {
   struct resource *res = unit->resources;
 
   while (res) {
@@ -167,34 +167,34 @@ struct resource *KeDevGetUnitResource(struct unit *unit, int type, int num) {
   return NULL;
 }
 
-int KeDevGetUnitIrq(struct unit *unit) {
-  struct resource *res = KeDevGetUnitResource(unit, RESOURCE_IRQ, 0);
+int kdev_get_unit_irq(struct unit *unit) {
+  struct resource *res = kdev_get_unit_resource(unit, RESOURCE_IRQ, 0);
 
   if (res) return res->start;
   return -1;
 }
 
-int KeDevGetUnitIoBase(struct unit *unit) {
-  struct resource *res = KeDevGetUnitResource(unit, RESOURCE_IO, 0);
+int kdev_get_unit_iobase(struct unit *unit) {
+  struct resource *res = kdev_get_unit_resource(unit, RESOURCE_IO, 0);
 
   if (res) return res->start;
   return -1;
 }
 
-void *KeDevGetUnitMemBase(struct unit *unit) {
-  struct resource *res = KeDevGetUnitResource(unit, RESOURCE_MEM, 0);
+void *kdev_get_unit_irq_membase(struct unit *unit) {
+  struct resource *res = kdev_get_unit_resource(unit, RESOURCE_MEM, 0);
 
   if (res) return (void *) (res->start);
   return NULL;
 }
 
-char *KeDevGetUnitName(struct unit *unit) {
+char *kdev_get_unit_name(struct unit *unit) {
   if (unit->productname && *unit->productname) return unit->productname;
   if (unit->classname && *unit->classname) return unit->classname;
   return "unknown";
 }
 
-struct unit *KeDevLookupUnit(struct unit *start, unsigned long unitcode, unsigned long unitmask) {
+struct unit *kdev_lookup_unit(struct unit *start, unsigned long unitcode, unsigned long unitmask) {
   struct unit *unit;
 
   if (start) {
@@ -211,7 +211,7 @@ struct unit *KeDevLookupUnit(struct unit *start, unsigned long unitcode, unsigne
   return NULL;
 }
 
-struct unit *KeDevLookupUnitBySubunit(struct unit *start, unsigned long subunitcode, unsigned long subunitmask) {
+struct unit *kdev_lookup_unit_by_subunit(struct unit *start, unsigned long subunitcode, unsigned long subunitmask) {
   struct unit *unit;
 
   if (start) {
@@ -228,7 +228,7 @@ struct unit *KeDevLookupUnitBySubunit(struct unit *start, unsigned long subunitc
   return NULL;
 }
 
-struct unit *KeDevLookupUnitByClass(struct unit *start, unsigned long classcode, unsigned long classmask) {
+struct unit *kdev_lookup_unit_by_class(struct unit *start, unsigned long classcode, unsigned long classmask) {
   struct unit *unit;
 
   if (start) {
@@ -245,7 +245,7 @@ struct unit *KeDevLookupUnitByClass(struct unit *start, unsigned long classcode,
   return NULL;
 }
 
-struct board *KeDevLookupBoard(struct board *board_tbl, struct unit *unit) {
+struct board *kdev_kookup_board(struct board *board_tbl, struct unit *unit) {
   int i = 0;
 
   while (board_tbl[i].vendorname != NULL) {
@@ -271,19 +271,19 @@ void enum_host_bus() {
   struct bus *isa_bus;
 
   // Create host bus
-  host_bus = KeDevAddBus(NULL, BUSTYPE_HOST, 0);
+  host_bus = kdev_add_bus(NULL, BUSTYPE_HOST, 0);
 
   unitcode = get_pci_hostbus_unitcode();
   if (unitcode) {
     // Enumerate PCI buses
-    pci_host_bridge = KeDevAddUnit(host_bus, PCI_HOST_BRIDGE, unitcode, 0);
-    pci_root_bus = KeDevAddBus(pci_host_bridge, BUSTYPE_PCI, 0);
+    pci_host_bridge = kdev_add_unit(host_bus, PCI_HOST_BRIDGE, unitcode, 0);
+    pci_root_bus = kdev_add_bus(pci_host_bridge, BUSTYPE_PCI, 0);
 
     enum_pci_bus(pci_root_bus);
   } else {
     // Enumerate ISA bus using PnP
-    isa_bridge = KeDevAddUnit(host_bus, PCI_ISA_BRIDGE, 0, 0);
-    isa_bus = KeDevAddBus(isa_bridge, BUSTYPE_ISA, 0);
+    isa_bridge = kdev_add_unit(host_bus, PCI_ISA_BRIDGE, 0, 0);
+    isa_bus = kdev_add_bus(isa_bridge, BUSTYPE_ISA, 0);
 
     enum_isapnp(isa_bus);
   }
@@ -456,7 +456,7 @@ static void install_driver(struct unit *unit, struct binding *bind) {
 
   rc = initialize_driver(unit, bind->module);
   if (rc < 0) {
-    kprintf(KERN_ERR "dev: driver '%s' failed with error %d for unit %08X '%s'\n", bind->module, rc, unit->unitcode, KeDevGetUnitName(unit));
+    kprintf(KERN_ERR "dev: driver '%s' failed with error %d for unit %08X '%s'\n", bind->module, rc, unit->unitcode, kdev_get_unit_name(unit));
   }
 }
 
@@ -526,20 +526,20 @@ void install_drivers() {
   install_legacy_drivers();
 
   // Make sure we have a console device
-  console = KeDevOpen("console");
+  console = kdev_open("console");
   if (console == NODEV) {
     initialize_driver(NULL, "krnl.dll!console");
   } else {
-    KeDevClose(console);
+    kdev_close(console);
   }
 }
 
-struct dev *KeDevGet(dev_t devno) {
+struct dev *kdev_get(dev_t devno) {
   if (devno < 0 || devno >= num_devs) return NULL;
   return devtab[devno];
 }
 
-dev_t KeDevCreate(char *name, struct driver *driver, struct unit *unit, void *privdata) {
+dev_t kdev_create(char *name, struct driver *driver, struct unit *unit, void *privdata) {
   struct dev *dev;
   dev_t devno;
   char *p;
@@ -593,7 +593,7 @@ dev_t KeDevCreate(char *name, struct driver *driver, struct unit *unit, void *pr
   return devno;
 }
 
-dev_t KeDevGetNumber(char *name) {
+dev_t kdev_get_number(char *name) {
   dev_t devno;
 
   for (devno = 0; devno < num_devs; devno++) {
@@ -602,20 +602,20 @@ dev_t KeDevGetNumber(char *name) {
   return NODEV;
 }
 
-dev_t KeDevOpen(char *name) {
-  dev_t d = KeDevGetNumber(name);
+dev_t kdev_open(char *name) {
+  dev_t d = kdev_get_number(name);
   if (d != NODEV) devtab[d]->refcnt++;
   return d;
 }
 
-int KeDevClose(dev_t devno) {
+int kdev_close(dev_t devno) {
   if (devno < 0 || devno >= num_devs) return -ENODEV;
   if (devtab[devno]->refcnt == 0) return -EPERM;
   devtab[devno]->refcnt--;
   return 0;
 }
 
-int KeDevIoControl(dev_t devno, int cmd, void *args, size_t size) {
+int kdev_ioctl(dev_t devno, int cmd, void *args, size_t size) {
   struct dev *dev;
 
   if (devno < 0 || devno >= num_devs) return -ENODEV;
@@ -625,7 +625,7 @@ int KeDevIoControl(dev_t devno, int cmd, void *args, size_t size) {
   return dev->driver->ioctl(dev, cmd, args, size);
 }
 
-int KeDevRead(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags) {
+int kdev_read(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags) {
   struct dev *dev;
 
   if (devno < 0 || devno >= num_devs) return -ENODEV;
@@ -637,7 +637,7 @@ int KeDevRead(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags)
   return dev->driver->read(dev, buffer, count, blkno, flags);
 }
 
-int KeDevWrite(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags) {
+int kdev_write(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags) {
   struct dev *dev;
 
   if (devno < 0 || devno >= num_devs) return -ENODEV;
@@ -649,7 +649,7 @@ int KeDevWrite(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags
   return dev->driver->write(dev, buffer, count, blkno, flags);
 }
 
-int KeDevAttach(dev_t devno, struct netif *netif, int (*receive)(struct netif *netif, struct pbuf *p)) {
+int kdev_attach(dev_t devno, struct netif *netif, int (*receive)(struct netif *netif, struct pbuf *p)) {
   struct dev *dev;
 
   if (devno < 0 || devno >= num_devs) return -ENODEV;
@@ -661,7 +661,7 @@ int KeDevAttach(dev_t devno, struct netif *netif, int (*receive)(struct netif *n
   return dev->driver->attach(dev, &netif->hwaddr);
 }
 
-int KeDevDetach(dev_t devno) {
+int kdev_detach(dev_t devno) {
   struct dev *dev;
   int rc;
 
@@ -680,7 +680,7 @@ int KeDevDetach(dev_t devno) {
   return rc;
 }
 
-int KeDevTransmit(dev_t devno, struct pbuf *p) {
+int kdev_transmit(dev_t devno, struct pbuf *p) {
   struct dev *dev;
 
   if (devno < 0 || devno >= num_devs) return -ENODEV;
@@ -692,7 +692,7 @@ int KeDevTransmit(dev_t devno, struct pbuf *p) {
   return dev->driver->transmit(dev, p);
 }
 
-int KeDevReceive(dev_t devno, struct pbuf *p) {
+int kdev_receive(dev_t devno, struct pbuf *p) {
   struct dev *dev;
 
   if (devno < 0 || devno >= num_devs) return -ENODEV;
@@ -704,7 +704,7 @@ int KeDevReceive(dev_t devno, struct pbuf *p) {
   return dev->receive(dev->netif, p);
 }
 
-int KeDevSetEvent(dev_t devno, int events) {
+int kdev_set_event(dev_t devno, int events) {
   struct dev *dev;
 
   if (devno < 0 || devno >= num_devs) return -ENODEV;
@@ -713,7 +713,7 @@ int KeDevSetEvent(dev_t devno, int events) {
   return 0;
 }
 
-int KeDevClearEvent(dev_t devno, int events) {
+int kdev_clear_event(dev_t devno, int events) {
   struct dev *dev;
 
   if (devno < 0 || devno >= num_devs) return -ENODEV;
@@ -738,7 +738,7 @@ static int units_proc(struct proc_file *pf, void *arg) {
       busno = 0;
     }
 
-    pprintf(pf, "%s unit %d.%d class %08X code %08X %s:\n", busnames[bustype], busno, unit->unitno,unit->classcode, unit->unitcode, KeDevGetUnitName(unit));
+    pprintf(pf, "%s unit %d.%d class %08X code %08X %s:\n", busnames[bustype], busno, unit->unitno,unit->classcode, unit->unitcode, kdev_get_unit_name(unit));
 
     if (unit->subunitcode != 0 || unit ->revision != 0) {
       pprintf(pf, "  subunitcode: %08X revision %d\n", unit->subunitcode, unit->revision);

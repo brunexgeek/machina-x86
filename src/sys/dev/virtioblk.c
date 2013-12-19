@@ -264,9 +264,9 @@ static int install_virtioblk(struct unit *unit) {
   if (rc < 0) return rc;
 
   // Create device
-  vblk->devno = KeDevCreate("vd#", &virtioblk_driver, unit, vblk);
+  vblk->devno = kdev_create("vd#", &virtioblk_driver, unit, vblk);
   virtio_setup_complete(&vblk->vd, 1);
-  kprintf(KERN_INFO "%s: virtio disk, %dMB\n", KeDevGet(vblk->devno)->name, vblk->capacity / (1024 * 1024 / SECTORSIZE));
+  kprintf(KERN_INFO "%s: virtio disk, %dMB\n", kdev_get(vblk->devno)->name, vblk->capacity / (1024 * 1024 / SECTORSIZE));
 
   return 0;
 }
@@ -277,6 +277,6 @@ int __declspec(dllexport) virtioblk(struct unit *unit, char *opts) {
 
 void init_vblk() {
   // Try to find a virtio block device for booting
-  struct unit *unit = KeDevLookupUnitBySubunit(NULL, 0x1AF40002, 0xFFFFFFFF);
+  struct unit *unit = kdev_lookup_unit_by_subunit(NULL, 0x1AF40002, 0xFFFFFFFF);
   if (unit) install_virtioblk(unit);
 }

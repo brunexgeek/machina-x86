@@ -212,7 +212,7 @@ int ktimer_modify(struct timer *timer, unsigned int expires)
     int rc;
 
     timer->expires = expires;
-    rc = ktimer_dettach(timer);
+    rc = ktimer_detach(timer);
     ktimer_attach(timer);
 
     return rc;

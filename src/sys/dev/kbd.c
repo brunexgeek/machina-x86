@@ -257,7 +257,7 @@ static void insert_key(unsigned char ch) {
     keyboard_buffer[keyboard_buffer_in] = ch;
     keyboard_buffer_in = (keyboard_buffer_in + 1) & (KEYBOARD_BUFFER_SIZE - 1);
     release_sem(&kbdsem, 1);
-    KeDevSetEvent(kbddev, IOEVT_READ);
+    kdev_set_event(kbddev, IOEVT_READ);
   }
 }
 
@@ -428,7 +428,7 @@ int getch(unsigned int timeout) {
   keyboard_buffer_out = (keyboard_buffer_out + 1) & (KEYBOARD_BUFFER_SIZE - 1);
 
   if (keyboard_buffer_in == keyboard_buffer_out) {
-    KeDevClearEvent(kbddev, IOEVT_READ);
+    kdev_clear_event(kbddev, IOEVT_READ);
   }
 
   return ch;

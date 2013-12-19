@@ -97,9 +97,9 @@ int /*__declspec(dllexport)*/ ramdisk(struct unit *unit, char *opts) {
   rd->blks = size / SECTORSIZE;
   rd->data = data;
 
-  devno = KeDevCreate(devname, &ramdisk_driver, NULL, rd);
+  devno = kdev_create(devname, &ramdisk_driver, NULL, rd);
 
-  kprintf(KERN_INFO "%s: ramdisk (%d KB)\n", KeDevGet(devno)->name, size / 1024);
+  kprintf(KERN_INFO "%s: ramdisk (%d KB)\n", kdev_get(devno)->name, size / 1024);
   return 0;
 }
 
@@ -117,8 +117,8 @@ int create_initrd() {
   rd->blks = size / SECTORSIZE;
   rd->data = (char *) INITRD_ADDRESS;
 
-  devno = KeDevCreate("initrd", &ramdisk_driver, NULL, rd);
+  devno = kdev_create("initrd", &ramdisk_driver, NULL, rd);
 
-  kprintf(KERN_INFO "%s: ramdisk (%d KB)\n", KeDevGet(devno)->name, size / 1024);
+  kprintf(KERN_INFO "%s: ramdisk (%d KB)\n", kdev_get(devno)->name, size / 1024);
   return 0;
 }

@@ -200,7 +200,7 @@ static void add_arp_entry(struct ip_addr *ipaddr, struct eth_addr *ethaddr) {
       }
       ethhdr->type = htons(ETHTYPE_IP);
 
-      err = KeDevTransmit((dev_t) entry->netif->state, p);
+      err = kdev_transmit((dev_t) entry->netif->state, p);
       if (err < 0) {
         kprintf(KERN_ERR "arp: error %d in delayed transmit\n", err);
         pbuf_free(p);

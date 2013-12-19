@@ -470,7 +470,7 @@ void tcp_slowtmr(void *arg) {
 
 void tcp_slow_handler(void *arg) {
   queue_task(&sys_task_queue, &tcp_slow_task, tcp_slowtmr, NULL);
-  ktimer_mode(&tcpslow_timer, ticks + TCP_SLOW_INTERVAL / MSECS_PER_TICK);
+  ktimer_modify(&tcpslow_timer, ticks + TCP_SLOW_INTERVAL / MSECS_PER_TICK);
 }
 
 //

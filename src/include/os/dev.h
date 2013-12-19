@@ -220,39 +220,39 @@ extern struct bus *buses;
 void enum_host_bus();
 void install_drivers();
 
-KERNELAPI struct bus *add_bus(struct unit *self, unsigned long bustype, unsigned long busno);
-KERNELAPI struct unit *add_unit(struct bus *bus, unsigned long classcode, unsigned long unitcode, unsigned long unitno);
-KERNELAPI struct resource *add_resource(struct unit *unit, unsigned short type, unsigned short flags, unsigned long start, unsigned long len);
+KERNELAPI struct bus *kdev_add_bus(struct unit *self, unsigned long bustype, unsigned long busno);
+KERNELAPI struct unit *kdev_add_unit(struct bus *bus, unsigned long classcode, unsigned long unitcode, unsigned long unitno);
+KERNELAPI struct resource *kdev_add_resource(struct unit *unit, unsigned short type, unsigned short flags, unsigned long start, unsigned long len);
 
-KERNELAPI struct resource *get_unit_resource(struct unit *unit, int type, int num);
-KERNELAPI int get_unit_irq(struct unit *unit);
-KERNELAPI int get_unit_iobase(struct unit *unit);
-KERNELAPI void *get_unit_membase(struct unit *unit);
-KERNELAPI char *get_unit_name(struct unit *unit);
+KERNELAPI struct resource *kdev_get_unit_resource(struct unit *unit, int type, int num);
+KERNELAPI int kdev_get_unit_irq(struct unit *unit);
+KERNELAPI int kdev_get_unit_iobase(struct unit *unit);
+KERNELAPI void *kdev_get_unit_membase(struct unit *unit);
+KERNELAPI char *kdev_get_unit_name(struct unit *unit);
 
-KERNELAPI struct unit *lookup_unit(struct unit *start, unsigned long unitcode, unsigned long unitmask);
-KERNELAPI struct unit *lookup_unit_by_subunit(struct unit *start, unsigned long subunitcode, unsigned long subunitmask);
-KERNELAPI struct unit *lookup_unit_by_class(struct unit *start, unsigned long classcode, unsigned long classmask);
+KERNELAPI struct unit *kdev_lookup_unit(struct unit *start, unsigned long unitcode, unsigned long unitmask);
+KERNELAPI struct unit *kdev_lookup_unit_by_subunit(struct unit *start, unsigned long subunitcode, unsigned long subunitmask);
+KERNELAPI struct unit *kdev_lookup_unit_by_class(struct unit *start, unsigned long classcode, unsigned long classmask);
 
-KERNELAPI struct board *lookup_board(struct board *board_tbl, struct unit *unit);
+KERNELAPI struct board *kdev_lookup_board(struct board *board_tbl, struct unit *unit);
 
-KERNELAPI struct dev *device(dev_t devno);
+KERNELAPI struct dev *kdev_get(dev_t devno);
 
-KERNELAPI dev_t dev_make(char *name, struct driver *driver, struct unit *unit, void *privdata);
-KERNELAPI dev_t devno(char *name);
-KERNELAPI dev_t dev_open(char *name);
-KERNELAPI int dev_close(dev_t devno);
+KERNELAPI dev_t kdev_create(char *name, struct driver *driver, struct unit *unit, void *privdata);
+KERNELAPI dev_t kdev_get_number(char *name);
+KERNELAPI dev_t kdev_open(char *name);
+KERNELAPI int kdev_close(dev_t devno);
 
-KERNELAPI int dev_ioctl(dev_t devno, int cmd, void *args, size_t size);
-KERNELAPI int dev_read(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags);
-KERNELAPI int dev_write(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags);
+KERNELAPI int kdev_ioctl(dev_t devno, int cmd, void *args, size_t size);
+KERNELAPI int kdev_read(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags);
+KERNELAPI int kdev_write(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags);
 
-KERNELAPI int dev_attach(dev_t dev, struct netif *netif, int (*receive)(struct netif *netif, struct pbuf *p));
-KERNELAPI int dev_detach(dev_t devno);
-KERNELAPI int dev_transmit(dev_t devno, struct pbuf *p);
-KERNELAPI int dev_receive(dev_t devno, struct pbuf *p);
+KERNELAPI int kdev_attach(dev_t dev, struct netif *netif, int (*receive)(struct netif *netif, struct pbuf *p));
+KERNELAPI int kdev_detach(dev_t devno);
+KERNELAPI int kdev_transmit(dev_t devno, struct pbuf *p);
+KERNELAPI int kdev_receive(dev_t devno, struct pbuf *p);
 
-KERNELAPI int dev_setevt(dev_t devno, int events);
-KERNELAPI int dev_clrevt(dev_t devno, int events);
+KERNELAPI int kdev_set_event(dev_t devno, int events);
+KERNELAPI int kdev_clear_event(dev_t devno, int events);
 
 #endif

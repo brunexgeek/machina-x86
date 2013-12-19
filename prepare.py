@@ -122,13 +122,13 @@ class CMakefileTarget(MakefileTarget):
 
         # print the CFLAGS definition
         if (FIELD_CFLAGS in self.target):
-            print self._toVarName("CFLAGS"), "= $(CFLAGS)", self.target[FIELD_CFLAGS]
+            print self._toVarName("CFLAGS"), "= ", self.target[FIELD_CFLAGS], "$(CFLAGS)"
         else:
             print self._toVarName("CFLAGS"), "= $(CFLAGS)"
 
         # print the LDFLAGS definition
         if (FIELD_LDFLAGS in self.target):
-            print self._toVarName("LDFLAGS"), "= $(LDFLAGS)", self.target[FIELD_LDFLAGS]
+            print self._toVarName("LDFLAGS"), "= ", self.target[FIELD_LDFLAGS], "$(LDFLAGS)"
         else:
             print self._toVarName("LDFLAGS"), "= $(LDFLAGS)"
 
@@ -215,7 +215,6 @@ class CMakefileTarget(MakefileTarget):
         if ((self.target[FIELD_TYPE] & BIN_STATIC) == 0):
             compiler = "$(CC)"
             print "\t" + compiler, \
-                self._toVar("CFLAGS"), \
                 "-DTARGET_MACHINE=$(TARGET_MACHINE)", \
                 self._toVar("LDFLAGS"), \
                 self._toVar("OBJ_FILES") , \
@@ -391,7 +390,8 @@ class MakefileGenerator:
 #
 
 generator = MakefileGenerator()
-generator.addVariable("CFLAGS", "$(CFLAGS) -O0 -m32 -mtune=i686")
+generator.addVariable("CFLAGS", "-O0 -m32 -mtune=i686")
+generator.addVariable("LDFLAGS", "-m32 -mtune=i686")
 generator.addVariable("NASM", "build/tools/nasm")
 generator.addVariable("TARGET_MACHINE", "x86")
 

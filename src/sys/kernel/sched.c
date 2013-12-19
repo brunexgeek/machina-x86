@@ -165,7 +165,7 @@ int enter_alertable_wait(int reason)
     return 0;
 }
 
-int interrupt_thread(struct thread *t)
+int kthread_interrupt(struct thread *t)
 {
     if (t->state != THREAD_STATE_WAITING) return -EBUSY;
     if ((t->flags & THREAD_ALERTABLE) == 0) return -EPERM;
@@ -179,8 +179,9 @@ void mark_thread_ready(struct thread *t, int charge, int boost)
     int prio = t->priority;
     int newprio;
 
-    // Check for suspended thread that is now ready to run
-    if (t->suspend_count > 0) {
+    // check for suspended thread that is now ready to run
+    if (t->suspend_count > 0)
+    {
         t->state = THREAD_STATE_SUSPENDED;
         return;
     }
@@ -227,7 +228,7 @@ void mark_thread_ready(struct thread *t, int charge, int boost)
 }
 
 
-void preempt_thread()
+void kthread_preempt()
 {
     struct thread *t = self();
 
@@ -269,14 +270,15 @@ void kernel_thread_start(void *arg)
 }
 
 
-static struct thread *create_thread(threadproc_t startaddr, void *arg, int priority) {
+static struct thread *kthread_create(threadproc_t startaddr, void *arg, int priority)
+{
     // Allocate a new aligned thread control block
     struct thread *t = (struct thread *) alloc_pages_align(PAGES_PER_TCB, PAGES_PER_TCB, 0x00544342 /*"TCB"*/);
     if (!t) return NULL;
     memset(t, 0, PAGES_PER_TCB * PAGESIZE);
     init_thread(t, priority);
 
-    // Initialize the thread kernel stack to start executing the task function
+    // initialize the thread stack to start executing the task function
     init_thread_stack(t, (void *) startaddr, arg);
 
     // Add thread to thread list
@@ -289,12 +291,12 @@ static struct thread *create_thread(threadproc_t startaddr, void *arg, int prior
 }
 
 
-struct thread *create_kernel_thread(threadproc_t startaddr, void *arg, int priority, char *name)
+struct thread *kthread_create_kland(threadproc_t startaddr, void *arg, int priority, char *name)
 {
     struct thread *t;
 
     // Create new thread object
-    t = create_thread(kernel_thread_start, arg, priority);
+    t = kthread_create(kernel_thread_start, arg, priority);
     if (!t) return NULL;
     if (name) strncpy(t->name, name, THREAD_NAME_LEN - 1);
     t->entrypoint = startaddr;
@@ -309,21 +311,20 @@ struct thread *create_kernel_thread(threadproc_t startaddr, void *arg, int prior
 }
 
 
-int create_user_thread(void *entrypoint, unsigned long stacksize, char *name, struct thread **retval)
+int kthread_create_uland(void *entrypoint, unsigned long stacksize, char *name, struct thread **retval)
 {
     struct thread *creator = self();
     struct thread *t;
     int rc;
 
-    // Determine stacksize
-    if (stacksize == 0) {
-    stacksize = DEFAULT_STACK_SIZE;
-    } else {
-    stacksize = PAGES(stacksize) * PAGESIZE;
-    }
+    // determine stacksize
+    if (stacksize == 0)
+        stacksize = DEFAULT_STACK_SIZE;
+    else
+        stacksize = PAGES(stacksize) * PAGESIZE;
 
-    // Create and initialize new TCB and suspend thread
-    t = create_thread(user_thread_start, NULL, PRIORITY_NORMAL);
+    // create and initialize new TCB and suspend thread
+    t = kthread_create(user_thread_start, NULL, PRIORITY_NORMAL);
     if (!t) return -ENOMEM;
     if (name) strncpy(t->name, name, THREAD_NAME_LEN - 1);
     t->suspend_count++;
@@ -414,7 +415,7 @@ static void destroy_tcb(void *arg)
 }
 
 
-int destroy_thread(struct thread *t)
+int kthread_destroy(struct thread *t)
 {
     struct task *task;
 
@@ -451,7 +452,7 @@ int destroy_thread(struct thread *t)
 }
 
 
-struct thread *get_thread(tid_t tid)
+struct thread *kthread_get(tid_t tid)
 {
     struct thread *t = threadlist;
 
@@ -464,7 +465,7 @@ struct thread *get_thread(tid_t tid)
 }
 
 
-int suspend_thread(struct thread *t)
+int kthread_suspend(struct thread *t)
 {
     int prevcount = t->suspend_count++;
 
@@ -487,13 +488,13 @@ int suspend_thread(struct thread *t)
 }
 
 
-int resume_thread(struct thread *t)
+int kthread_resume( struct thread *t )
 {
     int prevcount = t->suspend_count;
 
     if (t->suspend_count > 0)
     {
-        if (--t->suspend_count == 0)
+        if (--(t->suspend_count) == 0)
         {
             if (t->state == THREAD_STATE_SUSPENDED || t->state == THREAD_STATE_INITIALIZED)
                 mark_thread_ready(t, 0, 0);
@@ -509,7 +510,7 @@ void suspend_all_user_threads()
     struct thread *t = threadlist;
     while (1)
     {
-        if (t->tib && t != self()) suspend_thread(t);
+        if (t->tib && t != self()) kthread_suspend(t);
         t = t->next;
         if (t == threadlist) break;
     }
@@ -640,7 +641,7 @@ int init_task_queue(struct task_queue *tq, int priority, int maxsize, char *name
 {
     memset(tq, 0, sizeof(struct task_queue));
     tq->maxsize = maxsize;
-    tq->thread = create_kernel_thread(task_queue_task, tq, priority, name);
+    tq->thread = kthread_create_kland(task_queue_task, tq, priority, name);
 
     return 0;
 }

@@ -76,6 +76,6 @@ struct driver nvram_driver = {
 };
 
 int /*__declspec(dllexport)*/ nvram() {
-  KeDevCreate("nvram", &nvram_driver, NULL, NULL);
+  kdev_create("nvram", &nvram_driver, NULL, NULL);
   return 0;
 }

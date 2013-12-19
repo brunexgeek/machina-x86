@@ -69,8 +69,8 @@ void virtio_get_config(struct virtio_device *vd, void *buf, int len) {
 int virtio_device_init(struct virtio_device *vd, struct unit *unit, int features) {
   // Get device resources
   vd->unit = unit;
-  vd->irq = KeDevGetUnitIrq(unit);
-  vd->iobase = KeDevGetUnitIoBase(unit);
+  vd->irq = kdev_get_unit_irq(unit);
+  vd->iobase = kdev_get_unit_iobase(unit);
   vd->queues = NULL;
 
   // Reset device

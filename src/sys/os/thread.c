@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os.h>
 #include <string.h>
@@ -158,8 +158,9 @@ handle_t beginthread(void (__stdcall *startaddr)(void *), unsigned int stacksize
   return h;
 }
 
-handle_t self() {
-  return gettib()->hndl;
+handle_t self()
+{
+    return gettib()->hndl;
 }
 
 struct tib *getthreadblock(handle_t thread) {
@@ -215,10 +216,10 @@ void endproc(struct process *proc, int status) {
   if (proc->prevproc) proc->prevproc->nextproc = proc->nextproc;
   if (proc == peb->firstproc) peb->firstproc = proc->nextproc;
   if (proc == peb->lastproc) peb->lastproc = proc->prevproc;
-  
+
   // Orphan child processes
   for (p = peb->firstproc; p; p = p->nextproc) if (p->parent == proc) p->parent = NULL;
-  
+
   leave(&proc_lock);
 
   // Close standard handles
@@ -261,7 +262,7 @@ pid_t getppid() {
   int id;
 
   enter(&proc_lock);
-  
+
   if (tib && tib->proc && tib->proc->parent) {
     id = tib->proc->parent->id;
   } else {
@@ -366,15 +367,16 @@ int msleep(int millisecs) {
   return syscall(SYSCALL_MSLEEP, &millisecs);
 }
 
-struct tib *gettib() {
-  struct tib *tib;
+struct tib *gettib()
+{
+    struct tib *tib;
 
-  __asm {
+    __asm {
     mov eax, fs:[TIB_SELF_OFFSET]
     mov [tib], eax
-  }
+    }
 
-  return tib;
+    return tib;
 }
 
 void exit(int status) {
@@ -454,7 +456,7 @@ int spawn(int mode, const char *pgm, const char *cmdline, char **env, struct tib
   if (mode & P_DETACH) flags |= CREATE_DETACHED;
   if (mode & P_CHILD) flags |= CREATE_CHILD;
   if (env) flags |= CREATE_NO_ENV;
-  
+
   name = procname(pgm);
 
   hthread = beginthread(spawn_program, 0, NULL, flags, name, &tib);

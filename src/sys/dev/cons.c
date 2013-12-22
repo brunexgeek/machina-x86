@@ -208,10 +208,10 @@ struct driver console_driver = {
   console_write
 };
 
-int /*__declspec(dllexport)*/ console(struct unit *unit, char *opts) {
+int /*__declspec(dllexport)*/ console(struct unit *unit, char *opts)
+{
   dev_t devno = kdev_create("console", &console_driver, NULL, NULL);
   init_keyboard(devno, get_num_option(opts, "resetkbd", 0));
-
   if (serial_console) {
     init_serial();
     consdev = kdev_open("com1");
@@ -224,17 +224,27 @@ int /*__declspec(dllexport)*/ console(struct unit *unit, char *opts) {
   return 0;
 }
 
-void console_print(char *buffer, int size) {
-  if (consdev != NODEV) {
-    kdev_write(consdev, buffer, size, 0, 0);
-  } else if (serial_console) {
-    serial_console_write(buffer, size);
-  } else {
-    print_buffer(buffer, size);
-  }
+
+void console_print(char *buffer, int size)
+{
+    if (consdev != NODEV)
+    {
+        kdev_write(consdev, buffer, size, 0, 0);
+    }
+    else
+    if (serial_console)
+    {
+        serial_console_write(buffer, size);
+    }
+    else
+    {
+        print_buffer(buffer, size);
+    }
 }
 
-void init_console(int serial) {
-  init_video();
-  if (serial_console) init_serial_console();
+
+void init_console(int serial)
+{
+    init_video();
+    if (serial_console) init_serial_console();
 }

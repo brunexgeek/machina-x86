@@ -36,6 +36,7 @@
 
 
 #include <stdint.h>
+#include <os/asmutil.h>
 
 
 typedef void (*threadproc_t)(void *arg);
@@ -146,7 +147,15 @@ static __inline struct thread *self() {
 }
 #endif
 
-struct thread *self();
+struct thread *self(void) __asm__("___thread_self");
+
+__asm__
+(
+    "___thread_self: "
+    "mov eax, esp;"
+    "and eax, " TO_STRING(TCBMASK) ";"
+    "ret;"
+);
 
 void mark_thread_running();
 

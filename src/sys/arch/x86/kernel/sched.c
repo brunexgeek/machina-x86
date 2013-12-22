@@ -33,58 +33,48 @@
 //
 
 #include <os/krnl.h>
+#include <os/asmutil.h>
 
 #define DEFAULT_STACK_SIZE           (1 * 1024 * 1024)
 #define DEFAULT_INITIAL_STACK_COMMIT (8 * 1024)
 
 
-/*__declspec(naked)*/ struct thread *self()
-{
-    __asm__
-    (
-        "mov eax, esp;"
-        "and eax, %0;"
-        "ret;"
-        :
-        : "i" (TCBMASK)
-    );
-}
+//struct thread *self();
 
 
-/*__declspec(naked)*/ void switch_context(struct thread *t)
-{
-    __asm__
-    (
-        // Save registers on current kernel stack
-        "push    ebp;"
-        "push    ebx;"
-        "push    edi;"
-        "push    esi;"
+void switch_context(struct thread *t) __asm__("___switch_context");
 
-        // Store kernel stack pointer in tcb
-        "mov     eax, esp;"
-        "and     eax, %0;"
-        "add     eax, %1;"
-        "mov     [eax], esp;"
+__asm__
+(
+    "___switch_context: "
+    // Save registers on current kernel stack
+    "push    ebp;"
+    "push    ebx;"
+    "push    edi;"
+    "push    esi;"
 
-        // Get stack pointer for new thread and store in esp0
-        "mov     eax, 20[esp];"
-        "add     eax, %1;"
-        "mov     esp, [eax];"
-        "mov     ebp, %2;"
-        "mov     [ebp], eax;"
+    // Store kernel stack pointer in tcb
+    "mov     eax, esp;"
+    "and     eax, " TO_STRING(TCBMASK) ";"
+    "add     eax, " TO_STRING(TCBESP) ";"
+    "mov     [eax], esp;"
 
-        // Restore registers from new kernel stack
-        "pop     esi;"
-        "pop     edi;"
-        "pop     ebx;"
-        "pop     ebp;"
+    // Get stack pointer for new thread and store in esp0
+    "mov     eax, 20[esp];"
+    "add     eax, " TO_STRING(TCBESP) ";"
+    "mov     esp, [eax];"
+    "mov     ebp, " TO_STRING(TSS_ESP0) ";"
+    "mov     [ebp], eax;"
 
-        "ret;"
-        :
-        : "i" (TCBMASK), "i" (TCBESP), "i" (TSS_ESP0)
-    );
-}
+    // Restore registers from new kernel stack
+    "pop     esi;"
+    "pop     edi;"
+    "pop     ebx;"
+    "pop     ebp;"
+
+    "ret;"
+);
+
 
 
 static void init_thread_stack(struct thread *t, void *startaddr, void *arg)

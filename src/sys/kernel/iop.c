@@ -40,10 +40,12 @@ unsigned char /*__declspec(naked)*/ inb(port_t port)
 {
     __asm__
     (
-        "mov     dx,word ptr [esp + 4];"
+        //"mov     dx,word ptr [esp + 4];"
         "xor     eax,eax;"
         "in      al,dx;"
-        "ret;"
+        //"ret;"
+        :
+        : "d" (port)
     );
 }
 
@@ -52,10 +54,12 @@ unsigned short /*__declspec(naked)*/ inw(port_t port)
 {
     __asm__
     (
-        "mov     dx,word ptr [esp + 4];"
+        //"mov     dx,word ptr [esp + 4];"
         "xor     eax,eax;"
         "in      ax,dx;"
-        "ret;"
+        //"ret;"
+        :
+        : "d" (port)
     );
 }
 
@@ -64,9 +68,11 @@ unsigned long /*__declspec(naked)*/ ind(port_t port)
 {
     __asm__
     (
-        "mov     dx,word ptr [esp + 4];"
+        //"mov     dx,word ptr [esp + 4];"
         "in      eax,dx;"
-        "ret;"
+        //"ret;"
+        :
+        : "d" (port)
     );
 }
 
@@ -103,10 +109,12 @@ unsigned char /*__declspec(naked)*/ outb(port_t port, unsigned char val)
 {
     __asm__
     (
-        "mov     dx,word ptr [esp + 4];"
-        "mov     al,byte ptr [esp + 8];"
+        //"mov     dx,word ptr [esp + 4];"
+        //"mov     al,byte ptr [esp + 8];"
         "out     dx, al;"
-        "ret;"
+        //"ret;"
+        :
+        : "d" (port), "a" (val)
     );
 }
 
@@ -115,10 +123,12 @@ unsigned short /*__declspec(naked)*/ outw(port_t port, unsigned short val)
 {
     __asm__
     (
-        "mov     dx,word ptr [esp + 4];"
-        "mov     ax,word ptr [esp + 8];"
+        //"mov     dx,word ptr [esp + 4];"
+        //"mov     ax,word ptr [esp + 8];"
         "out     dx,ax;"
-        "ret;"
+        //"ret;"
+        :
+        : "d" (port), "a" (val)
     );
 }
 
@@ -127,10 +137,12 @@ unsigned long /*__declspec(naked)*/ outd(port_t port, unsigned long val)
 {
     __asm__
     (
-        "mov     dx,word ptr [esp + 4];"
-        "mov     eax,[esp + 8];"
+        //"mov     dx,word ptr [esp + 4];"
+        //"mov     eax,[esp + 8];"
         "out     dx,eax;"
-        "ret;"
+        //"ret;"
+        :
+        : "d" (port), "a" (val)
     );
 }
 

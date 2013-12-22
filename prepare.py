@@ -817,7 +817,7 @@ target[FIELD_DESCRIPTION] = "Machina OS Loader Main"
 target[FIELD_PREFFIX] = "OSLDRM"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-D OSLDR -D KERNEL -I src/include -masm=intel -nostdlib"
-target[FIELD_LDFLAGS] = "-Wl,-e,start -Wl,-T,src/sys/arch/x86/osloader/osloader.lds" #-Wl,-Ttext,0x90800"
+target[FIELD_LDFLAGS] = "-Wl,-e,start -Wl,-T,src/sys/arch/x86/osloader/osloader.lds -nostdlib" #-Wl,-Ttext,0x90800"
 target[FIELD_DEPENDENCIES] = ["nasm", "osloader-stub"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_OUTPUT_FILE] = "osloader-main.elf"
@@ -859,7 +859,8 @@ target[FIELD_OUTPUT_DIRECTORY] = "build"
 target[FIELD_OUTPUT_FILE] = "machina.iso"
 target[FIELD_COMMANDS] = [
     "build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE)" \
-    " -k ../sanos/linux/install/boot/krnl.dll -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
+#   " -k ../sanos/linux/install/boot/krnl.dll -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
+    " -k $(KRNLIMG32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
     "genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install" ]
 generator.addTarget(target);
 

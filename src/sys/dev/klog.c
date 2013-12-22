@@ -62,73 +62,85 @@ static int wait_for_klog() {
   return req.rc;
 }
 
-static void release_klog_waiters(void *arg) {
-  struct klogreq *waiter;
+static void release_klog_waiters(void *arg)
+{
+    struct klogreq *waiter;
 
-  // Defer scheduling of kernel log waiter if we are in a interrupt handler
-  if ((eflags() & EFLAG_IF) == 0)  {
-    queue_irq_dpc(&klog_dpc, release_klog_waiters, NULL);
-    return;
-  }
-
-  waiter = klog_waiters;
-  while (waiter) {
-    waiter->rc = 0;
-    mark_thread_ready(waiter->thread, 1, 2);
-    waiter = waiter->next;
-  }
-
-  klog_waiters = NULL;
-}
-
-static void add_to_klog(char *buf, int size) {
-  while (size-- > 0) {
-    if (klog_size == KLOG_SIZE) {
-      while (klogbuf[klog_start] != '\n' && klog_size > 0) {
-        klog_size--;
-        klog_start++;
-        if (klog_start == KLOG_SIZE) klog_start = 0;
-      }
-
-      if (klog_size > 0) {
-        klog_size--;
-        klog_start++;
-        if (klog_start == KLOG_SIZE) klog_start = 0;
-      }
+    // Defer scheduling of kernel log waiter if we are in a interrupt handler
+    if ((eflags() & EFLAG_IF) == 0)
+    {
+        queue_irq_dpc(&klog_dpc, release_klog_waiters, NULL);
+        return;
     }
 
-    klogbuf[klog_end++] = *buf++;
-    if (klog_end == KLOG_SIZE) klog_end = 0;
-    klog_size++;
-  }
-
-  release_klog_waiters(NULL);
-}
-
-void kprintf(const char *fmt,...) {
-  va_list args;
-  char buffer[1024];
-  int len;
-
-  va_start(args, fmt);
-  len = vsprintf(buffer, fmt, args);
-  va_end(args);
-
-  add_to_klog(buffer, len);
-
-  //if (debugging) dbg_output(buffer);
-
-  if (kprint_enabled) {
-    char *msg = buffer;
-    int msglen = len;
-
-    if (msg[0] == '<' && msg[1] >= '0' && msg[1] <= '7' && msg[2] == '>') {
-      msg += 3;
-      msglen -= 3;
+    waiter = klog_waiters;
+    while (waiter)
+    {
+        waiter->rc = 0;
+        mark_thread_ready(waiter->thread, 1, 2);
+        waiter = waiter->next;
     }
 
-    console_print(msg, msglen);
-  }
+    klog_waiters = NULL;
+}
+
+static void add_to_klog(char *buf, int size)
+{
+    while (size-- > 0)
+    {
+        if (klog_size == KLOG_SIZE)
+        {
+            while (klogbuf[klog_start] != '\n' && klog_size > 0)
+            {
+                klog_size--;
+                klog_start++;
+                if (klog_start == KLOG_SIZE) klog_start = 0;
+            }
+
+            if (klog_size > 0)
+            {
+                klog_size--;
+                klog_start++;
+                if (klog_start == KLOG_SIZE) klog_start = 0;
+            }
+        }
+
+        klogbuf[klog_end++] = *buf++;
+        if (klog_end == KLOG_SIZE) klog_end = 0;
+        klog_size++;
+    }
+
+    // TODO: fix this!
+    //release_klog_waiters(NULL);
+}
+
+void kprintf(const char *fmt,...)
+{
+    va_list args;
+    char buffer[1024];
+    int len;
+
+    va_start(args, fmt);
+    len = vsprintf(buffer, fmt, args);
+    va_end(args);
+
+    add_to_klog(buffer, len);
+
+    //if (debugging) dbg_output(buffer);
+
+    if (kprint_enabled)
+    {
+        char *msg = buffer;
+        int msglen = len;
+
+        if (msg[0] == '<' && msg[1] >= '0' && msg[1] <= '7' && msg[2] == '>')
+        {
+            msg += 3;
+            msglen -= 3;
+        }
+
+        console_print(msg, msglen);
+    }
 }
 
 static int klog_ioctl(struct dev *dev, int cmd, void *args, size_t size) {

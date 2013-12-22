@@ -77,7 +77,7 @@ struct mach {
 };
 
 extern struct mach mach;
-
+/*
 #ifdef VMACH
 
 //
@@ -166,6 +166,7 @@ static __inline void set_page_table_entry(pte_t *pte, unsigned long value) {
 #define SYSEXIT call cs:mach.sysret
 
 #else
+*/
 
 //
 // Interface functions for direct hardware access
@@ -173,7 +174,7 @@ static __inline void set_page_table_entry(pte_t *pte, unsigned long value) {
 
 static __inline void sti()
 {
-  __asm__("sti");
+    __asm__("sti");
 }
 
 static __inline void cli()
@@ -224,13 +225,15 @@ static __inline unsigned long get_cr2() {
   return val;
 }
 
-/*__declspec(naked)*/ static unsigned __int64 __inline rdtsc() {
-    __asm__
-    (
-        "rdtsc;"
-        "ret;"
-    );
-}
+unsigned __int64 __inline rdtsc() __asm__("___rdtsc");
+
+__asm__
+(
+    "___rdtsc: "
+    "rdtsc;"
+    "ret;"
+);
+
 
 static void __inline wrmsr(unsigned long reg, unsigned long valuelow, unsigned long valuehigh) {
     __asm__
@@ -287,7 +290,7 @@ KERNELAPI void outsd(port_t port, void *buf, int count);
 #define IRETD iretd
 #define SYSEXIT sysexit
 
-#endif
+//#endif  !VMACH
 
 //
 // Common interface functions

@@ -34,7 +34,7 @@
 
 #include <os/krnl.h>
 #include <os/trap.h>
-
+#include <os/asmutil.h>
 
 
 #define INTRS MAXIDT
@@ -133,42 +133,41 @@ char *trapnames[INTRS] =  {
 
 static void trap(unsigned long args);
 
-static void /*__declspec(naked)*/ isr()
-{
-    __asm__
-    (
-        "cld;"
-        "push    eax;"                     // Save registers
-        "push    ecx;"
-        "push    edx;"
-        "push    ebx;"
-        "push    ebp;"
-        "push    esi;"
-        "push    edi;"
-        "push    ds;"
-        "push    es;"
-        "mov     ax, %0;"           // Setup kernel data segment
-        #ifdef VMACH
-        "or      eax, cs:mach.kring;"
-        #endif
-        "mov     ds, ax;"
-        "mov     es, ax;"
-        "call    trap;"                    // Call trap handler
-        "pop     es;"                      // Restore registers
-        "pop     ds;"
-        "pop     edi;"
-        "pop     esi;"
-        "pop     ebp;"
-        "pop     ebx;"
-        "pop     edx;"
-        "pop     ecx;"
-        "pop     eax;"
-        "add     esp, 8;"
-        "IRETD;"                           // Return
-        :
-        : "i" (SEL_KDATA)
-    );
-}
+void isr() __asm("___isr");
+
+__asm__
+(
+    "___isr:\n"
+    "cld;"
+    "push    eax;"                     // Save registers
+    "push    ecx;"
+    "push    edx;"
+    "push    ebx;"
+    "push    ebp;"
+    "push    esi;"
+    "push    edi;"
+    "push    ds;"
+    "push    es;"
+    "mov     ax, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment (SEL_KDATA)
+    #ifdef VMACH
+    "or      eax, cs:mach.kring;"
+    #endif
+    "mov     ds, ax;"
+    "mov     es, ax;"
+    "call    trap;"                    // Call trap handler
+    "pop     es;"                      // Restore registers
+    "pop     ds;"
+    "pop     edi;"
+    "pop     esi;"
+    "pop     ebp;"
+    "pop     ebx;"
+    "pop     edx;"
+    "pop     ecx;"
+    "pop     eax;"
+    "add     esp, 8;"
+    "iretd;"
+);
+
 
 //
 // syscall
@@ -178,53 +177,53 @@ static void /*__declspec(naked)*/ isr()
 
 int syscall(int syscallno, char *params, struct context *ctxt);
 
-static void /*__declspec(naked)*/ systrap(void) {
-  __asm__
-  (
-        "push    0;"                       // Push dummy errcode
-        "push    %0;"            // Push traptype
+void  systrap(void) __asm__("___systrap");
 
-        "push    eax;"                     // Save registers
-        "push    ecx;"
-        "push    edx;"
-        "push    ebx;"
-        "push    ebp;"
-        "push    esi;"
-        "push    edi;"
-        "push    ds;"
-        "push    es;"
+__asm__
+(
+    "___systrap: "
+    "push    0;"                       // Push dummy errcode
+    "push    " TO_STRING(INTR_SYSCALL) ";"       // Push traptype (INTR_SYSCALL)
 
-        "mov     bx, %1;"           // Setup kernel data segment
-        #ifdef VMACH
-        "or      ebx, cs:mach.kring;"
-        #endif
-        "mov     ds, bx;"
-        "mov     es, bx;"
+    "push    eax;"                     // Save registers
+    "push    ecx;"
+    "push    edx;"
+    "push    ebx;"
+    "push    ebp;"
+    "push    esi;"
+    "push    edi;"
+    "push    ds;"
+    "push    es;"
 
-        "mov     ebx, esp;"                // ebx = context
-        "push    ebx;"                     // Push context
-        "push    edx;"                     // Push params
-        "push    eax;"                     // Push syscallno
+    "mov     bx, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment  (SEL_KDATA)
+    #ifdef VMACH
+    "or      ebx, cs:mach.kring;"
+    #endif
+    "mov     ds, bx;"
+    "mov     es, bx;"
 
-        "call    syscall;"                 // Call syscall
-        "add     esp, 12;"
+    "mov     ebx, esp;"                // ebx = context
+    "push    ebx;"                     // Push context
+    "push    edx;"                     // Push params
+    "push    eax;"                     // Push syscallno
 
-        "pop     es;"                      // Restore registers
-        "pop     ds;"
-        "pop     edi;"
-        "pop     esi;"
-        "pop     ebp;"
-        "pop     ebx;"
-        "pop     edx;"
-        "pop     ecx;"
+    "call    syscall;"                 // Call syscall
+    "add     esp, 12;"
 
-        "add     esp, 12;"                 // Skip eax, errcode, and traptype
+    "pop     es;"                      // Restore registers
+    "pop     ds;"
+    "pop     edi;"
+    "pop     esi;"
+    "pop     ebp;"
+    "pop     ebx;"
+    "pop     edx;"
+    "pop     ecx;"
 
-        "IRETD;"                           // Return
-        :
-        : "i" (INTR_SYSCALL), "i" (SEL_KDATA)
-        );
-}
+    "add     esp, 12;"                 // Skip eax, errcode, and traptype
+
+    "iretd;"                           // Return
+);
+
 
 //
 // sysentry
@@ -232,93 +231,92 @@ static void /*__declspec(naked)*/ systrap(void) {
 // Kernel entry point for sysenter syscall
 //
 
-static void /*__declspec(naked)*/ sysentry(void) {
-    __asm__
-    (
-        "mov     esp, ss:[esp];"           // Get kernel stack pointer from TSS
-        "STI;"                             // Sysenter disables interrupts, re-enable now
+void sysentry(void) __asm__("___sysentry");
 
-        "push    %0 + %3;"    // Push ss (fixed)
-        "push    ebp;"                     // Push esp (ebp set to esp by caller)
-        "pushfd;"                          // Push eflg
-        "push    %2 + %3;"    // Push cs (fixed)
-        "push    ecx;"                     // Push eip (return address set by caller)
-        "push    0;"                       // Push errcode
-        "push    %4;"           // Push traptype (always sysenter)
+__asm__
+(
+    "___sysentry: "
+    "mov     esp, ss:[esp];"           // Get kernel stack pointer from TSS
+    "STI;"                             // Sysenter disables interrupts, re-enable now
 
-        "push    eax;"                     // Push registers
-        "push    ecx;"
-        "push    edx;"
-        "push    ebx;"
-        "push    ebp;"
-        "push    esi;"
-        "push    edi;"
+    "push    " TO_STRING(SEL_UDATA) "+" TO_STRING(SEL_RPL3) ";"    // Push ss (fixed)
+    "push    ebp;"                     // Push esp (ebp set to esp by caller)
+    "pushfd;"                          // Push eflg
+    "push    " TO_STRING(SEL_UTEXT) "+" TO_STRING(SEL_RPL3) ";"    // Push cs (fixed)
+    "push    ecx;"                     // Push eip (return address set by caller)
+    "push    0;"                       // Push errcode
+    "push    " TO_STRING(INTR_SYSENTER) ";"           // Push traptype (always sysenter)
 
-        "push    %0 + %3;"    // Push ds (fixed)
-        "push    %0 + %3;"    // Push es (fixed)
+    "push    eax;"                     // Push registers
+    "push    ecx;"
+    "push    edx;"
+    "push    ebx;"
+    "push    ebp;"
+    "push    esi;"
+    "push    edi;"
 
-        "mov     bx, %1;"           // Setup kernel data segment
-        #ifdef VMACH
-        "or      ebx, cs:mach.kring;"
-        #endif
-        "mov     ds, bx;"
-        "mov     es, bx;"
+    "push    " TO_STRING(SEL_UDATA) "+" TO_STRING(SEL_RPL3) ";"    // Push ds (fixed)
+    "push    " TO_STRING(SEL_UTEXT) "+" TO_STRING(SEL_RPL3) ";"    // Push es (fixed)
 
-        "mov     ebx, esp;"                // ebx = context
-        "push    ebx;"                     // Push context
-        "push    edx;"                     // Push params
-        "push    eax;"                     // Push syscallno
+    "mov     bx, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment
+    #ifdef VMACH
+    "or      ebx, cs:mach.kring;"
+    #endif
+    "mov     ds, bx;"
+    "mov     es, bx;"
 
-        "call    syscall;"                 // Call syscall
-        "add     esp, 12;"
+    "mov     ebx, esp;"                // ebx = context
+    "push    ebx;"                     // Push context
+    "push    edx;"                     // Push params
+    "push    eax;"                     // Push syscallno
 
-        "pop     es;"                      // Restore registers
-        "pop     ds;"
-        "pop     edi;"
-        "pop     esi;"
-        "pop     ebp;"
-        "pop     ebx;"
+    "call    syscall;"                 // Call syscall
+    "add     esp, 12;"
 
-        "add     esp, 20;"                 // Skip edx, ecx, eax, errcode, traptype
-        "pop     edx;"                     // Put eip into edx for sysexit
-        "add     esp, 4;"                  // Skip cs
-        "popfd;"                           // Restore flags
-        "pop     ecx;"                     // Put esp into ecx for sysexit
-        "add     esp, 4;"                  // Skip ss
+    "pop     es;"                      // Restore registers
+    "pop     ds;"
+    "pop     edi;"
+    "pop     esi;"
+    "pop     ebp;"
+    "pop     ebx;"
 
-        "SYSEXIT;"                         // Return
-        :
-        : "i" (SEL_UDATA), "i" (SEL_KDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3), "i" (INTR_SYSENTER)
-    );
-}
+    "add     esp, 20;"                 // Skip edx, ecx, eax, errcode, traptype
+    "pop     edx;"                     // Put eip into edx for sysexit
+    "add     esp, 4;"                  // Skip cs
+    "popfd;"                           // Restore flags
+    "pop     ecx;"                     // Put esp into ecx for sysexit
+    "add     esp, 4;"                  // Skip ss
+
+    "SYSEXIT;"                         // Return
+);
+
 
 //
 // Generate interrupt service routines
 //
 
-#define ISR(n)                                \
-static void /*__declspec(naked)*/ isr##n(void) \
-{                     \
-    __asm__(          \
-        "push 0;"     \
-        "push %0;"    \
-        "jmp isr;"    \
-        :             \
-        : "r" (n)     \
-    );                \
-}
 
-#define ISRE(n)                               \
-static void /*__declspec(naked)*/ isr##n(void)  \
-{                     \
-    __asm__           \
-    (                 \
-        "push %0;"    \
-        "jmp isr;"    \
-        :             \
-        : "r" (n)     \
-    );                \
-}
+
+#define ISR(n)          \
+    void isr##n() __asm__("___isr" #n); \
+    __asm__             \
+    (                   \
+        "___isr" #n ":"    \
+        "push 0;"       \
+        "push " #n ";"  \
+        "jmp ___isr;"      \
+    );                  \
+
+
+#define ISRE(n)         \
+    void isr##n() __asm__("___isr" #n); \
+    __asm__             \
+    (                   \
+        "___isr" #n ":"    \
+        "push " #n ";"  \
+        "jmp ___isr;"      \
+    );                  \
+
 
 ISR(0)  ISR(1)  ISR(2)   ISR(3)   ISR(4)   ISR(5)   ISR(6)   ISR(7)
 ISRE(8) ISR(9)  ISRE(10) ISRE(11) ISRE(12) ISRE(13) ISRE(14) ISR(15)
@@ -804,103 +802,106 @@ static int traps_proc(struct proc_file *pf, void *arg) {
 // Initialize traps and interrupts
 //
 
-void init_trap() {
-  int i;
+void init_trap()
+{
+    int i;
 
-  // Initialize interrupt dispatch table
-  for (i = 0; i < INTRS; i++) {
-    intrhndlr[i] = NULL;
-    intrcount[i] = 0;
-  }
+    // Initialize interrupt dispatch table
+    for (i = 0; i < INTRS; i++)
+    {
+        intrhndlr[i] = NULL;
+        intrcount[i] = 0;
+    }
 
-  // Setup idt
-  set_idt_gate(0, isr0);
-  set_idt_gate(1, isr1);
-  set_idt_gate(2, isr2);
-  set_idt_trap(3, isr3);
-  set_idt_gate(4, isr4);
-  set_idt_gate(5, isr5);
-  set_idt_gate(6, isr6);
-  set_idt_gate(7, isr7);
-  set_idt_gate(8, isr8);
-  set_idt_gate(9, isr9);
-  set_idt_gate(10, isr10);
-  set_idt_gate(11, isr11);
-  set_idt_gate(12, isr12);
-  set_idt_gate(13, isr13);
-  set_idt_gate(14, isr14);
-  set_idt_gate(15, isr15);
-  set_idt_gate(16, isr16);
-  set_idt_gate(17, isr17);
-  set_idt_gate(18, isr18);
-  set_idt_gate(19, isr19);
-  set_idt_gate(20, isr20);
-  set_idt_gate(21, isr21);
-  set_idt_gate(22, isr22);
-  set_idt_gate(23, isr23);
-  set_idt_gate(24, isr24);
-  set_idt_gate(25, isr25);
-  set_idt_gate(26, isr26);
-  set_idt_gate(27, isr27);
-  set_idt_gate(28, isr28);
-  set_idt_gate(29, isr29);
-  set_idt_gate(30, isr30);
-  set_idt_gate(31, isr31);
-  set_idt_gate(32, isr32);
-  set_idt_gate(33, isr33);
-  set_idt_gate(34, isr34);
-  set_idt_gate(35, isr35);
-  set_idt_gate(36, isr36);
-  set_idt_gate(37, isr37);
-  set_idt_gate(38, isr38);
-  set_idt_gate(39, isr39);
-  set_idt_gate(40, isr40);
-  set_idt_gate(41, isr41);
-  set_idt_gate(42, isr42);
-  set_idt_gate(43, isr43);
-  set_idt_gate(44, isr44);
-  set_idt_gate(45, isr45);
-  set_idt_gate(46, isr46);
-  set_idt_gate(47, isr47);
-  set_idt_trap(48, systrap);
-  set_idt_trap(49, isr49);
-  set_idt_gate(50, isr50);
-  set_idt_gate(51, isr51);
-  set_idt_gate(52, isr52);
-  set_idt_gate(53, isr53);
-  set_idt_gate(54, isr54);
-  set_idt_gate(55, isr55);
-  set_idt_gate(56, isr56);
-  set_idt_gate(57, isr57);
-  set_idt_gate(58, isr58);
-  set_idt_gate(59, isr59);
-  set_idt_gate(60, isr60);
-  set_idt_gate(61, isr61);
-  set_idt_gate(62, isr62);
-  set_idt_gate(63, isr63);
+    // Setup idt
+    set_idt_gate(0, isr0);
+    set_idt_gate(1, isr1);
+    set_idt_gate(2, isr2);
+    set_idt_trap(3, isr3);
+    set_idt_gate(4, isr4);
+    set_idt_gate(5, isr5);
+    set_idt_gate(6, isr6);
+    set_idt_gate(7, isr7);
+    set_idt_gate(8, isr8);
+    set_idt_gate(9, isr9);
+    set_idt_gate(10, isr10);
+    set_idt_gate(11, isr11);
+    set_idt_gate(12, isr12);
+    set_idt_gate(13, isr13);
+    set_idt_gate(14, isr14);
+    set_idt_gate(15, isr15);
+    set_idt_gate(16, isr16);
+    set_idt_gate(17, isr17);
+    set_idt_gate(18, isr18);
+    set_idt_gate(19, isr19);
+    set_idt_gate(20, isr20);
+    set_idt_gate(21, isr21);
+    set_idt_gate(22, isr22);
+    set_idt_gate(23, isr23);
+    set_idt_gate(24, isr24);
+    set_idt_gate(25, isr25);
+    set_idt_gate(26, isr26);
+    set_idt_gate(27, isr27);
+    set_idt_gate(28, isr28);
+    set_idt_gate(29, isr29);
+    set_idt_gate(30, isr30);
+    set_idt_gate(31, isr31);
+    set_idt_gate(32, isr32);
+    set_idt_gate(33, isr33);
+    set_idt_gate(34, isr34);
+    set_idt_gate(35, isr35);
+    set_idt_gate(36, isr36);
+    set_idt_gate(37, isr37);
+    set_idt_gate(38, isr38);
+    set_idt_gate(39, isr39);
+    set_idt_gate(40, isr40);
+    set_idt_gate(41, isr41);
+    set_idt_gate(42, isr42);
+    set_idt_gate(43, isr43);
+    set_idt_gate(44, isr44);
+    set_idt_gate(45, isr45);
+    set_idt_gate(46, isr46);
+    set_idt_gate(47, isr47);
+    set_idt_trap(48, systrap);
+    set_idt_trap(49, isr49);
+    set_idt_gate(50, isr50);
+    set_idt_gate(51, isr51);
+    set_idt_gate(52, isr52);
+    set_idt_gate(53, isr53);
+    set_idt_gate(54, isr54);
+    set_idt_gate(55, isr55);
+    set_idt_gate(56, isr56);
+    set_idt_gate(57, isr57);
+    set_idt_gate(58, isr58);
+    set_idt_gate(59, isr59);
+    set_idt_gate(60, isr60);
+    set_idt_gate(61, isr61);
+    set_idt_gate(62, isr62);
+    set_idt_gate(63, isr63);
 
-  // Set system trap handlers
-  register_interrupt(&divintr, INTR_DIV, div_handler, NULL);
-  register_interrupt(&brkptintr, INTR_BPT, breakpoint_handler, NULL);
-  register_interrupt(&overflowintr, INTR_OVFL, overflow_handler, NULL);
-  register_interrupt(&boundsintr, INTR_BOUND, bounds_handler, NULL);
-  register_interrupt(&illopintr, INTR_INSTR, illop_handler, NULL);
-  register_interrupt(&segintr, INTR_SEG, seg_handler, NULL);
-  register_interrupt(&stackintr, INTR_STACK, stack_handler, NULL);
-  register_interrupt(&genprointr, INTR_GENPRO, genpro_handler, NULL);
-  register_interrupt(&pgfintr, INTR_PGFLT, pagefault_handler, NULL);
-  register_interrupt(&alignintr, INTR_ALIGN, alignment_handler, NULL);
-  register_interrupt(&sigexitintr, INTR_SIGEXIT, sigexit_handler, NULL);
+    // Set system trap handlers
+    register_interrupt(&divintr, INTR_DIV, div_handler, NULL);
+    register_interrupt(&brkptintr, INTR_BPT, breakpoint_handler, NULL);
+    register_interrupt(&overflowintr, INTR_OVFL, overflow_handler, NULL);
+    register_interrupt(&boundsintr, INTR_BOUND, bounds_handler, NULL);
+    register_interrupt(&illopintr, INTR_INSTR, illop_handler, NULL);
+    register_interrupt(&segintr, INTR_SEG, seg_handler, NULL);
+    register_interrupt(&stackintr, INTR_STACK, stack_handler, NULL);
+    register_interrupt(&genprointr, INTR_GENPRO, genpro_handler, NULL);
+    register_interrupt(&pgfintr, INTR_PGFLT, pagefault_handler, NULL);
+    register_interrupt(&alignintr, INTR_ALIGN, alignment_handler, NULL);
+    register_interrupt(&sigexitintr, INTR_SIGEXIT, sigexit_handler, NULL);
 
-  // Initialize fast syscall
-  if (cpu.features & CPU_FEATURE_SEP) {
-    wrmsr(MSR_SYSENTER_CS, SEL_KTEXT | mach.kring, 0);
-    wrmsr(MSR_SYSENTER_ESP, TSS_ESP0, 0);
-    wrmsr(MSR_SYSENTER_EIP, (unsigned long) sysentry, 0);
-  }
+    // Initialize fast syscall
+    if (cpu.features & CPU_FEATURE_SEP)
+    {
+        wrmsr(MSR_SYSENTER_CS, SEL_KTEXT | mach.kring, 0);
+        wrmsr(MSR_SYSENTER_ESP, TSS_ESP0, 0);
+        wrmsr(MSR_SYSENTER_EIP, (unsigned long) sysentry, 0);
+    }
 
-  // Register /proc/traps
-  register_proc_inode("traps", traps_proc, NULL);
+    // Register /proc/traps
+    register_proc_inode("traps", traps_proc, NULL);
 }
 
 //
@@ -909,42 +910,49 @@ void init_trap() {
 // Trap dispatcher
 //
 
-static void trap(unsigned long args) {
-  struct context *ctxt = (struct context *) &args;
-  struct thread *t = self();
-  struct context *prevctxt;
-  struct interrupt *intr;
-  int rc;
+static void trap(unsigned long args)
+{
+    struct context *ctxt = (struct context *) &args;
+    struct thread *t = self();
+    struct context *prevctxt;
+    struct interrupt *intr;
+    int rc;
 
-  // Save context
-  prevctxt = t->ctxt;
-  t->ctxt = ctxt;
 
-  // Statistics
-  intrcount[ctxt->traptype]++;
+    // Save context
+    prevctxt = t->ctxt;
+    t->ctxt = ctxt;
 
-  // Call interrupt handlers
-  intr = intrhndlr[ctxt->traptype];
-  if (!intr) {
-    dbg_enter(ctxt, NULL);
-  } else {
-    while (intr) {
-      rc = intr->handler(ctxt, intr->arg);
-      if (rc > 0) break;
-      intr = intr->next;
+    // Statistics
+    intrcount[ctxt->traptype]++;
+
+    // Call interrupt handlers
+    intr = intrhndlr[ctxt->traptype];
+    if (!intr)
+    {
+        dbg_enter(ctxt, NULL);
     }
-  }
+    else
+    {
+        while (intr)
+        {
+            rc = intr->handler(ctxt, intr->arg);
+            if (rc > 0) break;
+            intr = intr->next;
+        }
+    }
 
-  // If we interrupted a user mode context, dispatch DPCs,
-  // check for quantum expiry, and deliver signals.
-  if (usermode(ctxt)) {
-    check_dpc_queue();
-    check_preempt();
-    if (signals_ready(t)) deliver_pending_signals(0);
-  }
+    // If we interrupted a user mode context, dispatch DPCs,
+    // check for quantum expiry, and deliver signals.
+    if (usermode(ctxt))
+    {
+        check_dpc_queue();
+        check_preempt();
+        if (signals_ready(t)) deliver_pending_signals(0);
+    }
 
-  // Restore context
-  t->ctxt = prevctxt;
+    // Restore context
+    t->ctxt = prevctxt;
 }
 
 //

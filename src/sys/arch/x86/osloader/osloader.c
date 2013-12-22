@@ -512,10 +512,12 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
         "push 0;"
         "push dword ptr [krnlopts];"
         "push %2;"
-        "call dword ptr [krnlentry];"
+        //"call dword ptr [krnlentry];"
+        //"mov eax, %2;"
+        "call eax;"
         "cli;"
         "hlt;"
         :
-        : "i" (INITTCB_ADDRESS), "i" (TCBESP), "i" (OSBASE)
+        : "i" (INITTCB_ADDRESS), "i" (TCBESP), "a" (OSBASE)
     );
 }

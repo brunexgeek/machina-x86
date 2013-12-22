@@ -437,7 +437,7 @@ $(ISO_OUT_FILE) iso : cdemboot osloader kernel-image
 	@echo
 	@echo Building Machina CD image
 	@mkdir -p $(ISO_OUT_DIR)
-	build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE) -k ../sanos/linux/install/boot/krnl.dll -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs
+	build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE) -k $(KRNLIMG32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs
 	genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install
 
 
@@ -490,7 +490,7 @@ OSLDRM_WELCOME:
 	@echo Building Machina OS Loader Main
 
 OSLDRM_CFLAGS =  -D OSLDR -D KERNEL -I src/include -masm=intel -nostdlib $(CFLAGS)
-OSLDRM_LDFLAGS =  -Wl,-e,start -Wl,-T,src/sys/arch/x86/osloader/osloader.lds $(LDFLAGS)
+OSLDRM_LDFLAGS =  -Wl,-e,start -Wl,-T,src/sys/arch/x86/osloader/osloader.lds -nostdlib $(LDFLAGS)
 OSLDRM_NFLAGS = $(NFLAGS)
 OSLDRM_OUT_DIR = build/machina/obj/osloader
 OSLDRM_OUT_FILE = $(OSLDRM_OUT_DIR)/osloader-main.elf

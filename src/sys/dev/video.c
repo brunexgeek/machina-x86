@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -132,7 +132,7 @@ static void handle_sequence(int x, int y, char ch) {
       set_cursor(col - 1, line - 1);
       break;
     }
-    
+
     case 'J': // Clear screen/eos
       if (x == 1) {
         unsigned char *p = vidmem + cursor_pos;
@@ -149,7 +149,7 @@ static void handle_sequence(int x, int y, char ch) {
         cursor_pos = 0;
       }
       break;
-    
+
     case 'K': { // Clear to end of line
       int pos = cursor_pos;
       do {
@@ -158,7 +158,7 @@ static void handle_sequence(int x, int y, char ch) {
       } while ((pos) % LINESIZE != 0);
       break;
     }
-    
+
     case 'm': // Set character enhancements
       // Modified for ANSI color attributes 3/15/07 - C Girdosky
       if (x >= 30 && x <= 37) {
@@ -181,7 +181,7 @@ static void handle_sequence(int x, int y, char ch) {
         video_attr = video_attr & ~128;
       } else if (x == 7) {
         // Reverse
-        video_attr = ((video_attr & 0xF0) >> 4) + ((video_attr & 0x0F) << 4); 
+        video_attr = ((video_attr & 0xF0) >> 4) + ((video_attr & 0x0F) << 4);
       } else if (x == 8) {
         // Invisible make forground match background
         video_attr = ((video_attr & 0xF0) >> 4) + (video_attr & 0xF0);
@@ -209,12 +209,12 @@ static void handle_sequence(int x, int y, char ch) {
         }
       }
       break;
-    
+
     case 'C': // Cursor right
       cursor_pos += x * CELLSIZE;
       if (cursor_pos >= SCREENSIZE) cursor_pos = SCREENSIZE - 1;
       break;
-    
+
     case 'D': // Cursor left
       cursor_pos -= x * CELLSIZE;
       if (cursor_pos < 0) cursor_pos = 0;
@@ -251,7 +251,7 @@ static void handle_sequence(int x, int y, char ch) {
         vidmem[SCREENSIZE - 1] = video_attr;
       }
       break;
-    
+
     case 's': // Save cursor
       saved_cursor_pos = cursor_pos;
       break;
@@ -371,7 +371,7 @@ void print_buffer(const char *str, int len) {
   unsigned char attr = video_attr;
 
   if (!str) return;
-  
+
   end = (char *) str + len;
   while (str < end) {
     ch = *str++;

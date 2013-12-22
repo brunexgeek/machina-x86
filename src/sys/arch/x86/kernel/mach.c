@@ -125,15 +125,18 @@ static void hw_insd(port_t port, void *buf, int count) {
 }
 
 
-static /*__declspec(naked)*/ int /*__fastcall*/ hw_out(port_t port, int val) {
-    __asm__
+static /*__declspec(naked)*/ int /*__fastcall*/ hw_out(port_t port, int val)
+{
+    __asm__("cli; hlt;");
+    /*__asm__
     (
         "mov     al,dl;"
         "mov     dx,cx;"
         "out     dx, al;"
         "ret;"
-    );
+    );*/
 }
+
 
 static /*__declspec(naked)*/ unsigned short /*__fastcall*/ hw_outw(port_t port, unsigned short val) {
     __asm__

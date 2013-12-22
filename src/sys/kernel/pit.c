@@ -206,11 +206,11 @@ static void tsc_delay(unsigned long cycles) {
 static void timed_delay(unsigned long loops) {
     __asm__
     (
-        "1:"
+        "time_delay_loop:"
         "dec %0;"
-        "jns 1b;"
+        "jns time_delay_loop;"
         :
-        : "ir" (loops)
+        : "r" (loops)
     );
 }
 
@@ -233,73 +233,84 @@ void calibrate_delay() {
   unsigned long t, bit;
   int precision;
 
-  if (cpu.features & CPU_FEATURE_TSC) {
-    unsigned long start;
-    unsigned long end;
+    if (cpu.features & CPU_FEATURE_TSC)
+    {
 
-    t = ticks;
-    while (t == ticks);
-    start = (unsigned long) rdtsc();
+        unsigned long start;
+        unsigned long end;
 
-    t = ticks;
-    while (t == ticks);
-    end = (unsigned long) rdtsc();
+        t = ticks;
+        while (t == ticks);
+        start = (unsigned long) rdtsc();
 
-    cycles_per_tick = end - start;
-  } else {
-    // Determine magnitude of loops_per_tick
-    loops_per_tick = 1 << 12;
-    while (loops_per_tick <<= 1) {
-      t = ticks;
-      while (t == ticks);
+        t = ticks;
+        while (t == ticks);
+        end = (unsigned long) rdtsc();
 
-      t = ticks;
-      timed_delay(loops_per_tick);
-      if (t != ticks) break;
+        cycles_per_tick = end - start;
+    }
+    else
+    {
+        // Determine magnitude of loops_per_tick
+        loops_per_tick = 1 << 12;
+        while (loops_per_tick <<= 1)
+        {
+            t = ticks;
+            while (t == ticks);
+
+            t = ticks;
+            timed_delay(loops_per_tick);
+            if (t != ticks) break;
+        }
+
+        // Do a binary approximation of cycles_per_tick
+        precision = 8;
+        loops_per_tick >>= 1;
+        bit = loops_per_tick;
+        while (precision-- && (bit >>= 1))
+        {
+            loops_per_tick |= bit;
+            t = ticks;
+            while (t == ticks);
+            t = ticks;
+            timed_delay(loops_per_tick);
+            if (ticks != t) loops_per_tick &= ~bit; // Longer than 1 tick
+        }
+
+        // Each loop takes 10 cycles
+        cycles_per_tick = 10 * loops_per_tick;
     }
 
-    // Do a binary approximation of cycles_per_tick
-    precision = 8;
-    loops_per_tick >>= 1;
-    bit = loops_per_tick;
-    while (precision-- && (bit >>= 1)) {
-      loops_per_tick |= bit;
-      t = ticks;
-      while (t == ticks);
-      t = ticks;
-      timed_delay(loops_per_tick);
-      if (ticks != t) loops_per_tick &= ~bit; // Longer than 1 tick
+    mhz = cycles_per_tick * TIMER_FREQ / 1000000;
+
+    if (mhz > 1275)
+    {
+        mhz = ((mhz + 25) / 50) * 50;
+    }
+    else
+    if (mhz > 14)
+    {
+        int *speed = cpu_speeds;
+        int i;
+        unsigned long bestmhz = 0;
+
+        for (i = 0; i < sizeof(cpu_speeds) / sizeof(int); i++)
+        {
+            int curdiff = mhz - bestmhz;
+            int newdiff = mhz - *speed;
+
+            if (curdiff < 0) curdiff = -curdiff;
+            if (newdiff < 0) newdiff = -newdiff;
+
+            if (newdiff < curdiff) bestmhz = *speed;
+            speed++;
+        }
+
+        mhz = bestmhz;
     }
 
-    // Each loop takes 10 cycles
-    cycles_per_tick = 10 * loops_per_tick;
-  }
-
-  mhz = cycles_per_tick * TIMER_FREQ / 1000000;
-
-  if (mhz > 1275) {
-    mhz = ((mhz + 25) / 50) * 50;
-  } else if (mhz > 14) {
-    int *speed = cpu_speeds;
-    int i;
-    unsigned long bestmhz = 0;
-
-    for (i = 0; i < sizeof(cpu_speeds) / sizeof(int); i++) {
-      int curdiff = mhz - bestmhz;
-      int newdiff = mhz - *speed;
-
-      if (curdiff < 0) curdiff = -curdiff;
-      if (newdiff < 0) newdiff = -newdiff;
-
-      if (newdiff < curdiff) bestmhz = *speed;
-      speed++;
-    }
-
-    mhz = bestmhz;
-  }
-
-  kprintf(KERN_INFO "speed: %d cycles/tick, %d MHz processor\n", cycles_per_tick, mhz);
-  cpu.mhz = mhz;
+    kprintf(KERN_INFO "speed: %d cycles/tick, %d MHz processor\n", cycles_per_tick, mhz);
+    cpu.mhz = mhz;
 }
 
 static int uptime_proc(struct proc_file *pf, void *arg) {

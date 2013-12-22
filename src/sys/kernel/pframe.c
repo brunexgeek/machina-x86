@@ -222,90 +222,98 @@ int physmem_proc(struct proc_file *pf, void *arg) {
   return 0;
 }
 
-void init_pfdb() {
-  unsigned long heap;
-  unsigned long pfdbpages;
-  unsigned long i, j;
-  unsigned long memend;
-  pte_t *pt;
-  struct pageframe *pf;
-  struct memmap *memmap;
+void init_pfdb()
+{
+    unsigned long heap;
+    unsigned long pfdbpages;
+    unsigned long i, j;
+    unsigned long memend;
+    pte_t *pt;
+    struct pageframe *pf;
+    struct memmap *memmap;
 
-  // Register page directory
-  register_page_dir(virt2pfn(pdir));
+    // Register page directory
+    register_page_dir(virt2pfn(pdir));
 
-  // Calculates number of pages needed for page frame database
-  memend = syspage->ldrparams.memend;
-  heap = syspage->ldrparams.heapend;
-  pfdbpages = PAGES((memend / PAGESIZE) * sizeof(struct pageframe));
-  if ((pfdbpages + 2) * PAGESIZE + heap >= memend) panic("not enough memory for page table database");
+    // Calculates number of pages needed for page frame database
+    memend = syspage->ldrparams.memend;
+    heap = syspage->ldrparams.heapend;
+    pfdbpages = PAGES((memend / PAGESIZE) * sizeof(struct pageframe));
+    if ((pfdbpages + 2) * PAGESIZE + heap >= memend) panic("not enough memory for page table database");
 
-  // Intialize page tables for mapping the page frame database into kernel space
-  set_page_dir_entry(&pdir[PDEIDX(PFDBBASE)], heap | PT_PRESENT | PT_WRITABLE);
-  set_page_dir_entry(&pdir[PDEIDX(PFDBBASE) + 1], (heap + PAGESIZE) | PT_PRESENT | PT_WRITABLE);
-  pt = (pte_t *) heap;
-  heap += 2 * PAGESIZE;
-  memset(pt, 0, 2 * PAGESIZE);
-  register_page_table(BTOP(pt));
-  register_page_table(BTOP(pt) + 1);
+    // Intialize page tables for mapping the page frame database into kernel space
+    set_page_dir_entry(&pdir[PDEIDX(PFDBBASE)], heap | PT_PRESENT | PT_WRITABLE);
+    set_page_dir_entry(&pdir[PDEIDX(PFDBBASE) + 1], (heap + PAGESIZE) | PT_PRESENT | PT_WRITABLE);
+    pt = (pte_t *) heap;
+    heap += 2 * PAGESIZE;
+    memset(pt, 0, 2 * PAGESIZE);
+    register_page_table(BTOP(pt));
+    register_page_table(BTOP(pt) + 1);
 
-  // Allocate and map pages for page frame database
-  for (i = 0; i < pfdbpages; i++) {
-    set_page_table_entry(&pt[i], heap | PT_PRESENT | PT_WRITABLE);
-    heap += PAGESIZE;
-  }
-
-  // Initialize page frame database
-  maxmem = syspage->ldrparams.memend / PAGESIZE;
-  totalmem = 0;
-  freemem = 0;
-
-  pfdb = (struct pageframe *) PFDBBASE;
-  memset(pfdb, 0, pfdbpages * PAGESIZE);
-  for (i = 0; i < maxmem; i++) pfdb[i].tag = 0x00424144 /* BAD */;
-
-  // Add all memory from memory map to page frame database
-  memmap = &syspage->bootparams.memmap;
-  for (i = 0; i < (unsigned long) memmap->count; i++) {
-    unsigned long first = (unsigned long) memmap->entry[i].addr / PAGESIZE;
-    unsigned long last = first + (unsigned long) memmap->entry[i].size / PAGESIZE;
-
-    if (first >= maxmem) continue;
-    if (last >= maxmem) last = maxmem;
-
-    if (memmap->entry[i].type == MEMTYPE_RAM) {
-      for (j = first; j < last; j++) pfdb[j].tag = 0x46524545 /* FREE */;
-      totalmem += (last - first);
-    } else if (memmap->entry[i].type == MEMTYPE_RESERVED) {
-      for (j = first; j < last; j++) pfdb[j].tag = 0x52455356 /* RESV */;
+    // Allocate and map pages for page frame database
+    for (i = 0; i < pfdbpages; i++)
+    {
+        set_page_table_entry(&pt[i], heap | PT_PRESENT | PT_WRITABLE);
+        heap += PAGESIZE;
     }
-  }
 
-  // Reserve physical page 0 for BIOS
-  pfdb[0].tag = 0x52455356 /* RESV */;
-  totalmem--;
+    // Initialize page frame database
+    maxmem = syspage->ldrparams.memend / PAGESIZE;
+    totalmem = 0;
+    freemem = 0;
 
-  // Add interval [heapstart:heap] to pfdb as page table pages
-  for (i = syspage->ldrparams.heapstart / PAGESIZE; i < heap / PAGESIZE; i++) pfdb[i].tag = 0x50544142 /* PTAB */;
+    pfdb = (struct pageframe *) PFDBBASE;
+    memset(pfdb, 0, pfdbpages * PAGESIZE);
+    for (i = 0; i < maxmem; i++) pfdb[i].tag = 0x00424144 /* BAD */;
 
-  // Reserve DMA buffers at 0x10000 (used by floppy driver)
-  for (i = DMA_BUFFER_START / PAGESIZE; i < DMA_BUFFER_START / PAGESIZE + DMA_BUFFER_PAGES; i++) pfdb[i].tag = 0x00444d41 /* DMA */;
+    // Add all memory from memory map to page frame database
+    memmap = &syspage->bootparams.memmap;
+    for (i = 0; i < (unsigned long) memmap->count; i++)
+    {
+        unsigned long first = (unsigned long) memmap->entry[i].addr / PAGESIZE;
+        unsigned long last = first + (unsigned long) memmap->entry[i].size / PAGESIZE;
 
-  // Fixup tags for pfdb and syspage and intial tcb
-  set_pageframe_tag(pfdb, pfdbpages * PAGESIZE, 0x50464442 /* PFDB */);
-  set_pageframe_tag(syspage, PAGESIZE, 0x00535953 /* SYS */);
-  set_pageframe_tag(self(), TCBSIZE, 0x00544342 /* TCB */);
-  set_pageframe_tag((void *) INITRD_ADDRESS, syspage->ldrparams.initrd_size, 0x424f4f54 /* BOOT */);
+        if (first >= maxmem) continue;
+        if (last >= maxmem) last = maxmem;
 
-  // Insert all free pages into free list
-  pf = pfdb + maxmem;
-  do {
+        if (memmap->entry[i].type == MEMTYPE_RAM)
+        {
+            for (j = first; j < last; j++) pfdb[j].tag = 0x46524545 /* FREE */;
+            totalmem += (last - first);
+        }
+        else
+        if (memmap->entry[i].type == MEMTYPE_RESERVED)
+        {
+            for (j = first; j < last; j++) pfdb[j].tag = 0x52455356 /* RESV */;
+        }
+    }
+
+    // Reserve physical page 0 for BIOS
+    pfdb[0].tag = 0x52455356 /* RESV */;
+    totalmem--;
+
+    // Add interval [heapstart:heap] to pfdb as page table pages
+    for (i = syspage->ldrparams.heapstart / PAGESIZE; i < heap / PAGESIZE; i++) pfdb[i].tag = 0x50544142 /* PTAB */;
+
+    // Reserve DMA buffers at 0x10000 (used by floppy driver)
+    for (i = DMA_BUFFER_START / PAGESIZE; i < DMA_BUFFER_START / PAGESIZE + DMA_BUFFER_PAGES; i++) pfdb[i].tag = 0x00444d41 /* DMA */;
+
+    // Fixup tags for pfdb and syspage and intial tcb
+    set_pageframe_tag(pfdb, pfdbpages * PAGESIZE, 0x50464442 /* PFDB */);
+    set_pageframe_tag(syspage, PAGESIZE, 0x00535953 /* SYS */);
+    set_pageframe_tag(self(), TCBSIZE, 0x00544342 /* TCB */);
+
+    set_pageframe_tag((void *) INITRD_ADDRESS, syspage->ldrparams.initrd_size, 0x424f4f54 /* BOOT */);
+
+    // Insert all free pages into free list
+    pf = pfdb + maxmem;
+    do {
     pf--;
 
     if (pf->tag == 0x46524545 /* FREE */) {
-      pf->next = freelist;
-      freelist = pf;
-      freemem++;
+    pf->next = freelist;
+    freelist = pf;
+    freemem++;
     }
-  } while (pf > pfdb);
+    } while (pf > pfdb);
 }

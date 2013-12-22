@@ -79,7 +79,7 @@ void load_kernel(int bootdrv) {
   char *label;
   struct boot_sector *bootsect;
 
-  //kprintf("Loading kernel");
+  kprintf("Loading kernel\n");
 
   // Determine active boot partition if booting from harddisk
   if (bootdrv & 0x80 && (bootdrv & 0xF0) != 0xF0) {
@@ -186,7 +186,7 @@ void load_kernel(int bootdrv) {
   }
 
   // Determine entry point for kernel
-  doshdr = (struct dos_header *) kerneladdr;
+  /*doshdr = (struct dos_header *) kerneladdr;
   imghdr = (struct image_header *) (kerneladdr + doshdr->e_lfanew);
   krnlentry = imghdr->optional.address_of_entry_point + OSBASE;
 
@@ -200,8 +200,10 @@ void load_kernel(int bootdrv) {
     struct image_section_header *rsrc = &imghdr->sections[3];
     memcpy(kerneladdr + rsrc->virtual_address, kerneladdr + rsrc->pointer_to_raw_data, rsrc->size_of_raw_data);
     memset(kerneladdr + data->virtual_address + data->size_of_raw_data, 0, data->virtual_size - data->size_of_raw_data);
-  }
+  }*/
 
   // Map kernel into vitual address space
-  for (i = 0; i < imgpages; i++) pt[i] = (unsigned long) (kerneladdr + i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
+  for (i = 0; i < /*imgpages*/kernelpages; i++) pt[i] = (unsigned long) (kerneladdr + i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
+
+  kprintf("Kernel loaded 0x%8x\n", *((unsigned int *)kerneladdr));
 }

@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -164,31 +164,33 @@ void free_module_mem(void *addr, int pages) {
   rmap_free(kmodmap, BTOP(addr), pages);
 }
 
-void init_kmem() {
-  int pfn;
-  struct image_header *imghdr;
+void init_kmem()
+{
+    int pfn;
+    struct image_header *imghdr;
 
-  // Allocate page frame for kernel heap resource map and map into syspages
-  pfn = alloc_pageframe('SYS');
-  map_page(osvmap, pfn, PT_WRITABLE | PT_PRESENT);
+    // Allocate page frame for kernel heap resource map and map into syspages
+    pfn = alloc_pageframe('SYS');
+    map_page(osvmap, pfn, PT_WRITABLE | PT_PRESENT);
 
-  // Initialize resource map for kernel heap
-  rmap_init(osvmap, OSVMAP_ENTRIES);
+    // Initialize resource map for kernel heap
+    rmap_init(osvmap, OSVMAP_ENTRIES);
 
-  // Add kernel heap address space to osvmap
-  rmap_free(osvmap, BTOP(KHEAPBASE), BTOP(KHEAPSIZE));
+    // Add kernel heap address space to osvmap
+    rmap_free(osvmap, BTOP(KHEAPBASE), BTOP(KHEAPSIZE));
 
-  // Allocate page frame for kernel module map and map into syspages
-  pfn = alloc_pageframe('SYS');
-  map_page(kmodmap, pfn, PT_WRITABLE | PT_PRESENT);
+    // Allocate page frame for kernel module map and map into syspages
+    pfn = alloc_pageframe('SYS');
+    map_page(kmodmap, pfn, PT_WRITABLE | PT_PRESENT);
 
-  // Initialize resource map for kernel module area
-  rmap_init(kmodmap, KMODMAP_ENTRIES);
+    // Initialize resource map for kernel module area
+    rmap_init(kmodmap, KMODMAP_ENTRIES);
 
-  // Add kernel heap address space to kmodmap
-  imghdr = get_image_header((hmodule_t) OSBASE);
-  rmap_free(kmodmap, BTOP(OSBASE), BTOP(KMODSIZE));
-  rmap_reserve(kmodmap, BTOP(OSBASE), BTOP(imghdr->optional.size_of_image));
+    // Add kernel heap address space to kmodmap
+    // TODO: fix this!
+    //imghdr = get_image_header((hmodule_t) OSBASE);
+    //rmap_free(kmodmap, BTOP(OSBASE), BTOP(KMODSIZE));
+    //rmap_reserve(kmodmap, BTOP(OSBASE), BTOP(imghdr->optional.size_of_image));
 }
 
 int list_memmap(struct proc_file *pf, struct rmap *rmap, unsigned int startpos)
@@ -209,12 +211,12 @@ int list_memmap(struct proc_file *pf, struct rmap *rmap, unsigned int startpos)
 
     if (size > 0) {
       pdir_stat((void *) (pos * PAGESIZE), size * PAGESIZE, &stat);
-      pprintf(pf, "%08X %08X %8dK %8dK %8dK %8dK\n", 
-              pos * PAGESIZE, 
-              r->offset * PAGESIZE - 1, 
-              size * (PAGESIZE / 1024), 
-              stat.present * (PAGESIZE / 1024), 
-              stat.readonly * (PAGESIZE / 1024), 
+      pprintf(pf, "%08X %08X %8dK %8dK %8dK %8dK\n",
+              pos * PAGESIZE,
+              r->offset * PAGESIZE - 1,
+              size * (PAGESIZE / 1024),
+              stat.present * (PAGESIZE / 1024),
+              stat.readonly * (PAGESIZE / 1024),
               r->size * (PAGESIZE / 1024));
 
       total += size;

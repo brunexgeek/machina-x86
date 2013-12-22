@@ -289,77 +289,77 @@ static int copyright_proc(struct proc_file *pf, void *arg) {
   return 0;
 }
 
-__attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmod, char *opts, int reserved2) {
-  // Copy kernel options
-  strcpy(krnlopts, opts);
-  if (get_option(opts, "silent", NULL, 0, NULL) != NULL) kprint_enabled = 0;
-  if (get_option(opts, "serialconsole", NULL, 0, NULL) != NULL) serial_console = 1;
+__attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmod, char *opts, int reserved2)
+{
+    // Copy kernel options
+    strcpy(krnlopts, opts);
+    if (get_option(opts, "silent", NULL, 0, NULL) != NULL) kprint_enabled = 0;
+    if (get_option(opts, "serialconsole", NULL, 0, NULL) != NULL) serial_console = 1;
 
-  // Initialize console
-  init_console();
+    // Initialize console
+    init_console();
 
-  // Display banner
-  kprintf(KERN_INFO "Blevers\n");
-  if (*krnlopts) kprintf(KERN_INFO "options: %s\n", krnlopts);
+    kprintf(KERN_INFO "Welcome to Machina operating system!\n");
+    // Display banner
+    if (*krnlopts) kprintf(KERN_INFO "options: %s\n", krnlopts);
 
-  // Initialize machine
-  init_mach();
+    // Initialize machine
+    init_mach();
 
-  // Initialize CPU
-  init_cpu();
+    // Initialize CPU
+    init_cpu();
 
-  // Initialize page frame database
-  init_pfdb();
+    // Initialize page frame database
+    init_pfdb();
 
-  // Initialize page directory
-  init_pdir();
+    // Initialize page directory
+    init_pdir();
 
-  // Initialize kernel heap
-  init_kmem();
+    // Initialize kernel heap
+    init_kmem();
 
-  // Initialize kernel allocator
-  init_malloc();
+    // Initialize kernel allocator
+    init_malloc();
 
-  // Initialize virtual memory manager
-  init_vmm();
+    // Initialize virtual memory manager
+    init_vmm();
 
-  // Flush tlb
-  flushtlb();
+    // Flush tlb
+    flushtlb();
 
-  // Register memory management procs
-  register_proc_inode("memmap", memmap_proc, NULL);
-  register_proc_inode("memusage", memusage_proc, NULL);
-  register_proc_inode("memstat", memstat_proc, NULL);
-  register_proc_inode("physmem", physmem_proc, NULL);
-  register_proc_inode("pdir", pdir_proc, NULL);
-  register_proc_inode("virtmem", virtmem_proc, NULL);
-  register_proc_inode("kmem", kmem_proc, NULL);
-  register_proc_inode("kmodmem", kmodmem_proc, NULL);
-  register_proc_inode("kheap", kheapstat_proc, NULL);
-  register_proc_inode("vmem", vmem_proc, NULL);
+    // Register memory management procs
+    register_proc_inode("memmap", memmap_proc, NULL);
+    register_proc_inode("memusage", memusage_proc, NULL);
+    register_proc_inode("memstat", memstat_proc, NULL);
+    register_proc_inode("physmem", physmem_proc, NULL);
+    register_proc_inode("pdir", pdir_proc, NULL);
+    register_proc_inode("virtmem", virtmem_proc, NULL);
+    register_proc_inode("kmem", kmem_proc, NULL);
+    register_proc_inode("kmodmem", kmodmem_proc, NULL);
+    register_proc_inode("kheap", kheapstat_proc, NULL);
+    register_proc_inode("vmem", vmem_proc, NULL);
 
-  register_proc_inode("cpu", cpu_proc, NULL);
+    register_proc_inode("cpu", cpu_proc, NULL);
 
-  // Initialize interrupts, floating-point support, and real-time clock
-  init_pic();
-  init_trap();
-  init_fpu();
-  init_pit();
+    // Initialize interrupts, floating-point support, and real-time clock
+    init_pic();
+    init_trap();
+    init_fpu();
+    init_pit();
 
-  // Initialize timers, scheduler, and handle manager
-  init_timers();
-  init_sched();
-  init_handles();
-  init_syscall();
+    // Initialize timers, scheduler, and handle manager
+    init_timers();
+    init_sched();
+    init_handles();
+    init_syscall();
 
-  // Enable interrupts and calibrate delay
-  sti();
-  calibrate_delay();
+    // Enable interrupts and calibrate delay
+    sti();
+    calibrate_delay();
 
-  // Start main task and dispatch to idle task
-  mainthread = kthread_create_kland(main, 0, PRIORITY_NORMAL, "init");
-
-  idle_task();
+    // Start main task and dispatch to idle task
+    mainthread = kthread_create_kland(main, 0, PRIORITY_NORMAL, "init");
+    idle_task();
 }
 
 void init_net() {

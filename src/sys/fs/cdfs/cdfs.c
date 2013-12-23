@@ -247,7 +247,7 @@ static int cdfs_find_file(struct cdfs *cdfs, char *name, int len, struct buf **b
   int dir;
   int split;
   int n;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
   // If root get directory record from volume descriptor
   if (len == 0) {
     struct iso_volume_descriptor *vd;
@@ -262,10 +262,10 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
   // Split path into directory part and file name part
   split = -1;
   for (n = 0; n < len; n++) if (name[n] == PS1 || name[n] == PS2) split = n;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
   // Find directly if file located in root directory
   if (split == -1) return cdfs_find_in_dir(cdfs, 1, name, len, buf, rec);
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
   // Locate directory
   dir = cdfs_find_dir(cdfs, name, split + 1);
   if (dir < 0) return dir;
@@ -299,38 +299,32 @@ int cdfs_mount(struct fs *fs, char *opts)
     int blk;
     struct buf *buf;
     struct iso_volume_descriptor *vd;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Check device
     devno = kdev_open(fs->mntfrom);
-kprintf("## %s %d\n", __FILE__, __LINE__);
     if (devno == NODEV) return -ENODEV;
-kprintf("## %s %d\n", __FILE__, __LINE__);
     if (kdev_get(devno)->driver->type != DEV_TYPE_BLOCK) return -ENOTBLK;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Revalidate device and check block size
     if (get_option(opts, "revalidate", NULL, 0, NULL))
     {
         rc = kdev_ioctl(devno, IOCTL_REVALIDATE, NULL, 0);
         if (rc < 0) return rc;
     }
-kprintf("## %s %d\n", __FILE__, __LINE__);
     if (kdev_ioctl(devno, IOCTL_GETBLKSIZE, NULL, 0) != CDFS_BLOCKSIZE) return -ENXIO;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Allocate file system
     cdfs = (struct cdfs *) kmalloc(sizeof(struct cdfs));
     memset(cdfs, 0, sizeof(struct cdfs));
-
     cdfs->devno = devno;
-kprintf("## %s %d\n", __FILE__, __LINE__);
     cdfs->blks = kdev_ioctl(devno, IOCTL_GETDEVSIZE, NULL, 0);
-kprintf("## %s %d\n", __FILE__, __LINE__);
     if (cdfs->blks < 0) return cdfs->blks;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Allocate cache
     cachebufs = get_num_option(opts, "cache", CDFS_DEFAULT_CACHESIZE);
     cdfs->cache = init_buffer_pool(devno, cachebufs, CDFS_BLOCKSIZE, NULL, cdfs);
     if (!cdfs->cache) return -ENOMEM;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Read volume descriptors
     cdfs->vdblk = 0;
     blk = 16;
@@ -372,7 +366,7 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
         blk++;
     }
     if (cdfs->vdblk == 0) return -EIO;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Initialize filesystem from selected volume descriptor and read path table
     buf  = get_buffer(cdfs->cache, cdfs->vdblk);
     if (!buf) return -EIO;
@@ -432,14 +426,14 @@ int cdfs_open(struct file *filp, char *name)
     int extent;
     int flags;
     int rc;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Check open mode
     if (filp->flags & (O_CREAT | O_TRUNC | O_APPEND)) return -EROFS;
 
     // Locate file in file system
     rc = cdfs_find_file(cdfs, name, strlen(name), &buf, &rec);
     if (rc < 0) return rc;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     flags = isonum_711(rec->flags);
     extent = isonum_733(rec->extent);
     date = cdfs_isodate(rec->date);

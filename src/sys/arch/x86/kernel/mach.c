@@ -33,7 +33,13 @@
 //
 
 #include <os/krnl.h>
+#include <os/mach.h>
 
+
+void printnum( unsigned int value )
+{
+    kprintf("printnum: 0x%x\n", value);
+}
 
 static void hw_sti()
 {
@@ -71,121 +77,6 @@ static void hw_sysret()
     );
 }
 
-int hw_in(port_t port) __asm__("___hw_in");
-__asm__
-(
-    "___hw_in: "
-    "mov     dx,cx;"
-    "xor     eax,eax;"
-    "in      al,dx;"
-    "ret;"
-);
-
-
-unsigned short hw_inw(port_t port) __asm__("___hw_inw");
-__asm__
-(
-    "___hw_inw: "
-    "mov     dx,cx;"
-    "in      ax,dx;"
-    "ret;"
-);
-
-
-unsigned long hw_ind(port_t port) __asm__("___hw_ind");
-__asm__
-(
-    "___hw_ind: "
-    "mov     dx,cx;"
-    "in      eax,dx;"
-    "ret;"
-);
-
-
-static void hw_insw(port_t port, void *buf, int count) {
-    __asm__
-    (
-        //"mov edx, port;"
-        "mov edi, %1;"
-        //"mov ecx, count;"
-        "rep insw;"
-        :
-        : "d" (port), "m" (buf), "c" (count)
-    );
-}
-
-
-static void hw_insd(port_t port, void *buf, int count) {
-    __asm__
-    (
-        //"mov edx, port;"
-        "mov edi, %0;"
-        //"mov ecx, count;"
-        "rep insd;"
-        :
-        : "d" (port), "m" (buf), "c" (count)
-    );
-}
-
-
-int hw_out(port_t port, int val) __asm__("___hw_out");
-__asm__
-(
-    "___hw_out: "
-    "mov     al, [esp + 4];"
-    "mov     dx, [esp + 8];"
-    "out     dx, al;"
-    "ret;"
-);
-
-
-unsigned short hw_outw(port_t port, unsigned short val) __asm__("___hw_outw");
-__asm__
-(
-    "___hw_outw: "
-    "mov     ax, [esp + 4];"
-    "mov     dx, [esp + 8];"
-    "out     dx, ax;"
-    "ret;"
-);
-
-
-unsigned long hw_outd(port_t port, unsigned long val) __asm__("___hw_outd");
-__asm__
-(
-    "___hw_outd: "
-    "mov     eax, [esp + 4];"
-    "mov     dx,  [esp + 8];"
-    "out     dx,  eax;"
-    "ret;"
-);
-
-
-static void hw_outsw(port_t port, void *buf, int count)
-{
-    __asm__
-    (
-        //"mov edx, port;"
-        "mov esi, %1;"
-        //"mov ecx, count;"
-        "rep outsw;"
-        :
-        : "d" (port), "m" (buf), "c" (count)
-    );
-}
-
-static void hw_outsd(port_t port, void *buf, int count)
-{
-    __asm__
-    (
-        //"mov edx, port;"
-        "mov esi, %1;"
-        //"mov ecx, count;"
-        "rep outsd;"
-        :
-        : "d" (port), "m" (buf), "c" (count)
-    );
-}
 
 static void hw_cpuid(unsigned long reg, unsigned long values[4]) {
     __asm__
@@ -238,16 +129,6 @@ static unsigned long hw_get_cr2()
 
     return val;
 }
-
-
-unsigned __int64 hw_rdtsc() __asm__("___hw_rdtsc");
-__asm__
-(
-    "___hw_rdtsc: "
-    "rdtsc;"
-    "ret;"
-);
-
 
 
 static void hw_wrmsr(
@@ -317,20 +198,24 @@ static void hw_invlpage(void *addr) {
     }
 }
 
-static void hw_register_page_dir(unsigned long pfn) {
-  // Do nothing
+static void hw_register_page_dir(unsigned long pfn)
+{
+    // Do nothing
 }
 
-static void hw_register_page_table(unsigned long pfn) {
-  // Do nothing
+static void hw_register_page_table(unsigned long pfn)
+{
+    // Do nothing
 }
 
-static void hw_set_page_dir_entry(pte_t *pde, unsigned long value) {
-  *pde = value;
+static void hw_set_page_dir_entry(pte_t *pde, unsigned long value)
+{
+    *pde = value;
 }
 
-static void hw_set_page_table_entry(pte_t *pte, unsigned long value) {
-  *pte = value;
+static void hw_set_page_table_entry(pte_t *pte, unsigned long value)
+{
+    *pte = value;
 }
 
 static void hw_poweroff()
@@ -350,6 +235,50 @@ static void hw_poweroff()
     }
 }
 
-static void hw_reboot() {
-  kbd_reboot();
+
+static void hw_reboot()
+{
+    kbd_reboot();
 }
+
+
+unsigned int __inline hw_rdtsc() __asm__("___hw_rdtsc");
+
+
+struct mach mach =
+{
+  0, // kernel ring
+  hw_sti,
+  hw_cli,
+  hw_hlt,
+  hw_iretd,
+  hw_sysret,
+  NULL,//hw_in,
+  NULL,//hw_inw,
+  NULL,//hw_ind,
+  NULL,//hw_insw,
+  NULL,//hw_insd,
+  NULL,//hw_out,
+  NULL,//hw_outw,
+  NULL,//hw_outd,
+  NULL,//hw_outsw,
+  NULL,//hw_outsd,
+  hw_cpuid,
+  hw_get_cr0,
+  hw_set_cr0,
+  hw_get_cr2,
+  NULL,//hw_rdtsc
+  hw_wrmsr,
+  hw_set_gdt_entry,
+  hw_set_idt_gate,
+  hw_set_idt_trap,
+  hw_switch_kernel_stack,
+  hw_flushtlb,
+  hw_invlpage,
+  hw_register_page_dir,
+  hw_register_page_table,
+  hw_set_page_dir_entry,
+  hw_set_page_table_entry,
+  hw_poweroff,
+  hw_reboot
+};

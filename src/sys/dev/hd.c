@@ -398,7 +398,7 @@ static void hd_fixstring(unsigned char *s, int len) {
 }
 
 static void hd_error(char *func, unsigned char error) {
-  kprintf(KERN_ERR "%s: ", func);
+kprintf(KERN_ERR "%s: ", func);
   if (error & HDCE_BBK)   kprintf("bad block  ");
   if (error & HDCE_UNC)   kprintf("uncorrectable data  ");
   if (error & HDCE_MC)    kprintf("media change  ");
@@ -407,7 +407,7 @@ static void hd_error(char *func, unsigned char error) {
   if (error & HDCE_ABRT)  kprintf("abort  ");
   if (error & HDCE_TK0NF) kprintf("track 0 not found  ");
   if (error & HDCE_AMNF)  kprintf("address mark not found  ");
-  kprintf("\n");
+kprintf("\n");
 }
 
 static int hd_wait(struct hdc *hdc, unsigned char mask, unsigned int timeout) {
@@ -545,22 +545,23 @@ static int hd_identify(struct hd *hd)
     // Ignore interrupt for identify command
     hd->hdc->dir = HD_XFER_IGNORE;
     reset_event(&hd->hdc->ready);
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Issue read drive parameters command
+
     outp(hd->hdc->iobase + HDC_FEATURE, 0);
     outp(hd->hdc->iobase + HDC_DRVHD, hd->drvsel);
     outp(hd->hdc->iobase + HDC_COMMAND, hd->iftype == HDIF_ATAPI ? HDCMD_PIDENTIFY : HDCMD_IDENTIFY);
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Wait for data ready
     if (wait_for_object(&hd->hdc->ready, HDTIMEOUT_CMD) < 0) return -ETIMEOUT;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Some controllers issues the interrupt before data is ready to be read
     // Make sure data is ready by waiting for DRQ to be set
     if (hd_wait(hd->hdc, HDCS_DRQ, HDTIMEOUT_DRQ) < 0) return -EIO;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Read parameter data
     insw(hd->hdc->iobase + HDC_DATA, &(hd->param), SECTORSIZE / 2);
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Fill in drive parameters
     hd->cyls = hd->param.cylinders;
     hd->heads = hd->param.heads;
@@ -726,15 +727,15 @@ static int atapi_read_capacity(struct hd *hd)
 
     memset(pkt, 0, 12);
     pkt[0] = ATAPI_CMD_READCAPICITY;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+//kprintf("## %s %d\n", __FILE__, __LINE__);
     rc = atapi_packet_read(hd, pkt, 12, buf, sizeof buf);
     if (rc < 0) return rc;
     if (rc != sizeof buf) return -EBUF;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+//kprintf("## %s %d\n", __FILE__, __LINE__);
     blks = ntohl(buf[0]);
     blksize = ntohl(buf[1]);
     if (blksize != CDSECTORSIZE) kprintf("%s: unexpected block size (%d)\n", kdev_get(hd->devno)->name, blksize);
-kprintf("## %s %d\n", __FILE__, __LINE__);
+//kprintf("## %s %d\n", __FILE__, __LINE__);
     return blks;
 }
 
@@ -1426,14 +1427,11 @@ static int get_interface_type(struct hdc *hdc, int drvsel) {
 
   sc = inp(hdc->iobase + HDC_SECTORCNT);
   sn = inp(hdc->iobase + HDC_SECTOR);
-  //kprintf("%x: sc=0x%02x sn=0x%02x\n", hdc->iobase, sc, sn);
 
   if (sc == 0x01 && sn == 0x01) {
     cl = inp(hdc->iobase + HDC_TRACKLSB);
     ch = inp(hdc->iobase + HDC_TRACKMSB);
     st = inp(hdc->iobase + HDC_STATUS);
-
-    //kprintf("%x: cl=0x%02x ch=0x%02x st=0x%02x\n", hdc->iobase, cl, ch, st);
 
     if (cl == 0x14 && ch == 0xeb) return HDIF_ATAPI;
     if (cl == 0x00 && ch == 0x00 && st != 0x00) return HDIF_ATA;

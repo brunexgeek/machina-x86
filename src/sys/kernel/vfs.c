@@ -109,8 +109,6 @@ int canonicalize(char *path, char *buffer) {
 
 int fnmatch(char *fn1, int len1, char *fn2, int len2)
 {
-    kprintf("[%s]\n", __FUNCTION__);
-
     if (len1 != len2) return 0;
     while (len1--) if (*fn1++ != *fn2++) return 0;
     return 1;
@@ -125,41 +123,33 @@ int fslookup(char *name, int full, struct fs **mntfs, char **rest)
     int m;
     int rc;
 
-    kprintf("[%s]\n", __FUNCTION__);
-
     // Remove initial path separator from filename
     if (!name) return -EINVAL;
     p = name;
     if (*p == PS1 || *p == PS2) p++;
     n = strlen(p);
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Find matching filesystem in mount list
     fs = mountlist;
     while (fs)
     {
-kprintf("## %s %d\n", __FILE__, __LINE__);
         q = fs->mntto;
-kprintf("mount point '%s'\n", q);
-kprintf("mount from '%s'\n", fs->mntfrom);
+
         if (*q)
         {
-            kprintf("## %s %d\n", __FILE__, __LINE__);
             if (*q == PS1 || *q == PS2) q++;
 
             if (!*q)
             {
-kprintf("## %s %d\n", __FILE__, __LINE__);
                 rc = check(fs->mode, fs->uid, fs->gid, S_IEXEC);
                 if (rc < 0) return rc;
-kprintf("## %s %d\n", __FILE__, __LINE__);
                 if (rest) *rest = p;
                 *mntfs = fs;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
                 return 0;
             }
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
             m = strlen(q);
-            kprintf(">> %s\n", q);
             if (n >= m && fnmatch(p, m, q, m) && (p[m] == PS1 || p[m] == PS2 || full && p[m] == 0)) {
             rc = check(fs->mode, fs->uid, fs->gid, S_IEXEC);
             if (rc < 0) return rc;
@@ -173,7 +163,7 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
 
         fs = fs->next;
     }
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     return -ENOENT;
 }
 
@@ -388,7 +378,6 @@ int mount(char *type, char *mntto, char *mntfrom, char *opts, struct fs **newfs)
     if (fs->ops->mount)
     {
         rc = fs->ops->mount(fs, opts);
-        kprintf(">> mount point '%s' give rc=%d\n", fs->mntto, rc);
         if (rc != 0)
         {
             kfree(fs);
@@ -418,41 +407,44 @@ int mount(char *type, char *mntto, char *mntfrom, char *opts, struct fs **newfs)
 }
 
 
-int umount(char *name) {
-  struct fs *fs;
-  int rc;
-  char path[MAXPATH];
+int umount(char *name)
+{
+    struct fs *fs;
+    int rc;
+    char path[MAXPATH];
 
-  // Check parameters
-  if (!name) return -EINVAL;
+    // Check parameters
+    if (!name) return -EINVAL;
 
-  rc = canonicalize(name, path);
-  if (rc < 0) return rc;
+    rc = canonicalize(name, path);
+    if (rc < 0) return rc;
 
-  // Find mounted filesystem
-  fs = mountlist;
-  while (fs) {
-    if (fnmatch(path, strlen(path), fs->mntto, strlen(fs->mntto))) break;
-    fs = fs->next;
-  }
-  if (!fs) return -ENOENT;
+    // Find mounted filesystem
+    fs = mountlist;
+    while (fs)
+    {
+        if (fnmatch(path, strlen(path), fs->mntto, strlen(fs->mntto))) break;
+        fs = fs->next;
+    }
+    if (!fs) return -ENOENT;
 
-  // Check for locks
-  if (fs->locks > 0) return -EBUSY;
+    // Check for locks
+    if (fs->locks > 0) return -EBUSY;
 
-  // Unmount filesystem from device
-  if (fs->ops->umount) {
-    rc = fs->ops->umount(fs);
-    if (rc != 0) return rc;
-  }
+    // Unmount filesystem from device
+    if (fs->ops->umount)
+    {
+        rc = fs->ops->umount(fs);
+        if (rc != 0) return rc;
+    }
 
-  // Remove mounted filesystem
-  if (fs->next) fs->next->prev = fs->prev;
-  if (fs->prev) fs->prev->next = fs->next;
-  if (mountlist == fs) mountlist = fs->next;
-  kfree(fs);
+    // Remove mounted filesystem
+    if (fs->next) fs->next->prev = fs->prev;
+    if (fs->prev) fs->prev->next = fs->next;
+    if (mountlist == fs) mountlist = fs->next;
+    kfree(fs);
 
-  return 0;
+    return 0;
 }
 
 int umount_all() {
@@ -992,13 +984,13 @@ int stat(char *name, struct stat64 *buffer)
     char *rest;
     int rc;
     char path[MAXPATH];
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     rc = canonicalize(name, path);
     if (rc < 0) return rc;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     rc = fslookup(path, 0, &fs, &rest);
     if (rc < 0) return rc;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     if (!fs->ops->stat) return -ENOSYS;
     fs->locks++;
     if (lock_fs(fs, FSOP_STAT) < 0)
@@ -1006,7 +998,7 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
         fs->locks--;
         return -ETIMEOUT;
     }
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     rc = fs->ops->stat(fs, rest, buffer);
     unlock_fs(fs, FSOP_STAT);
     fs->locks--;

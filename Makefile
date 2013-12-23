@@ -60,6 +60,10 @@ KERNEL32_SRC_FILES = \
 	sys/kernel/pnpbios.c \
 	sys/kernel/queue.c \
 	sys/kernel/sched.c \
+	sys/arch/x86/kernel/sched.c \
+	sys/arch/x86/kernel/sched.s \
+	sys/arch/x86/kernel/mach.c \
+	sys/arch/x86/kernel/mach.s \
 	sys/kernel/start.c \
 	sys/kernel/syscall.c \
 	sys/kernel/timer.c \
@@ -136,11 +140,12 @@ $(KERNEL32_OBJ_FILES): | KERNEL32_OBJ_MKDIR
 
 KERNEL32_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/kernel
-	@mkdir -p build/machina/obj/kernel/sys/fs/smbfs
+	@mkdir -p build/machina/obj/kernel/sys/net
 	@mkdir -p build/machina/obj/kernel/sys/fs/pipefs
 	@mkdir -p build/machina/obj/kernel/lib/libc
+	@mkdir -p build/machina/obj/kernel/sys/fs/smbfs
 	@mkdir -p build/machina/obj/kernel/sys/fs/dfs
-	@mkdir -p build/machina/obj/kernel/sys/net
+	@mkdir -p build/machina/obj/kernel/sys/arch/x86/kernel
 	@mkdir -p build/machina/obj/kernel/sys/kernel
 	@mkdir -p build/machina/obj/kernel/sys/dev
 	@mkdir -p build/machina/obj/kernel/sys/fs/procfs
@@ -149,6 +154,12 @@ KERNEL32_OBJ_MKDIR:
 
 $(KERNEL32_OBJ_DIR)/%.c.o: $(KERNEL32_SRC_DIR)/%.c
 	$(CC) -O2 -m32 $(KERNEL32_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+
+$(KERNEL32_OBJ_DIR)/%.s.o: $(KERNEL32_SRC_DIR)/%.s
+	$(CC) -O2 -m32 -x assembler-with-cpp $(KERNEL32_CFLAGS) -c $< -o $@
+
+KERNEL32_CLEAN :
+	@rm -f $(KERNEL32_OBJ_FILES)
 
 $(KERNEL32_OUT_FILE) kernel :  KERNEL32_WELCOME $(KERNEL32_OBJ_FILES)
 	@mkdir -p $(KERNEL32_OUT_DIR)
@@ -191,6 +202,9 @@ MKDFS_OBJ_MKDIR:
 
 $(MKDFS_OBJ_DIR)/%.c.o: $(MKDFS_SRC_DIR)/%.c
 	$(CC) -O2 -m32 $(MKDFS_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+
+MKDFS_CLEAN :
+	@rm -f $(MKDFS_OBJ_FILES)
 
 $(MKDFS_OUT_FILE) :  MKDFS_WELCOME $(MKDFS_OBJ_FILES)
 	@mkdir -p $(MKDFS_OUT_DIR)
@@ -320,10 +334,13 @@ $(LIBC_OBJ_DIR)/%.c.o: $(LIBC_SRC_DIR)/%.c
 	$(CC) -O2 -m32 $(LIBC_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(LIBC_OBJ_DIR)/%.s.o: $(LIBC_SRC_DIR)/%.s
-	$(CC) -O2 -m32 $(LIBC_CFLAGS) -c $< -o $@
+	$(CC) -O2 -m32 -x assembler-with-cpp $(LIBC_CFLAGS) -c $< -o $@
 
 $(LIBC_OBJ_DIR)/%.asm.o: $(LIBC_SRC_DIR)/%.asm
 	$(NASM) $(LIBC_NFLAGS) $< -o $@
+
+LIBC_CLEAN :
+	@rm -f $(LIBC_OBJ_FILES)
 
 $(LIBC_OUT_FILE) libc : build/tools/cc build/tools/as build/tools/ar  LIBC_WELCOME $(LIBC_OBJ_FILES)
 	@mkdir -p $(LIBC_OUT_DIR)
@@ -422,6 +439,9 @@ $(LIBKERNEL_OBJ_DIR)/%.c.o: $(LIBKERNEL_SRC_DIR)/%.c
 $(LIBKERNEL_OBJ_DIR)/%.asm.o: $(LIBKERNEL_SRC_DIR)/%.asm
 	$(NASM) $(LIBKERNEL_NFLAGS) $< -o $@
 
+LIBKERNEL_CLEAN :
+	@rm -f $(LIBKERNEL_OBJ_FILES)
+
 $(LIBKERNEL_OUT_FILE) : build/tools/nasm  LIBKERNEL_WELCOME $(LIBKERNEL_OBJ_FILES)
 	@mkdir -p $(LIBKERNEL_OUT_DIR)
 	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(LIBKERNEL_LDFLAGS) $(LIBKERNEL_OBJ_FILES) -o $(LIBKERNEL_OUT_FILE)
@@ -517,6 +537,9 @@ $(OSLDRM_OBJ_DIR)/%.c.o: $(OSLDRM_SRC_DIR)/%.c
 $(OSLDRM_OBJ_DIR)/%.asm.o: $(OSLDRM_SRC_DIR)/%.asm
 	$(NASM) $(OSLDRM_NFLAGS) $< -o $@
 
+OSLDRM_CLEAN :
+	@rm -f $(OSLDRM_OBJ_FILES)
+
 $(OSLDRM_OUT_FILE) osloader-main : nasm osloader-stub  OSLDRM_WELCOME $(OSLDRM_OBJ_FILES)
 	@mkdir -p $(OSLDRM_OUT_DIR)
 	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(OSLDRM_LDFLAGS) $(OSLDRM_OBJ_FILES) -o $(OSLDRM_OUT_FILE)
@@ -586,6 +609,9 @@ NASM_OBJ_MKDIR:
 
 $(NASM_OBJ_DIR)/%.c.o: $(NASM_SRC_DIR)/%.c
 	$(CC) -O2 -m32 $(NASM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+
+NASM_CLEAN :
+	@rm -f $(NASM_OBJ_FILES)
 
 $(NASM_OUT_FILE) nasm :  NASM_WELCOME $(NASM_OBJ_FILES)
 	@mkdir -p $(NASM_OUT_DIR)

@@ -39,52 +39,7 @@
 #define DEFAULT_INITIAL_STACK_COMMIT (8 * 1024)
 
 
-/**
- * For some mysterious reason we need this function at this point for the 'switch_context'
- * assembly function to work!
- */
-static void print_pointer( void *ptr)
-{
-    kprintf("Pointer: %p\n", ptr);
-}
-
-
-void switch_context(struct thread *t) __asm__("___switch_context");
-
-__asm__
-(
-    "___switch_context: "
-    // Save registers on current kernel stack
-    "push    ebp;"
-    "push    ebx;"
-    "push    edi;"
-    "push    esi;"
-
-    // Store kernel stack pointer in tcb
-    "mov     eax, esp;"
-    "and     eax, " TO_STRING(TCBMASK) ";"
-    "add     eax, " TO_STRING(TCBESP) ";"
-    "mov     [eax], esp;"
-
-    // Get stack pointer for new thread and store in esp0
-    "mov     eax, 20[esp];"
-    "add     eax, " TO_STRING(TCBESP) ";"
-    "mov     esp, [eax];"
-    "mov     ebp, " TO_STRING(TSS_ESP0) ";"
-    "mov     [ebp], eax;"
-
-    // Restore registers from new kernel stack
-    "pop     esi;"
-    "pop     edi;"
-    "pop     ebx;"
-    "pop     ebp;"
-
-    "ret;"
-);
-
-
-
-static void init_thread_stack(struct thread *t, void *startaddr, void *arg)
+void init_thread_stack(struct thread *t, void *startaddr, void *arg)
 {
     struct tcb *tcb = (struct tcb *) t;
     unsigned long *esp = (unsigned long *) &tcb->esp;

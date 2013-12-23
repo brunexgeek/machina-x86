@@ -241,7 +241,7 @@ static void init_filesystem()
     // Mount file systems
     rc = mount(rootfs, "/", rootdev, rootfsopts, NULL);
     if (rc < 0) panic("error mounting root filesystem");
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     rc = mount("devfs", "/dev", NULL, NULL, NULL);
     if (rc < 0) panic("error mounting dev filesystem");
 
@@ -368,9 +368,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
 
     // Start main task and dispatch to idle task
     mainthread = kthread_create_kland(main, 0, PRIORITY_NORMAL, "init");
-
     idle_task();
-
 }
 
 void init_net()
@@ -415,18 +413,18 @@ void main(void *arg)
 
     // Enumerate root host buses and units
     enum_host_bus();
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Initialize boot device drivers
     init_hd();
     init_fd();
     init_vblk();
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Initialize file systems
     init_filesystem();
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Load kernel configuration
     load_kernel_config();
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Determine kernel panic action
     str = get_property(krnlcfg, "kernel", "onpanic", "halt");
     if (strcmp(str, "halt") == 0)
@@ -448,19 +446,19 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
     {
         onpanic = ONPANIC_POWEROFF;
     }
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Set path separator
     pathsep = *get_property(krnlcfg, "kernel", "pathsep", "");
     if (pathsep != PS1 && pathsep != PS2) pathsep = PS1;
     t->curdir[0] = pathsep;
     t->curdir[1] = 0;
     peb->pathsep = pathsep;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Initialize module loader
-    init_kernel_modules();
+    // >>> init_kernel_modules();
 kprintf("## %s %d\n", __FILE__, __LINE__);
     // Get os version info from kernel version resource
-    get_version_value((hmodule_t) OSBASE, "ProductName", peb->osname, sizeof peb->osname);
+    /*get_version_value((hmodule_t) OSBASE, "ProductName", peb->osname, sizeof peb->osname);
     peb->ostimestamp = get_image_header((hmodule_t) OSBASE)->header.timestamp;
     ver = get_version_info((hmodule_t) OSBASE);
     if (ver)
@@ -474,14 +472,14 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
         peb->osversion.file_minor_version = OS_VERSION_MINOR;
         peb->osversion.file_release_number = OS_RELEASE;
         peb->osversion.file_build_number = OS_BUILD;
-    }
-kprintf("## %s %d\n", __FILE__, __LINE__);
+    }*/
+
     // Install device drivers
-    install_drivers();
-kprintf("## %s %d\n", __FILE__, __LINE__);
+    //install_drivers();
+
     // Initialize network
     init_net();
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Install /proc/version and /proc/copyright handler
     register_proc_inode("version", version_proc, NULL);
     register_proc_inode("copyright", copyright_proc, NULL);
@@ -494,7 +492,7 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
     if (halloc(&cons->iob.object) != 0) panic("unexpected stdin handle");
     if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
-
+kprintf("## %s %d\n", __FILE__, __LINE__);
     // Load kernel32.so in user address space
     imgbase = load_image_file(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
     if (!imgbase) panic("unable to load kernel32.so");
@@ -502,7 +500,7 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
     stack_reserve = imghdr->optional.size_of_stack_reserve;
     stack_commit = imghdr->optional.size_of_stack_commit;
     entrypoint = get_entrypoint(imgbase);
-
+kprintf("## %s %d\n", __FILE__, __LINE__);
     // Initialize initial user thread
     if (init_user_thread(t, entrypoint) < 0) panic("unable to initialize initial user thread");
     if (allocate_user_stack(t, stack_reserve, stack_commit) < 0) panic("unable to allocate stack for initial user thread");

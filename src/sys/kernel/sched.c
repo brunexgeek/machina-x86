@@ -59,11 +59,9 @@ struct task_queue sys_task_queue;
 
 static void tmr_alarm(void *arg);
 
-
-#if (TARGET_MACHINE==x86)
-#include "../arch/x86/kernel/sched.c"
-#endif
-
+void user_thread_start(void *arg);
+void init_thread_stack(struct thread *t, void *startaddr, void *arg);
+void switch_context(struct thread *t) __asm__("___switch_context");
 
 static void insert_before( struct thread *t1, struct thread *t2 )
 {
@@ -821,7 +819,6 @@ void dispatch()
 
     // Find next thread to run
     t = find_ready_thread();
-    //kprintf("selected thread: %s\n", t->name);
     if (!t) panic("No thread ready to run");
 
     // If current thread has been selected to run again then just return
@@ -912,11 +909,9 @@ void idle_task()
                 halt();
             }
         }
-//kprintf("next thread: %s\n", t->name);
+
         mark_thread_ready(t, 0, 0);
-//kprintf("## %s %d\n", __FILE__, __LINE__);
         dispatch();
-//kprintf("## %s %d\n", __FILE__, __LINE__);
         //if ((eflags() & EFLAG_IF) == 0) panic("sched: interrupts disabled in idle loop");
     }
 }

@@ -1,10 +1,9 @@
 //
-// mach.c
+// sched.s
 //
-// Interface to physical/virtual machine
+// Task scheduler "naked" functions for x86
 //
 // Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -32,25 +31,45 @@
 // SUCH DAMAGE.
 //
 
-#include <os/krnl.h>
+// TODO: use the C header definitions
+#define SYSBASE     0x90400000
+#define SYSPAGE_ADDRESS (SYSBASE + 0 * 4096)
+#define TSS_ESP0 (SYSPAGE_ADDRESS + 4)
+#define TCBSIZE           (2 * 4096)
+#define TCBMASK           (~(TCBSIZE - 1))
+#define TCBESP            (TCBSIZE - 4)
 
 
-#ifdef VMACH
+    .intel_syntax noprefix
+    .text
+    .global ___switch_context
 
-int probe_vmi(); // from vmi.c
-int init_vmi(); // from vmi.c
 
-void init_mach()
-{
-    kprintf("mach: running in machine virtualization mode\n");
-    if (probe_vmi()) init_vmi();
-}
+___switch_context:
+    // Save registers on current kernel stack
+    push    ebp
+    push    ebx
+    push    edi
+    push    esi
 
-#else
+    // Store kernel stack pointer in tcb
+    mov     eax, esp
+    and     eax, TCBMASK
+    add     eax, TCBESP
+    mov     [eax], esp
 
-void init_mach()
-{
-    // nothing to do
-}
+    // Get stack pointer for new thread and store in esp0
+    mov     eax, 20[esp]
+    add     eax, TCBESP
+    mov     esp, [eax]
+    mov     ebp, TSS_ESP0
+    mov     [ebp], eax
 
-#endif
+    // Restore registers from new kernel stack
+    pop     esi
+    pop     edi
+    pop     ebx
+    pop     ebp
+
+    ret
+    nop

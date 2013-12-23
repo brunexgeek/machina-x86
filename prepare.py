@@ -191,13 +191,18 @@ class CMakefileTarget(MakefileTarget):
         # target to compile each S source file
         if ((langs & LANG_S) > 0):
             print self._toVar("OBJ_DIR") + "/%.s.o:", self._toVar("SRC_DIR") + "/%.s"
-            print "\t" + compiler, self._toVar("CFLAGS"), "-c $< -o $@"
+            print "\t" + compiler, "-x assembler-with-cpp", self._toVar("CFLAGS"), "-c $< -o $@"
             print
         # target to compile each ASM source file
         if ((langs & LANG_ASM) > 0):
             print self._toVar("OBJ_DIR") + "/%.asm.o:", self._toVar("SRC_DIR") + "/%.asm"
             print "\t$(NASM)", self._toVar("NFLAGS"), "$< -o $@"
             print
+
+        # target to clean de compilation
+        print self._toVarName("CLEAN"), ":"
+        print "\t@rm -f", self._toVar("OBJ_FILES")
+        print
 
         # choose the main target name
         mainTarget = self._toVar("OUT_FILE")
@@ -515,6 +520,10 @@ target[FIELD_SOURCES] = \
     "sys/kernel/pnpbios.c", \
     "sys/kernel/queue.c", \
     "sys/kernel/sched.c", \
+    "sys/arch/x86/kernel/sched.c", \
+    "sys/arch/x86/kernel/sched.s", \
+    "sys/arch/x86/kernel/mach.c", \
+    "sys/arch/x86/kernel/mach.s", \
     "sys/kernel/start.c", \
     "sys/kernel/syscall.c", \
     "sys/kernel/timer.c", \

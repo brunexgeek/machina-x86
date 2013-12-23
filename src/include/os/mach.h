@@ -3,6 +3,7 @@
 //
 // Interface to physical/virtual machine
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,8 +32,8 @@
 // SUCH DAMAGE.
 //
 
-#ifndef MACH_H
-#define MACH_H
+#ifndef MACHINA_OS_MACH_H
+#define MACHINA_OS_MACH_H
 
 //
 // Machine interface
@@ -226,17 +227,7 @@ static __inline unsigned long get_cr2() {
 }
 
 
-static unsigned int __inline rdtsc()
-{
-    unsigned int result = 0;
-    __asm__
-    (
-        "rdtsc;"
-        "ret;"
-        : "=r" (result)
-    );
-    return result;
-}
+unsigned int rdtsc() __asm__("___hw_rdtsc");
 
 
 static void __inline wrmsr(unsigned long reg, unsigned long valuelow, unsigned long valuehigh) {
@@ -251,50 +242,50 @@ static void __inline wrmsr(unsigned long reg, unsigned long valuelow, unsigned l
     );
 }
 
-static void __inline register_page_dir(unsigned long pfn) {
-  // Do nothing
+static void __inline register_page_dir(unsigned long pfn)
+{
+    // Do nothing
 }
 
-static void __inline register_page_table(unsigned long pfn) {
-  // Do nothing
+static void __inline register_page_table(unsigned long pfn)
+{
+    // Do nothing
 }
 
-static void __inline set_page_dir_entry(pte_t *pde, unsigned long value) {
-  *pde = value;
+static void __inline set_page_dir_entry(pte_t *pde, unsigned long value)
+{
+    *pde = value;
 }
 
-static void __inline set_page_table_entry(pte_t *pte, unsigned long value) {
-  *pte = value;
+static void __inline set_page_table_entry(pte_t *pte, unsigned long value)
+{
+    *pte = value;
 }
 
-#define inp(port)  (inb(port))
-#define inpw(port) (inw(port))
-#define inpd(port) (ind(port))
-
-#define outp(port, val)  (outb((port), (val)))
-#define outpw(port, val) (outw((port), (val)))
-#define outpd(port, val) (outd((port), (val)))
 
 KERNELAPI unsigned char inb(port_t port) __asm__("___inb");
-KERNELAPI unsigned short inpw(port_t port);// __asm__("___inpw");
-KERNELAPI unsigned long inpd(port_t port);// __asm__("___inpd");
+KERNELAPI unsigned char inp(port_t port) __asm__("___inp");
+KERNELAPI unsigned short inpw(port_t port) __asm__("___inpw");
+KERNELAPI unsigned long inpd(port_t port) __asm__("___inpd");
 
 KERNELAPI void insw(port_t port, void *buf, int count) __asm__("___insw");
 KERNELAPI void insd(port_t port, void *buf, int count) __asm__("___insd");
 
 KERNELAPI unsigned char outb(port_t port, unsigned char val) __asm__("___outb");
+KERNELAPI unsigned char outp(port_t port, unsigned char val) __asm__("___outp");
 KERNELAPI unsigned short outw(port_t port, unsigned short val) __asm__("___outw");
+KERNELAPI unsigned short outpw(port_t port, unsigned short val) __asm__("___outpw");
 KERNELAPI unsigned long outd(port_t port, unsigned long val) __asm__("___outd");
+KERNELAPI unsigned long outpd(port_t port, unsigned long val) __asm__("___outpd");
 
 KERNELAPI void outsw(port_t port, void *buf, int count) __asm__("___outsw");
 KERNELAPI void outsd(port_t port, void *buf, int count) __asm__("___outsd");
 
-#include "../../sys/kernel/iop.c"
 
-#define CLI cli
+/*#define CLI cli
 #define STI sti
 #define IRETD iretd
-#define SYSEXIT sysexit
+#define SYSEXIT sysexit*/
 
 //#endif  !VMACH
 
@@ -302,38 +293,47 @@ KERNELAPI void outsd(port_t port, void *buf, int count) __asm__("___outsd");
 // Common interface functions
 //
 
-static __inline void cpuid(unsigned long reg, unsigned long values[4]) {
-  mach.cpuid(reg, values);
+static __inline void cpuid(unsigned long reg, unsigned long values[4])
+{
+    mach.cpuid(reg, values);
 }
 
-static __inline void set_gdt_entry(int entry, unsigned long addr, unsigned long size, int access, int granularity) {
-  mach.set_gdt_entry(entry, addr, size, access, granularity);
+static __inline void set_gdt_entry(int entry, unsigned long addr, unsigned long size, int access, int granularity)
+{
+    mach.set_gdt_entry(entry, addr, size, access, granularity);
 }
 
-static __inline void set_idt_gate(int intrno, void *handler) {
-  mach.set_idt_gate(intrno, handler);
+static __inline void set_idt_gate(int intrno, void *handler)
+{
+    mach.set_idt_gate(intrno, handler);
 }
 
-static __inline void set_idt_trap(int intrno, void *handler) {
-  mach.set_idt_trap(intrno, handler);
+static __inline void set_idt_trap(int intrno, void *handler)
+{
+    mach.set_idt_trap(intrno, handler);
 }
 
-static __inline void flushtlb() {
-  mach.flushtlb();
+static __inline void flushtlb()
+{
+    mach.flushtlb();
 }
 
-static __inline void invlpage(void *addr) {
-  mach.invlpage(addr);
+static __inline void invlpage(void *addr)
+{
+    mach.invlpage(addr);
 }
 
-static __inline void poweroff() {
-  mach.poweroff();
+static __inline void poweroff()
+{
+    mach.poweroff();
 }
 
-static __inline void reboot() {
-  mach.reboot();
+static __inline void reboot()
+{
+    mach.reboot();
 }
 
 void init_mach();
 
-#endif
+
+#endif  // MACHINA_OS_MACH_H

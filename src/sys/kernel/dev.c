@@ -602,10 +602,11 @@ dev_t kdev_get_number(char *name) {
   return NODEV;
 }
 
-dev_t kdev_open(char *name) {
-  dev_t d = kdev_get_number(name);
-  if (d != NODEV) devtab[d]->refcnt++;
-  return d;
+dev_t kdev_open(char *name)
+{
+    dev_t d = kdev_get_number(name);
+    if (d != NODEV) devtab[d]->refcnt++;
+    return d;
 }
 
 int kdev_close(dev_t devno) {
@@ -615,14 +616,15 @@ int kdev_close(dev_t devno) {
   return 0;
 }
 
-int kdev_ioctl(dev_t devno, int cmd, void *args, size_t size) {
-  struct dev *dev;
+int kdev_ioctl(dev_t devno, int cmd, void *args, size_t size)
+{
+    struct dev *dev;
 
-  if (devno < 0 || devno >= num_devs) return -ENODEV;
-  dev = devtab[devno];
-  if (!dev->driver->ioctl) return -ENOSYS;
+    if (devno < 0 || devno >= num_devs) return -ENODEV;
+    dev = devtab[devno];
+    if (!dev->driver->ioctl) return -ENOSYS;
 
-  return dev->driver->ioctl(dev, cmd, args, size);
+    return dev->driver->ioctl(dev, cmd, args, size);
 }
 
 int kdev_read(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags) {

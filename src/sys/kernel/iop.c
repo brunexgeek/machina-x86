@@ -33,145 +33,126 @@
 //
 
 #include <os/krnl.h>
+#include <os/asmutil.h>
 
 #ifndef VMACH
 
-unsigned char /*__declspec(naked)*/ inb(port_t port)
+
+static void test___()
 {
-    __asm__
-    (
-        //"mov     dx,word ptr [esp + 4];"
-        "xor     eax,eax;"
-        "in      al,dx;"
-        //"ret;"
-        :
-        : "d" (port)
-    );
+    return;
 }
 
-
-unsigned short /*__declspec(naked)*/ inw(port_t port)
-{
-    __asm__
-    (
-        //"mov     dx,word ptr [esp + 4];"
-        "xor     eax,eax;"
-        "in      ax,dx;"
-        //"ret;"
-        :
-        : "d" (port)
-    );
-}
+//unsigned char inb(port_t port) __asm__("___inb");
+__asm__
+(
+    "___inb: "
+    "mov      dx, [esp + 4];"
+    "xor     eax, eax;"
+    "in       al, dx;"
+    "ret;"
+);
 
 
-unsigned long /*__declspec(naked)*/ ind(port_t port)
-{
-    __asm__
-    (
-        //"mov     dx,word ptr [esp + 4];"
-        "in      eax,dx;"
-        //"ret;"
-        :
-        : "d" (port)
-    );
-}
+//unsigned short inw(port_t port) __asm__("___inw");
+__asm__
+(
+    "___inw: \n"
+    "inw: "
+    "mov      dx, [esp + 4];"
+    "xor     eax, eax;"
+    "in       ax, dx;"
+    "ret;"
+);
 
 
-void insw(port_t port, void *buf, int count)
-{
-    __asm__
-    (
-        //"mov edx, porta;"
-        "mov edi, %1;"
-        //"mov ecx, count;"
-        "rep insw;"
-        :
-        : "d" (port), "m" (buf), "c" (count)
-    );
-}
+
+//unsigned long ind(port_t port) __asm__("___ind");
+__asm__
+(
+    "___ind: \n"
+    "ind: "
+    "mov      dx, [esp + 4];"
+    "in      eax, dx;"
+    "ret;"
+);
 
 
-void insd(port_t port, void *buf, int count)
-{
-    __asm__
-    (
-        //"mov edx, port;"
-        "mov edi, %1;"
-        //"mov ecx, count;"
-        "rep insd;"
-        :
-        : "d" (port), "m" (buf), "c" (count)
-    );
-}
+
+//void insw(port_t port, void *buf, int count) __asm__("___insw");
+__asm__
+(
+    "___insw: "
+    "mov edx, [esp + 4];"
+    "mov edi, [esp + 8];"
+    "mov ecx, [esp + 12];"
+    "rep insw;"
+);
 
 
-unsigned char /*__declspec(naked)*/ outb(port_t port, unsigned char val)
-{
-    __asm__
-    (
-        //"mov     dx,word ptr [esp + 4];"
-        //"mov     al,byte ptr [esp + 8];"
-        "out     dx, al;"
-        //"ret;"
-        :
-        : "d" (port), "a" (val)
-    );
-}
+//void insd(port_t port, void *buf, int count) __asm__("___insd");
+__asm__
+(
+    "___insd: "
+    "mov edx, [esp + 4];"
+    "mov edi, [esp + 8];"
+    "mov ecx, [esp + 12];"
+    "rep insd;"
+);
 
 
-unsigned short /*__declspec(naked)*/ outw(port_t port, unsigned short val)
-{
-    __asm__
-    (
-        //"mov     dx,word ptr [esp + 4];"
-        //"mov     ax,word ptr [esp + 8];"
-        "out     dx,ax;"
-        //"ret;"
-        :
-        : "d" (port), "a" (val)
-    );
-}
+//unsigned char outb(port_t port, unsigned char val) __asm__("___outb");
+__asm__
+(
+    "___outb: "
+    "mov     dx, [esp + 4];"
+    "mov     al, [esp + 8];"
+    "out     dx, al;"
+    "ret;"
+);
 
 
-unsigned long /*__declspec(naked)*/ outd(port_t port, unsigned long val)
-{
-    __asm__
-    (
-        //"mov     dx,word ptr [esp + 4];"
-        //"mov     eax,[esp + 8];"
-        "out     dx,eax;"
-        //"ret;"
-        :
-        : "d" (port), "a" (val)
-    );
-}
+//unsigned short outw(port_t port, unsigned short val) __asm__("___outw");
+__asm__
+(
+    "___outw: "
+    "mov     dx, [esp + 4];"
+    "mov     ax, [esp + 8];"
+    "out     dx, ax;"
+    "ret;"
+);
 
 
-void outsw(port_t port, void *buf, int count)
-{
-    __asm__
-    (
-        //"mov edx, port;"
-        "mov esi, %1;"
-        //"mov ecx, count;"
-        "rep outsw;"
-        :
-        : "d" (port), "m" (buf), "c" (count)
-    );
-}
+//unsigned long outd(port_t port, unsigned long val) __asm__("___outd");
+__asm__
+(
+    "___outd: "
+    "mov      dx, [esp + 4];"
+    "mov     eax, [esp + 8];"
+    "out      dx, eax;"
+    "ret;"
+);
 
 
-void outsd(port_t port, void *buf, int count)
-{
-    __asm__
-    (
-        //"mov edx, port;"
-        "mov esi, %0;"
-        //"mov ecx, count;"
-        "rep outsd;"
-        :
-        : "d" (port), "m" (buf), "c" (count)
-    );
-}
+//void outsw(port_t port, void *buf, int count) __asm__("___outsw");
+__asm__
+(
+    "___outsw: "
+    "mov  dx, [esp + 4];"  // port
+    "mov esi, [esp + 8];"  // buf
+    "mov ecx, [esp + 12];" // count
+    "rep outsw;"
+);
+
+
+//void outsd(port_t port, void *buf, int count) __asm__("___outsd");
+__asm__
+(
+    "___outsd: "
+    "mov  dx, [esp + 4];"  // port
+    "mov esi, [esp + 8];"  // buf
+    "mov ecx, [esp + 12];" // count
+    "rep outsd;"
+);
 
 #endif

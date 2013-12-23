@@ -71,33 +71,36 @@ static void hw_sysret()
     );
 }
 
-static /*__declspec(naked)*/ int /*__fastcall*/ hw_in(port_t port) {
-    __asm__
-    (
-        "mov     dx,cx;"
-        "xor     eax,eax;"
-        "in      al,dx;"
-        "ret;"
-    );
-}
+int hw_in(port_t port) __asm__("___hw_in");
+__asm__
+(
+    "___hw_in: "
+    "mov     dx,cx;"
+    "xor     eax,eax;"
+    "in      al,dx;"
+    "ret;"
+);
 
-static /*__declspec(naked)*/ unsigned short /*__fastcall*/ hw_inw(port_t port) {
-    __asm__
-    (
-        "mov     dx,cx;"
-        "in      ax,dx;"
-        "ret;"
-    );
-}
 
-static /*__declspec(naked)*/ unsigned long /*__fastcall*/ hw_ind(port_t port) {
-    __asm__
-    (
-        "mov     dx,cx;"
-        "in      eax,dx;"
-        "ret;"
-    );
-}
+unsigned short hw_inw(port_t port) __asm__("___hw_inw");
+__asm__
+(
+    "___hw_inw: "
+    "mov     dx,cx;"
+    "in      ax,dx;"
+    "ret;"
+);
+
+
+unsigned long hw_ind(port_t port) __asm__("___hw_ind");
+__asm__
+(
+    "___hw_ind: "
+    "mov     dx,cx;"
+    "in      eax,dx;"
+    "ret;"
+);
+
 
 static void hw_insw(port_t port, void *buf, int count) {
     __asm__
@@ -125,38 +128,38 @@ static void hw_insd(port_t port, void *buf, int count) {
 }
 
 
-static /*__declspec(naked)*/ int /*__fastcall*/ hw_out(port_t port, int val)
-{
-    __asm__("cli; hlt;");
-    /*__asm__
-    (
-        "mov     al,dl;"
-        "mov     dx,cx;"
-        "out     dx, al;"
-        "ret;"
-    );*/
-}
+int hw_out(port_t port, int val) __asm__("___hw_out");
+__asm__
+(
+    "___hw_out: "
+    "mov     al, [esp + 4];"
+    "mov     dx, [esp + 8];"
+    "out     dx, al;"
+    "ret;"
+);
 
 
-static /*__declspec(naked)*/ unsigned short /*__fastcall*/ hw_outw(port_t port, unsigned short val) {
-    __asm__
-    (
-        "mov     ax,dx;"
-        "mov     dx,cx;"
-        "out     dx, ax;"
-        "ret;"
-    );
-}
+unsigned short hw_outw(port_t port, unsigned short val) __asm__("___hw_outw");
+__asm__
+(
+    "___hw_outw: "
+    "mov     ax, [esp + 4];"
+    "mov     dx, [esp + 8];"
+    "out     dx, ax;"
+    "ret;"
+);
 
-static /*__declspec(naked)*/ unsigned long /*__fastcall*/ hw_outd(port_t port, unsigned long val) {
-    __asm__
-    (
-        "mov     eax,edx;"
-        "mov     dx,cx;"
-        "out     dx, eax;"
-        "ret;"
-    );
-}
+
+unsigned long hw_outd(port_t port, unsigned long val) __asm__("___hw_outd");
+__asm__
+(
+    "___hw_outd: "
+    "mov     eax, [esp + 4];"
+    "mov     dx,  [esp + 8];"
+    "out     dx,  eax;"
+    "ret;"
+);
+
 
 static void hw_outsw(port_t port, void *buf, int count)
 {
@@ -236,13 +239,15 @@ static unsigned long hw_get_cr2()
     return val;
 }
 
-static /*__declspec(naked)*/ unsigned __int64 hw_rdtsc() {
-    __asm__
-    (
-        "rdtsc;"
-        "ret;"
-    );
-}
+
+unsigned __int64 hw_rdtsc() __asm__("___hw_rdtsc");
+__asm__
+(
+    "___hw_rdtsc: "
+    "rdtsc;"
+    "ret;"
+);
+
 
 
 static void hw_wrmsr(

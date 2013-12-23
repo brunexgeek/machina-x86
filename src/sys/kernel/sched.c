@@ -821,6 +821,7 @@ void dispatch()
 
     // Find next thread to run
     t = find_ready_thread();
+    //kprintf("selected thread: %s\n", t->name);
     if (!t) panic("No thread ready to run");
 
     // If current thread has been selected to run again then just return
@@ -836,14 +837,13 @@ void dispatch()
         fpu_disable(&curthread->fpustate);
         t->flags &= ~THREAD_FPU_ENABLED;
     }
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Switch to new thread
     switch_context(t);
-kprintf("## %s %d\n", __FILE__, __LINE__);
     #ifdef VMACH
     switch_kernel_stack();
     #endif
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Mark new thread as running
     mark_thread_running();
 }
@@ -912,11 +912,11 @@ void idle_task()
                 halt();
             }
         }
-
+//kprintf("next thread: %s\n", t->name);
         mark_thread_ready(t, 0, 0);
-kprintf("## %s %d\n", __FILE__, __LINE__);
+//kprintf("## %s %d\n", __FILE__, __LINE__);
         dispatch();
-kprintf("## %s %d\n", __FILE__, __LINE__);
+//kprintf("## %s %d\n", __FILE__, __LINE__);
         //if ((eflags() & EFLAG_IF) == 0) panic("sched: interrupts disabled in idle loop");
     }
 }

@@ -39,7 +39,14 @@
 #define DEFAULT_INITIAL_STACK_COMMIT (8 * 1024)
 
 
-//struct thread *self();
+/**
+ * For some mysterious reason we need this function at this point for the 'switch_context'
+ * assembly function to work!
+ */
+static void print_pointer( void *ptr)
+{
+    kprintf("Pointer: %p\n", ptr);
+}
 
 
 void switch_context(struct thread *t) __asm__("___switch_context");
@@ -85,11 +92,11 @@ static void init_thread_stack(struct thread *t, void *startaddr, void *arg)
     *--esp = (unsigned long) arg;
     *--esp = (unsigned long) 0;
     *--esp = (unsigned long) startaddr;
-    *--esp = 0;
-    *--esp = 0;
-    *--esp = 0;
-    *--esp = 0;
-    tcb->esp = esp;
+    *--esp = 0; // ebp
+    *--esp = 0; // ebx
+    *--esp = 0; // edi
+    *--esp = 0; // esi
+    tcb->esp = (uint32_t*) esp;
 }
 
 

@@ -225,14 +225,18 @@ static __inline unsigned long get_cr2() {
   return val;
 }
 
-unsigned __int64 __inline rdtsc() __asm__("___rdtsc");
 
-__asm__
-(
-    "___rdtsc: "
-    "rdtsc;"
-    "ret;"
-);
+static unsigned int __inline rdtsc()
+{
+    unsigned int result = 0;
+    __asm__
+    (
+        "rdtsc;"
+        "ret;"
+        : "=r" (result)
+    );
+    return result;
+}
 
 
 static void __inline wrmsr(unsigned long reg, unsigned long valuelow, unsigned long valuehigh) {
@@ -271,19 +275,21 @@ static void __inline set_page_table_entry(pte_t *pte, unsigned long value) {
 #define outpw(port, val) (outw((port), (val)))
 #define outpd(port, val) (outd((port), (val)))
 
-KERNELAPI unsigned char inb(port_t port);
-KERNELAPI unsigned short inpw(port_t port);
-KERNELAPI unsigned long inpd(port_t port);
+KERNELAPI unsigned char inb(port_t port) __asm__("___inb");
+KERNELAPI unsigned short inpw(port_t port);// __asm__("___inpw");
+KERNELAPI unsigned long inpd(port_t port);// __asm__("___inpd");
 
-KERNELAPI void insw(port_t port, void *buf, int count);
-KERNELAPI void insd(port_t port, void *buf, int count);
+KERNELAPI void insw(port_t port, void *buf, int count) __asm__("___insw");
+KERNELAPI void insd(port_t port, void *buf, int count) __asm__("___insd");
 
-KERNELAPI unsigned char outb(port_t port, unsigned char val);
-KERNELAPI unsigned short outw(port_t port, unsigned short val);
-KERNELAPI unsigned long outd(port_t port, unsigned long val);
+KERNELAPI unsigned char outb(port_t port, unsigned char val) __asm__("___outb");
+KERNELAPI unsigned short outw(port_t port, unsigned short val) __asm__("___outw");
+KERNELAPI unsigned long outd(port_t port, unsigned long val) __asm__("___outd");
 
-KERNELAPI void outsw(port_t port, void *buf, int count);
-KERNELAPI void outsd(port_t port, void *buf, int count);
+KERNELAPI void outsw(port_t port, void *buf, int count) __asm__("___outsw");
+KERNELAPI void outsd(port_t port, void *buf, int count) __asm__("___outsd");
+
+#include "../../sys/kernel/iop.c"
 
 #define CLI cli
 #define STI sti

@@ -187,57 +187,66 @@ static int load_kernel_config() {
   return 0;
 }
 
-static void init_filesystem() {
-  int rc;
-  char bootdev[8];
-  char rootdev[128];
-  char rootfs[32];
-  char *rootfsopts;
-  char fsoptbuf[128];
+static void init_filesystem()
+{
+    int rc;
+    char bootdev[8];
+    char rootdev[128];
+    char rootfs[32];
+    char *rootfsopts;
+    char fsoptbuf[128];
 
-  // Initialize built-in file systems
-  init_vfs();
-  init_dfs();
-  init_devfs();
-  init_procfs();
-  init_pipefs();
-  init_smbfs();
-  init_cdfs();
+    // Initialize built-in file systems
+    init_vfs();
+    init_dfs();
+    init_devfs();
+    init_procfs();
+    init_pipefs();
+    init_smbfs();
+    init_cdfs();
 
-  // Determine boot device
-  if ((syspage->ldrparams.bootdrv & 0xF0) == 0xF0) {
-    create_initrd();
-    strcpy(bootdev, "initrd");
-  } else if (syspage->ldrparams.bootdrv & 0x80) {
-    if (syspage->ldrparams.bootpart == -1) {
-      sprintf(bootdev, "hd%c", '0' + (syspage->ldrparams.bootdrv & 0x7F));
-    } else {
-      sprintf(bootdev, "hd%c%c", '0' + (syspage->ldrparams.bootdrv & 0x7F), 'a' + syspage->ldrparams.bootpart);
+    // Determine boot device
+    if ((syspage->ldrparams.bootdrv & 0xF0) == 0xF0)
+    {
+        create_initrd();
+        strcpy(bootdev, "initrd");
     }
-  }
-  else {
-    sprintf(bootdev, "fd%c", '0' + (syspage->ldrparams.bootdrv & 0x7F));
-  }
+    else
+    if (syspage->ldrparams.bootdrv & 0x80)
+    {
+        if (syspage->ldrparams.bootpart == -1)
+        {
+            sprintf(bootdev, "hd%c", '0' + (syspage->ldrparams.bootdrv & 0x7F));
+        }
+        else
+        {
+            sprintf(bootdev, "hd%c%c", '0' + (syspage->ldrparams.bootdrv & 0x7F), 'a' + syspage->ldrparams.bootpart);
+        }
+    }
+    else
+    {
+        sprintf(bootdev, "fd%c", '0' + (syspage->ldrparams.bootdrv & 0x7F));
+    }
 
-  // If default boot device is not found try a virtual device.
-  if (kdev_get_number(bootdev) == NODEV && kdev_get_number("vd0") != NODEV) strcpy(bootdev, "vd0");
+    // If default boot device is not found try a virtual device.
+    if (kdev_get_number(bootdev) == NODEV && kdev_get_number("vd0") != NODEV) strcpy(bootdev, "vd0");
 
-  // Determine root file system
-  get_option(krnlopts, "rootdev", rootdev, sizeof(rootdev), bootdev);
-  get_option(krnlopts, "rootfs", rootfs, sizeof(rootfs), "dfs");
-  rootfsopts = get_option(krnlopts, "rootopts", fsoptbuf, sizeof(fsoptbuf), NULL);
+    // Determine root file system
+    get_option(krnlopts, "rootdev", rootdev, sizeof(rootdev), bootdev);
+    get_option(krnlopts, "rootfs", rootfs, sizeof(rootfs), "dfs");
+    rootfsopts = get_option(krnlopts, "rootopts", fsoptbuf, sizeof(fsoptbuf), NULL);
 
-  kprintf(KERN_INFO "mount: root on %s\n", rootdev);
+    kprintf(KERN_INFO "mount: root on %s\n", rootdev);
 
-  // Mount file systems
-  rc = mount(rootfs, "/", rootdev, rootfsopts, NULL);
-  if (rc < 0) panic("error mounting root filesystem");
+    // Mount file systems
+    rc = mount(rootfs, "/", rootdev, rootfsopts, NULL);
+    if (rc < 0) panic("error mounting root filesystem");
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    rc = mount("devfs", "/dev", NULL, NULL, NULL);
+    if (rc < 0) panic("error mounting dev filesystem");
 
-  rc = mount("devfs", "/dev", NULL, NULL, NULL);
-  if (rc < 0) panic("error mounting dev filesystem");
-
-  rc = mount("procfs", "/proc", NULL, NULL, NULL);
-  if (rc < 0) panic("error mounting proc filesystem");
+    rc = mount("procfs", "/proc", NULL, NULL, NULL);
+    if (rc < 0) panic("error mounting proc filesystem");
 }
 
 static int version_proc(struct proc_file *pf, void *arg) {
@@ -359,144 +368,161 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
 
     // Start main task and dispatch to idle task
     mainthread = kthread_create_kland(main, 0, PRIORITY_NORMAL, "init");
+
     idle_task();
+
 }
 
-void init_net() {
-  stats_init();
-  netif_init();
-  ether_init();
-  pbuf_init();
-  arp_init();
-  ip_init();
-  udp_init();
-  raw_init();
-  dhcp_init();
-  tcp_init();
-  socket_init();
-  loopif_init();
+void init_net()
+{
+    stats_init();
+    netif_init();
+    ether_init();
+    pbuf_init();
+    arp_init();
+    ip_init();
+    udp_init();
+    raw_init();
+    dhcp_init();
+    tcp_init();
+    socket_init();
+    loopif_init();
 
-  register_ether_netifs();
+    register_ether_netifs();
 }
 
-void main(void *arg) {
-  unsigned long *stacktop;
-  struct thread *t = self();
+void main(void *arg)
+{
+    unsigned long *stacktop;
+    struct thread *t = self();
 
-  void *imgbase;
-  void *entrypoint;
-  unsigned long stack_reserve;
-  unsigned long stack_commit;
-  struct image_header *imghdr;
-  struct verinfo *ver;
-  int rc;
-  char *str;
-  struct file *cons;
-  char *console;
+    void *imgbase;
+    void *entrypoint;
+    unsigned long stack_reserve;
+    unsigned long stack_commit;
+    struct image_header *imghdr;
+    struct verinfo *ver;
+    int rc;
+    char *str;
+    struct file *cons;
+    char *console;
 
-  // Allocate and initialize PEB
-  peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 0x00504542 /* PEB */, NULL);
-  if (!peb) panic("unable to allocate PEB");
-  memset(peb, 0, PAGESIZE);
-  peb->fast_syscalls_supported = (cpu.features & CPU_FEATURE_SEP) != 0;
+    // Allocate and initialize PEB
+    peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 0x00504542 /* PEB */, NULL);
+    if (!peb) panic("unable to allocate PEB");
+    memset(peb, 0, PAGESIZE);
+    peb->fast_syscalls_supported = (cpu.features & CPU_FEATURE_SEP) != 0;
 
-  // Enumerate root host buses and units
-  enum_host_bus();
+    // Enumerate root host buses and units
+    enum_host_bus();
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Initialize boot device drivers
+    init_hd();
+    init_fd();
+    init_vblk();
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Initialize file systems
+    init_filesystem();
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Load kernel configuration
+    load_kernel_config();
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Determine kernel panic action
+    str = get_property(krnlcfg, "kernel", "onpanic", "halt");
+    if (strcmp(str, "halt") == 0)
+    {
+        onpanic = ONPANIC_HALT;
+    }
+    else
+    if (strcmp(str, "reboot") == 0)
+    {
+        onpanic = ONPANIC_REBOOT;
+    }
+    else
+    if (strcmp(str, "debug") == 0)
+    {
+        onpanic = ONPANIC_DEBUG;
+    }
+    else
+    if (strcmp(str, "poweroff") == 0)
+    {
+        onpanic = ONPANIC_POWEROFF;
+    }
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Set path separator
+    pathsep = *get_property(krnlcfg, "kernel", "pathsep", "");
+    if (pathsep != PS1 && pathsep != PS2) pathsep = PS1;
+    t->curdir[0] = pathsep;
+    t->curdir[1] = 0;
+    peb->pathsep = pathsep;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Initialize module loader
+    init_kernel_modules();
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Get os version info from kernel version resource
+    get_version_value((hmodule_t) OSBASE, "ProductName", peb->osname, sizeof peb->osname);
+    peb->ostimestamp = get_image_header((hmodule_t) OSBASE)->header.timestamp;
+    ver = get_version_info((hmodule_t) OSBASE);
+    if (ver)
+    {
+        memcpy(&peb->osversion, ver, sizeof(struct verinfo));
+    }
+    else
+    {
+        strcpy(peb->osname, OS_NAME);
+        peb->osversion.file_major_version = OS_VERSION_MAJOR;
+        peb->osversion.file_minor_version = OS_VERSION_MINOR;
+        peb->osversion.file_release_number = OS_RELEASE;
+        peb->osversion.file_build_number = OS_BUILD;
+    }
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Install device drivers
+    install_drivers();
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Initialize network
+    init_net();
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Install /proc/version and /proc/copyright handler
+    register_proc_inode("version", version_proc, NULL);
+    register_proc_inode("copyright", copyright_proc, NULL);
 
-  // Initialize boot device drivers
-  init_hd();
-  init_fd();
-  init_vblk();
+    // Allocate handles for stdin, stdout and stderr
+    console = get_property(krnlcfg, "kernel", "console", serial_console ? "/dev/com1" : "/dev/console");
+    rc = open(console, O_RDWR, S_IREAD | S_IWRITE, &cons);
+    if (rc < 0) panic("no console");
+    cons->flags |= F_TTY;
+    if (halloc(&cons->iob.object) != 0) panic("unexpected stdin handle");
+    if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
+    if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
-  // Initialize file systems
-  init_filesystem();
+    // Load kernel32.so in user address space
+    imgbase = load_image_file(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
+    if (!imgbase) panic("unable to load kernel32.so");
+    imghdr = get_image_header(imgbase);
+    stack_reserve = imghdr->optional.size_of_stack_reserve;
+    stack_commit = imghdr->optional.size_of_stack_commit;
+    entrypoint = get_entrypoint(imgbase);
 
-  // Load kernel configuration
-  load_kernel_config();
+    // Initialize initial user thread
+    if (init_user_thread(t, entrypoint) < 0) panic("unable to initialize initial user thread");
+    if (allocate_user_stack(t, stack_reserve, stack_commit) < 0) panic("unable to allocate stack for initial user thread");
+    t->hndl = halloc(&t->object);
+    hprotect(t->hndl);
+    mark_thread_running();
 
-  // Determine kernel panic action
-  str = get_property(krnlcfg, "kernel", "onpanic", "halt");
-  if (strcmp(str, "halt") == 0) {
-    onpanic = ONPANIC_HALT;
-  } else if (strcmp(str, "reboot") == 0) {
-    onpanic = ONPANIC_REBOOT;
-  } else if (strcmp(str, "debug") == 0) {
-    onpanic = ONPANIC_DEBUG;
-  } else if (strcmp(str, "poweroff") == 0) {
-    onpanic = ONPANIC_POWEROFF;
-  }
+    kprintf(KERN_INFO "mem: %dMB total, %dKB used, %dKB free, %dKB reserved\n",
+    maxmem * PAGESIZE / (1024 * 1024),
+    (totalmem - freemem) * PAGESIZE / 1024,
+    freemem * PAGESIZE / 1024, (maxmem - totalmem) * PAGESIZE / 1024);
 
-  // Set path separator
-  pathsep = *get_property(krnlcfg, "kernel", "pathsep", "");
-  if (pathsep != PS1 && pathsep != PS2) pathsep = PS1;
-  t->curdir[0] = pathsep;
-  t->curdir[1] = 0;
-  peb->pathsep = pathsep;
+    // Place arguments to start routine on stack
+    stacktop = (unsigned long *) t->tib->stacktop;
+    *(--stacktop) = 0;
+    *(--stacktop) = 0;
+    *(--stacktop) = (unsigned long) imgbase;
+    *(--stacktop) = 0;
 
-  // Initialize module loader
-  init_kernel_modules();
-
-  // Get os version info from kernel version resource
-  get_version_value((hmodule_t) OSBASE, "ProductName", peb->osname, sizeof peb->osname);
-  peb->ostimestamp = get_image_header((hmodule_t) OSBASE)->header.timestamp;
-  ver = get_version_info((hmodule_t) OSBASE);
-  if (ver) {
-    memcpy(&peb->osversion, ver, sizeof(struct verinfo));
-  } else {
-    strcpy(peb->osname, OS_NAME);
-    peb->osversion.file_major_version = OS_VERSION_MAJOR;
-    peb->osversion.file_minor_version = OS_VERSION_MINOR;
-    peb->osversion.file_release_number = OS_RELEASE;
-    peb->osversion.file_build_number = OS_BUILD;
-  }
-
-  // Install device drivers
-  install_drivers();
-
-  // Initialize network
-  init_net();
-
-  // Install /proc/version and /proc/copyright handler
-  register_proc_inode("version", version_proc, NULL);
-  register_proc_inode("copyright", copyright_proc, NULL);
-
-  // Allocate handles for stdin, stdout and stderr
-  console = get_property(krnlcfg, "kernel", "console", serial_console ? "/dev/com1" : "/dev/console");
-  rc = open(console, O_RDWR, S_IREAD | S_IWRITE, &cons);
-  if (rc < 0) panic("no console");
-  cons->flags |= F_TTY;
-  if (halloc(&cons->iob.object) != 0) panic("unexpected stdin handle");
-  if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
-  if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
-
-  // Load kernel32.so in user address space
-  imgbase = load_image_file(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
-  if (!imgbase) panic("unable to load kernel32.so");
-  imghdr = get_image_header(imgbase);
-  stack_reserve = imghdr->optional.size_of_stack_reserve;
-  stack_commit = imghdr->optional.size_of_stack_commit;
-  entrypoint = get_entrypoint(imgbase);
-
-  // Initialize initial user thread
-  if (init_user_thread(t, entrypoint) < 0) panic("unable to initialize initial user thread");
-  if (allocate_user_stack(t, stack_reserve, stack_commit) < 0) panic("unable to allocate stack for initial user thread");
-  t->hndl = halloc(&t->object);
-  hprotect(t->hndl);
-  mark_thread_running();
-
-  kprintf(KERN_INFO "mem: %dMB total, %dKB used, %dKB free, %dKB reserved\n",
-          maxmem * PAGESIZE / (1024 * 1024),
-          (totalmem - freemem) * PAGESIZE / 1024,
-          freemem * PAGESIZE / 1024, (maxmem - totalmem) * PAGESIZE / 1024);
-
-  // Place arguments to start routine on stack
-  stacktop = (unsigned long *) t->tib->stacktop;
-  *(--stacktop) = 0;
-  *(--stacktop) = 0;
-  *(--stacktop) = (unsigned long) imgbase;
-  *(--stacktop) = 0;
-
-  // Jump into user mode
+    // Jump into user mode
     __asm__
     (
         "mov eax, %3;"

@@ -540,59 +540,66 @@ static int stop_dma(struct hdc *hdc) {
   return 0;
 }
 
-static int hd_identify(struct hd *hd) {
-  // Ignore interrupt for identify command
-  hd->hdc->dir = HD_XFER_IGNORE;
-  reset_event(&hd->hdc->ready);
+static int hd_identify(struct hd *hd)
+{
+    // Ignore interrupt for identify command
+    hd->hdc->dir = HD_XFER_IGNORE;
+    reset_event(&hd->hdc->ready);
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Issue read drive parameters command
+    outp(hd->hdc->iobase + HDC_FEATURE, 0);
+    outp(hd->hdc->iobase + HDC_DRVHD, hd->drvsel);
+    outp(hd->hdc->iobase + HDC_COMMAND, hd->iftype == HDIF_ATAPI ? HDCMD_PIDENTIFY : HDCMD_IDENTIFY);
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Wait for data ready
+    if (wait_for_object(&hd->hdc->ready, HDTIMEOUT_CMD) < 0) return -ETIMEOUT;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Some controllers issues the interrupt before data is ready to be read
+    // Make sure data is ready by waiting for DRQ to be set
+    if (hd_wait(hd->hdc, HDCS_DRQ, HDTIMEOUT_DRQ) < 0) return -EIO;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Read parameter data
+    insw(hd->hdc->iobase + HDC_DATA, &(hd->param), SECTORSIZE / 2);
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Fill in drive parameters
+    hd->cyls = hd->param.cylinders;
+    hd->heads = hd->param.heads;
+    hd->sectors = hd->param.sectors;
+    hd->use32bits = hd->param.usedmovsd != 0;
+    hd->sectbufs = hd->param.buffersize;
+    hd->multsect = hd->param.nsecperint;
+    if (hd->multsect == 0) hd->multsect = 1;
 
-  // Issue read drive parameters command
-  outp(hd->hdc->iobase + HDC_FEATURE, 0);
-  outp(hd->hdc->iobase + HDC_DRVHD, hd->drvsel);
-  outp(hd->hdc->iobase + HDC_COMMAND, hd->iftype == HDIF_ATAPI ? HDCMD_PIDENTIFY : HDCMD_IDENTIFY);
+    hd_fixstring(hd->param.model, sizeof(hd->param.model));
+    hd_fixstring(hd->param.rev, sizeof(hd->param.rev));
+    hd_fixstring(hd->param.serial, sizeof(hd->param.serial));
 
-  // Wait for data ready
-  if (wait_for_object(&hd->hdc->ready, HDTIMEOUT_CMD) < 0) return -ETIMEOUT;
+    if (hd->iftype == HDIF_ATA)
+    {
+        hd->media = IDE_DISK;
+    }
+    else
+    {
+        hd->media = (hd->param.config >> 8) & 0x1f;
+    }
 
-  // Some controllers issues the interrupt before data is ready to be read
-  // Make sure data is ready by waiting for DRQ to be set
-  if (hd_wait(hd->hdc, HDCS_DRQ, HDTIMEOUT_DRQ) < 0) return -EIO;
+    // Determine LBA or CHS mode
+    if ((hd->param.caps & 0x0200) == 0)
+    {
+        hd->lba = 0;
+        hd->blks = hd->cyls * hd->heads * hd->sectors;
+        if (hd->cyls == 0 && hd->heads == 0 && hd->sectors == 0) return -EIO;
+        if (hd->cyls == 0xFFFF && hd->heads == 0xFFFF && hd->sectors == 0xFFFF) return -EIO;
+    }
+    else
+    {
+        hd->lba = 1;
+        hd->blks = (hd->param.totalsec1 << 16) | hd->param.totalsec0;
+        if (hd->media == IDE_DISK && (hd->blks == 0 || hd->blks == 0xFFFFFFFF)) return -EIO;
+    }
+    hd->size = hd->blks / (1024 * 1024 / SECTORSIZE);
 
-  // Read parameter data
-  insw(hd->hdc->iobase + HDC_DATA, &(hd->param), SECTORSIZE / 2);
-
-  // Fill in drive parameters
-  hd->cyls = hd->param.cylinders;
-  hd->heads = hd->param.heads;
-  hd->sectors = hd->param.sectors;
-  hd->use32bits = hd->param.usedmovsd != 0;
-  hd->sectbufs = hd->param.buffersize;
-  hd->multsect = hd->param.nsecperint;
-  if (hd->multsect == 0) hd->multsect = 1;
-
-  hd_fixstring(hd->param.model, sizeof(hd->param.model));
-  hd_fixstring(hd->param.rev, sizeof(hd->param.rev));
-  hd_fixstring(hd->param.serial, sizeof(hd->param.serial));
-
-  if (hd->iftype == HDIF_ATA) {
-    hd->media = IDE_DISK;
-  } else {
-    hd->media = (hd->param.config >> 8) & 0x1f;
-  }
-
-  // Determine LBA or CHS mode
-  if ((hd->param.caps & 0x0200) == 0) {
-    hd->lba = 0;
-    hd->blks = hd->cyls * hd->heads * hd->sectors;
-    if (hd->cyls == 0 && hd->heads == 0 && hd->sectors == 0) return -EIO;
-    if (hd->cyls == 0xFFFF && hd->heads == 0xFFFF && hd->sectors == 0xFFFF) return -EIO;
-  } else {
-    hd->lba = 1;
-    hd->blks = (hd->param.totalsec1 << 16) | hd->param.totalsec0;
-    if (hd->media == IDE_DISK && (hd->blks == 0 || hd->blks == 0xFFFFFFFF)) return -EIO;
-  }
-  hd->size = hd->blks / (1024 * 1024 / SECTORSIZE);
-
-  return 0;
+    return 0;
 }
 
 static int hd_cmd(struct hd *hd, unsigned int cmd, unsigned int feat, unsigned int nsects) {
@@ -709,24 +716,26 @@ static int atapi_packet_read(struct hd *hd, unsigned char *pkt, int pktlen, void
   return result == 0 ? bufsize - bufleft : result;
 }
 
-static int atapi_read_capacity(struct hd *hd) {
-  unsigned char pkt[12];
-  unsigned long buf[2];
-  unsigned long blks;
-  unsigned long blksize;
-  int rc;
+static int atapi_read_capacity(struct hd *hd)
+{
+    unsigned char pkt[12];
+    unsigned long buf[2];
+    unsigned long blks;
+    unsigned long blksize;
+    int rc;
 
-  memset(pkt, 0, 12);
-  pkt[0] = ATAPI_CMD_READCAPICITY;
-
-  rc = atapi_packet_read(hd, pkt, 12, buf, sizeof buf);
-  if (rc < 0) return rc;
-  if (rc != sizeof buf) return -EBUF;
-
-  blks = ntohl(buf[0]);
-  blksize = ntohl(buf[1]);
-  if (blksize != CDSECTORSIZE) kprintf("%s: unexpected block size (%d)\n", kdev_get(hd->devno)->name, blksize);
-  return blks;
+    memset(pkt, 0, 12);
+    pkt[0] = ATAPI_CMD_READCAPICITY;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    rc = atapi_packet_read(hd, pkt, 12, buf, sizeof buf);
+    if (rc < 0) return rc;
+    if (rc != sizeof buf) return -EBUF;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    blks = ntohl(buf[0]);
+    blksize = ntohl(buf[1]);
+    if (blksize != CDSECTORSIZE) kprintf("%s: unexpected block size (%d)\n", kdev_get(hd->devno)->name, blksize);
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    return blks;
 }
 
 static int atapi_request_sense(struct hd *hd) {
@@ -1143,29 +1152,31 @@ static int cd_write(struct dev *dev, void *buffer, size_t count, blkno_t blkno, 
   return -ENODEV;
 }
 
-static int cd_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
-  struct hd *hd = (struct hd *) dev->privdata;
-  int rc;
+static int cd_ioctl(struct dev *dev, int cmd, void *args, size_t size)
+{
+    struct hd *hd = (struct hd *) dev->privdata;
+    int rc;
 
-  switch (cmd) {
-    case IOCTL_GETDEVSIZE:
-      if (hd->blks <= 0) hd->blks = atapi_read_capacity(hd);
-      return hd->blks < 0 ? 0 : hd->blks;
+    switch (cmd)
+    {
+        case IOCTL_GETDEVSIZE:
+            if (hd->blks <= 0) hd->blks = atapi_read_capacity(hd);
+            return hd->blks < 0 ? 0 : hd->blks;
 
-    case IOCTL_GETBLKSIZE:
-      return CDSECTORSIZE;
+        case IOCTL_GETBLKSIZE:
+            return CDSECTORSIZE;
 
-    case IOCTL_REVALIDATE:
-      rc = atapi_request_sense(hd);
-      if (rc < 0) return rc;
+        case IOCTL_REVALIDATE:
+            rc = atapi_request_sense(hd);
+            if (rc < 0) return rc;
 
-      rc = hd->blks = atapi_read_capacity(hd);
-      if (rc < 0) return rc;
+            rc = hd->blks = atapi_read_capacity(hd);
+            if (rc < 0) return rc;
 
-      return 0;
-  }
+            return 0;
+    }
 
-  return -ENOSYS;
+    return -ENOSYS;
 }
 
 void hd_dpc(void *arg) {

@@ -46,7 +46,6 @@ KERNEL32_SRC_FILES = \
 	sys/kernel/fpu.c \
 	sys/kernel/hndl.c \
 	sys/kernel/iomux.c \
-	sys/kernel/iop.c \
 	sys/kernel/iovec.c \
 	sys/kernel/kmalloc.c \
 	sys/kernel/kmem.c \

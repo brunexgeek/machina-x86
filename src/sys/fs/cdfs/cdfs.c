@@ -247,7 +247,7 @@ static int cdfs_find_file(struct cdfs *cdfs, char *name, int len, struct buf **b
   int dir;
   int split;
   int n;
-
+kprintf("## %s %d\n", __FILE__, __LINE__);
   // If root get directory record from volume descriptor
   if (len == 0) {
     struct iso_volume_descriptor *vd;
@@ -262,10 +262,10 @@ static int cdfs_find_file(struct cdfs *cdfs, char *name, int len, struct buf **b
   // Split path into directory part and file name part
   split = -1;
   for (n = 0; n < len; n++) if (name[n] == PS1 || name[n] == PS2) split = n;
-
+kprintf("## %s %d\n", __FILE__, __LINE__);
   // Find directly if file located in root directory
   if (split == -1) return cdfs_find_in_dir(cdfs, 1, name, len, buf, rec);
-
+kprintf("## %s %d\n", __FILE__, __LINE__);
   // Locate directory
   dir = cdfs_find_dir(cdfs, name, split + 1);
   if (dir < 0) return dir;
@@ -292,90 +292,102 @@ static time_t cdfs_isodate(unsigned char *date)
 
 int cdfs_mount(struct fs *fs, char *opts)
 {
-  struct cdfs *cdfs;
-  dev_t devno;
-  int cachebufs;
-  int rc;
-  int blk;
-  struct buf *buf;
-  struct iso_volume_descriptor *vd;
+    struct cdfs *cdfs;
+    dev_t devno;
+    int cachebufs;
+    int rc;
+    int blk;
+    struct buf *buf;
+    struct iso_volume_descriptor *vd;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Check device
+    devno = kdev_open(fs->mntfrom);
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    if (devno == NODEV) return -ENODEV;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    if (kdev_get(devno)->driver->type != DEV_TYPE_BLOCK) return -ENOTBLK;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Revalidate device and check block size
+    if (get_option(opts, "revalidate", NULL, 0, NULL))
+    {
+        rc = kdev_ioctl(devno, IOCTL_REVALIDATE, NULL, 0);
+        if (rc < 0) return rc;
+    }
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    if (kdev_ioctl(devno, IOCTL_GETBLKSIZE, NULL, 0) != CDFS_BLOCKSIZE) return -ENXIO;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Allocate file system
+    cdfs = (struct cdfs *) kmalloc(sizeof(struct cdfs));
+    memset(cdfs, 0, sizeof(struct cdfs));
 
-  // Check device
-  devno = kdev_open(fs->mntfrom);
-  if (devno == NODEV) return -NODEV;
-  if (kdev_get(devno)->driver->type != DEV_TYPE_BLOCK) return -ENOTBLK;
+    cdfs->devno = devno;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    cdfs->blks = kdev_ioctl(devno, IOCTL_GETDEVSIZE, NULL, 0);
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    if (cdfs->blks < 0) return cdfs->blks;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Allocate cache
+    cachebufs = get_num_option(opts, "cache", CDFS_DEFAULT_CACHESIZE);
+    cdfs->cache = init_buffer_pool(devno, cachebufs, CDFS_BLOCKSIZE, NULL, cdfs);
+    if (!cdfs->cache) return -ENOMEM;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Read volume descriptors
+    cdfs->vdblk = 0;
+    blk = 16;
+    while (1)
+    {
+        int type;
+        unsigned char *esc;
 
-  // Revalidate device and check block size
-  if (get_option(opts, "revalidate", NULL, 0, NULL)) {
-    rc = kdev_ioctl(devno, IOCTL_REVALIDATE, NULL, 0);
-    if (rc < 0) return rc;
-  }
+        buf  = get_buffer(cdfs->cache, blk);
+        if (!buf) return -EIO;
+        vd = (struct iso_volume_descriptor *) buf->data;
 
-  if (kdev_ioctl(devno, IOCTL_GETBLKSIZE, NULL, 0) != CDFS_BLOCKSIZE) return -ENXIO;
+        type = isonum_711(vd->type);
+        esc = vd->escape_sequences;
 
-  // Allocate file system
-  cdfs = (struct cdfs *) kmalloc(sizeof(struct cdfs));
-  memset(cdfs, 0, sizeof(struct cdfs));
-  cdfs->devno = devno;
-  cdfs->blks = kdev_ioctl(devno, IOCTL_GETDEVSIZE, NULL, 0);
-  if (cdfs->blks < 0) return cdfs->blks;
+        if (memcmp(vd->id, "CD001", 5) != 0)
+        {
+            free_buffer_pool(cdfs->cache);
+            kdev_close(cdfs->devno);
+            kfree(cdfs);
+            return -EIO;
+        }
 
-  // Allocate cache
-  cachebufs = get_num_option(opts, "cache", CDFS_DEFAULT_CACHESIZE);
-  cdfs->cache = init_buffer_pool(devno, cachebufs, CDFS_BLOCKSIZE, NULL, cdfs);
-  if (!cdfs->cache) return -ENOMEM;
+        if (cdfs->vdblk == 0 && type == ISO_VD_PRIMARY)
+        {
+            cdfs->vdblk = blk;
+        }
+        else
+        if (type == ISO_VD_SUPPLEMENTAL &&
+            esc[0] == 0x25 && esc[1] == 0x2F &&
+            (esc[2] == 0x40 || esc[2] == 0x43 || esc[2] == 0x45))
+        {
+            cdfs->vdblk = blk;
+            cdfs->joliet = 1;
+        }
 
-  // Read volume descriptors
-  cdfs->vdblk = 0;
-  blk = 16;
-  while (1) {
-    int type;
-    unsigned char *esc;
-
-    buf  = get_buffer(cdfs->cache, blk);
+        release_buffer(cdfs->cache, buf);
+        if (type == ISO_VD_END) break;
+        blk++;
+    }
+    if (cdfs->vdblk == 0) return -EIO;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Initialize filesystem from selected volume descriptor and read path table
+    buf  = get_buffer(cdfs->cache, cdfs->vdblk);
     if (!buf) return -EIO;
     vd = (struct iso_volume_descriptor *) buf->data;
 
-    type = isonum_711(vd->type);
-    esc = vd->escape_sequences;
+    cdfs->volblks = isonum_733(vd->volume_space_size);
 
-    if (memcmp(vd->id, "CD001", 5) != 0) {
-      free_buffer_pool(cdfs->cache);
-      kdev_close(cdfs->devno);
-      kfree(cdfs);
-      return -EIO;
-    }
-
-    if (cdfs->vdblk == 0 && type == ISO_VD_PRIMARY) {
-      cdfs->vdblk = blk;
-    } else if (type == ISO_VD_SUPPLEMENTAL &&
-               esc[0] == 0x25 && esc[1] == 0x2F &&
-               (esc[2] == 0x40 || esc[2] == 0x43 || esc[2] == 0x45)) {
-      cdfs->vdblk = blk;
-      cdfs->joliet = 1;
-    }
+    rc = cdfs_read_path_table(cdfs, vd);
+    if (rc < 0) return rc;
 
     release_buffer(cdfs->cache, buf);
-    if (type == ISO_VD_END) break;
-    blk++;
-  }
-  if (cdfs->vdblk == 0) return -EIO;
 
-  // Initialize filesystem from selected volume descriptor and read path table
-  buf  = get_buffer(cdfs->cache, cdfs->vdblk);
-  if (!buf) return -EIO;
-  vd = (struct iso_volume_descriptor *) buf->data;
-
-  cdfs->volblks = isonum_733(vd->volume_space_size);
-
-  rc = cdfs_read_path_table(cdfs, vd);
-  if (rc < 0) return rc;
-
-  release_buffer(cdfs->cache, buf);
-
-  // Device mounted successfully
-  fs->data = cdfs;
-  return 0;
+    // Device mounted successfully
+    fs->data = cdfs;
+    return 0;
 }
 
 int cdfs_umount(struct fs *fs) {
@@ -409,41 +421,42 @@ int cdfs_statfs(struct fs *fs, struct statfs *buf) {
   return 0;
 }
 
-int cdfs_open(struct file *filp, char *name) {
-  struct cdfs *cdfs = (struct cdfs *) filp->fs->data;
-  struct iso_directory_record *rec;
-  struct cdfs_file *cdfile;
-  struct buf *buf;
-  time_t date;
-  int size;
-  int extent;
-  int flags;
-  int rc;
+int cdfs_open(struct file *filp, char *name)
+{
+    struct cdfs *cdfs = (struct cdfs *) filp->fs->data;
+    struct iso_directory_record *rec;
+    struct cdfs_file *cdfile;
+    struct buf *buf;
+    time_t date;
+    int size;
+    int extent;
+    int flags;
+    int rc;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    // Check open mode
+    if (filp->flags & (O_CREAT | O_TRUNC | O_APPEND)) return -EROFS;
 
-  // Check open mode
-  if (filp->flags & (O_CREAT | O_TRUNC | O_APPEND)) return -EROFS;
+    // Locate file in file system
+    rc = cdfs_find_file(cdfs, name, strlen(name), &buf, &rec);
+    if (rc < 0) return rc;
+kprintf("## %s %d\n", __FILE__, __LINE__);
+    flags = isonum_711(rec->flags);
+    extent = isonum_733(rec->extent);
+    date = cdfs_isodate(rec->date);
+    size = isonum_733(rec->size);
+    release_buffer(cdfs->cache, buf);
 
-  // Locate file in file system
-  rc = cdfs_find_file(cdfs, name, strlen(name), &buf, &rec);
-  if (rc < 0) return rc;
+    // Allocate and initialize file block
+    cdfile = (struct cdfs_file *) kmalloc(sizeof(struct cdfs_file));
+    if (!cdfile) return -ENOMEM;
+    cdfile->extent = extent;
+    cdfile->date = date;
+    cdfile->size = size;
+    if (flags & 2) filp->flags |= F_DIR;
 
-  flags = isonum_711(rec->flags);
-  extent = isonum_733(rec->extent);
-  date = cdfs_isodate(rec->date);
-  size = isonum_733(rec->size);
-  release_buffer(cdfs->cache, buf);
-
-  // Allocate and initialize file block
-  cdfile = (struct cdfs_file *) kmalloc(sizeof(struct cdfs_file));
-  if (!cdfile) return -ENOMEM;
-  cdfile->extent = extent;
-  cdfile->date = date;
-  cdfile->size = size;
-  if (flags & 2) filp->flags |= F_DIR;
-
-  filp->data = cdfile;
-  filp->mode = S_IFREG | S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;;
-  return 0;
+    filp->data = cdfile;
+    filp->mode = S_IFREG | S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;;
+    return 0;
 }
 
 int cdfs_close(struct file *filp) {

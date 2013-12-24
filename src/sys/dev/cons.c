@@ -200,28 +200,32 @@ static int console_write(struct dev *dev, void *buffer, size_t count, blkno_t bl
   return count;
 }
 
-struct driver console_driver = {
-  "console",
-  DEV_TYPE_STREAM,
-  console_ioctl,
-  console_read,
-  console_write
+struct driver console_driver =
+{
+    "console",
+    DEV_TYPE_STREAM,
+    console_ioctl,
+    console_read,
+    console_write
 };
 
-int /*__declspec(dllexport)*/ console(struct unit *unit, char *opts)
+int console(struct unit *unit, char *opts)
 {
-  dev_t devno = kdev_create("console", &console_driver, NULL, NULL);
-  init_keyboard(devno, get_num_option(opts, "resetkbd", 0));
-  if (serial_console) {
-    init_serial();
-    consdev = kdev_open("com1");
-  } else {
-    consdev = kdev_open("console");
-  }
+    dev_t devno = kdev_create("console", &console_driver, NULL, NULL);
+    init_keyboard(devno, get_num_option(opts, "resetkbd", 0));
+    if (serial_console)
+    {
+        init_serial();
+        consdev = kdev_open("com1");
+    }
+    else
+    {
+        consdev = kdev_open("console");
+    }
 
-  register_proc_inode("screen", screen_proc, NULL);
+    register_proc_inode("screen", screen_proc, NULL);
 
-  return 0;
+    return 0;
 }
 
 

@@ -31,7 +31,7 @@ KERNEL32_WELCOME:
 	@echo
 	@echo Building Machina Kernel for x86
 
-KERNEL32_CFLAGS =  -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel $(CFLAGS)
+KERNEL32_CFLAGS =  -g -O0 -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel $(CFLAGS)
 KERNEL32_LDFLAGS =  -nostdlib -Wl,-T,src/sys/arch/x86/kernel/kernel.lds $(LDFLAGS)
 KERNEL32_NFLAGS = $(NFLAGS)
 KERNEL32_OUT_DIR = build/machina/obj/kernel
@@ -153,10 +153,10 @@ KERNEL32_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/kernel/sys/fs/devfs
 
 $(KERNEL32_OBJ_DIR)/%.c.o: $(KERNEL32_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(KERNEL32_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+	$(CC) $(KERNEL32_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(KERNEL32_OBJ_DIR)/%.s.o: $(KERNEL32_SRC_DIR)/%.s
-	$(CC) -O2 -m32 -x assembler-with-cpp $(KERNEL32_CFLAGS) -c $< -o $@
+	$(CC) -x assembler-with-cpp $(KERNEL32_CFLAGS) -c $< -o $@
 
 KERNEL32_CLEAN :
 	@rm -f $(KERNEL32_OBJ_FILES)
@@ -201,7 +201,7 @@ MKDFS_OBJ_MKDIR:
 	@mkdir -p build/linux/obj/utils/dfs
 
 $(MKDFS_OBJ_DIR)/%.c.o: $(MKDFS_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(MKDFS_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+	$(CC) $(MKDFS_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 MKDFS_CLEAN :
 	@rm -f $(MKDFS_OBJ_FILES)
@@ -331,10 +331,10 @@ LIBC_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/libc/lib/libc
 
 $(LIBC_OBJ_DIR)/%.c.o: $(LIBC_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(LIBC_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+	$(CC) $(LIBC_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(LIBC_OBJ_DIR)/%.s.o: $(LIBC_SRC_DIR)/%.s
-	$(CC) -O2 -m32 -x assembler-with-cpp $(LIBC_CFLAGS) -c $< -o $@
+	$(CC) -x assembler-with-cpp $(LIBC_CFLAGS) -c $< -o $@
 
 $(LIBC_OBJ_DIR)/%.asm.o: $(LIBC_SRC_DIR)/%.asm
 	$(NASM) $(LIBC_NFLAGS) $< -o $@
@@ -434,7 +434,7 @@ LIBKERNEL_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/kernel32/lib/libc
 
 $(LIBKERNEL_OBJ_DIR)/%.c.o: $(LIBKERNEL_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+	$(CC) $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(LIBKERNEL_OBJ_DIR)/%.asm.o: $(LIBKERNEL_SRC_DIR)/%.asm
 	$(NASM) $(LIBKERNEL_NFLAGS) $< -o $@
@@ -532,7 +532,7 @@ OSLDRM_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/osloader/sys/arch/x86/osloader
 
 $(OSLDRM_OBJ_DIR)/%.c.o: $(OSLDRM_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(OSLDRM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+	$(CC) $(OSLDRM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(OSLDRM_OBJ_DIR)/%.asm.o: $(OSLDRM_SRC_DIR)/%.asm
 	$(NASM) $(OSLDRM_NFLAGS) $< -o $@
@@ -608,7 +608,7 @@ NASM_OBJ_MKDIR:
 	@mkdir -p build/linux/obj/bin/nasm/output
 
 $(NASM_OBJ_DIR)/%.c.o: $(NASM_SRC_DIR)/%.c
-	$(CC) -O2 -m32 $(NASM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+	$(CC) $(NASM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 NASM_CLEAN :
 	@rm -f $(NASM_OBJ_FILES)

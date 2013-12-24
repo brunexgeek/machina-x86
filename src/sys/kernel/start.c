@@ -347,7 +347,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
     register_proc_inode("kmodmem", kmodmem_proc, NULL);
     register_proc_inode("kheap", kheapstat_proc, NULL);
     register_proc_inode("vmem", vmem_proc, NULL);
-
+console(NULL, NULL);
     register_proc_inode("cpu", cpu_proc, NULL);
 
     // Initialize interrupts, floating-point support, and real-time clock
@@ -492,7 +492,7 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
     if (halloc(&cons->iob.object) != 0) panic("unexpected stdin handle");
     if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Load kernel32.so in user address space
     imgbase = load_image_file(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
     if (!imgbase) panic("unable to load kernel32.so");
@@ -500,7 +500,7 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
     stack_reserve = imghdr->optional.size_of_stack_reserve;
     stack_commit = imghdr->optional.size_of_stack_commit;
     entrypoint = get_entrypoint(imgbase);
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Initialize initial user thread
     if (init_user_thread(t, entrypoint) < 0) panic("unable to initialize initial user thread");
     if (allocate_user_stack(t, stack_reserve, stack_commit) < 0) panic("unable to allocate stack for initial user thread");
@@ -512,14 +512,14 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
     maxmem * PAGESIZE / (1024 * 1024),
     (totalmem - freemem) * PAGESIZE / 1024,
     freemem * PAGESIZE / 1024, (maxmem - totalmem) * PAGESIZE / 1024);
-
+kprintf("## %s %d\n", __FILE__, __LINE__);
     // Place arguments to start routine on stack
     stacktop = (unsigned long *) t->tib->stacktop;
     *(--stacktop) = 0;
     *(--stacktop) = 0;
     *(--stacktop) = (unsigned long) imgbase;
     *(--stacktop) = 0;
-
+kprintf("## %s %d\n", __FILE__, __LINE__);
     // Jump into user mode
     __asm__
     (
@@ -538,4 +538,5 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
         :
         : "i" (SEL_UDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3), "m" (stacktop), "m" (entrypoint)
     );
+kprintf("## %s %d\n", __FILE__, __LINE__);
 }

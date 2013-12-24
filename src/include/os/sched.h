@@ -214,8 +214,10 @@ KERNELAPI int system_idle();
 
 void init_sched();
 
-static __inline void check_dpc_queue() {
-  if (dpc_queue_head) dispatch_dpc_queue();
+static __inline void check_dpc_queue()
+{
+    // TODO: fix this feature
+    if (dpc_queue_head) dispatch_dpc_queue();
 }
 
 static __inline void check_preempt() {

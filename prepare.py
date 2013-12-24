@@ -182,7 +182,7 @@ class CMakefileTarget(MakefileTarget):
                     if (entry.endswith(".asm")):
                         langs |= LANG_ASM
         # set the current C compiler
-        compiler = "$(CC) -O2 -m32"
+        compiler = "$(CC)"
         # target to compile each C source file
         if ((langs & LANG_C) > 0):
             print self._toVar("OBJ_DIR") + "/%.c.o:", self._toVar("SRC_DIR") + "/%.c"
@@ -488,7 +488,7 @@ target[FIELD_NAME] = "kernel"
 target[FIELD_DESCRIPTION] = "Machina Kernel for x86"
 target[FIELD_PREFFIX] = "KERNEL32"
 target[FIELD_TYPE] = BIN_EXECUTABLE
-target[FIELD_CFLAGS] = "-I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel"
+target[FIELD_CFLAGS] = "-g -O0 -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel"
 target[FIELD_LDFLAGS] = "-nostdlib -Wl,-T,src/sys/arch/x86/kernel/kernel.lds"
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/kernel"
 target[FIELD_OUTPUT_FILE] = "kernel32.elf"

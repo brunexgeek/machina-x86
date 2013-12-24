@@ -40,38 +40,47 @@ extern "C" {
 #endif
 
 static __inline void set_bit(void *bitmap, int pos) {
-    /*__asm__
+    __asm__
     (
-        "movs eax, pos"
-        "mov ebx, bitmap"
-        "bts dword ptr [ebx], eax"
-    );*/
-    *((unsigned int*)bitmap) = *((unsigned int*)bitmap) | (1 << pos);
+        "mov eax, %0;"
+        "mov ebx, %1;"
+        "bts dword ptr [ebx], eax;"
+        :
+        : "r" (pos), "m" (bitmap)
+    );
+    //*((unsigned int*)bitmap) = *((unsigned int*)bitmap) | (1 << pos);
 }
 
 static __inline void clear_bit(void *bitmap, int pos)
 {
-    /*__asm__
+    __asm__
     (
-        "mov eax, pos"
-        "mov ebx, bitmap"
-        "btr dword ptr [ebx], eax"
-    );*/
-    *((unsigned int*)bitmap) = *((unsigned int*)bitmap) & ~(1 << pos);
+        "mov eax, %0;"
+        "mov ebx, %1;"
+        "btr dword ptr [ebx], eax;"
+        :
+        : "r" (pos), "m" (bitmap)
+
+    );
+    //*((unsigned int*)bitmap) = *((unsigned int*)bitmap) & ~(1 << pos);
 }
 
 static __inline int test_bit(void *bitmap, int pos) {
-    /*
     int result;
     __asm__
     (
-        "mov eax, pos"
-        "mov ebx, bitmap"
-        "bt dword ptr [ebx], eax"
-        "sbb eax, eax"
-        "mov result, eax"
-    );*/
-    unsigned int v;  // find the number of trailing zeros in 32-bit v
+        "mov eax, %1;"
+        "mov ebx, %2;"
+        "bt dword ptr [ebx], eax;"
+        "sbb eax, eax;"
+        "mov %0, eax;"
+        : "=r" (result)
+        : "r" (pos), "m" (bitmap)
+    );
+
+    return result;
+
+    /*unsigned int v;  // find the number of trailing zeros in 32-bit v
     int r;           // result goes here
     static const int table[32] =
     {
@@ -80,25 +89,30 @@ static __inline int test_bit(void *bitmap, int pos) {
     };
 
     v = *((unsigned int*)bitmap);
-    return table[((unsigned int)((v & -v) * 0x077CB531U)) >> 27];
+    return table[((unsigned int)((v & -v) * 0x077CB531U)) >> 27];*/
 }
 
 static __inline int find_lowest_bit(unsigned mask) {
-    /*int n;
+    int n;
 
     __asm__
     (
-        "bsf eax, mask"
-        "mov n, eax"
-    );*/
-    unsigned int v;  // find the number of trailing zeros in v
+        "bsf eax, %1;"
+        "mov %0, eax;"
+        : "=r" (n)
+        : "r" (mask)
+    );
+
+    return n;
+
+    /*unsigned int v;  // find the number of trailing zeros in v
     static const int Mod37BitPosition[] = // map a bit value mod 37 to its position
     {
         32, 0, 1, 26, 2, 23, 27, 0, 3, 16, 24, 30, 28, 11, 0, 13, 4,
         7, 17, 0, 25, 22, 31, 15, 29, 10, 12, 6, 0, 21, 14, 9, 5,
         20, 8, 19, 18
     };
-    return Mod37BitPosition[(-mask & mask) % 37];
+    return Mod37BitPosition[(-mask & mask) % 37];*/
 }
 
 #if 0
@@ -108,8 +122,10 @@ static __inline int find_highest_bit(unsigned mask)
 
     __asm__
     (
-        "bsr eax, mask"
-        "mov n, eax"
+        "bsr eax, %1;"
+        "mov %0, eax;"
+        : "=r" (n)
+        : "i" (mask)
     );
 
     return n;

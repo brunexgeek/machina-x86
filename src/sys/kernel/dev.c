@@ -539,58 +539,71 @@ struct dev *kdev_get(dev_t devno) {
   return devtab[devno];
 }
 
-dev_t kdev_create(char *name, struct driver *driver, struct unit *unit, void *privdata) {
-  struct dev *dev;
-  dev_t devno;
-  char *p;
-  unsigned int n, m;
-  int exists;
+dev_t kdev_create(char *name, struct driver *driver, struct unit *unit, void *privdata)
+{
+    struct dev *dev;
+    dev_t devno;
+    char *p;
+    unsigned int n, m;
+    int exists;
 
-  if (num_devs == MAX_DEVS) panic("too many devices");
+    if (num_devs == MAX_DEVS) panic("too many devices");
 
-  dev = (struct dev *) kmalloc(sizeof(struct dev));
-  if (!dev) return NODEV;
-  memset(dev, 0, sizeof(struct dev));
+    dev = (struct dev *) kmalloc(sizeof(struct dev));
+    if (!dev) return NODEV;
+    memset(dev, 0, sizeof(struct dev));
 
-  strcpy(dev->name, name);
+    strcpy(dev->name, name);
 
-  p = dev->name;
-  while (p[0] && p[1]) p++;
-  if (*p == '#') {
-    n = 0;
-    while (1) {
-      sprintf(p, "%d", n);
-      exists = 0;
-      for (m = 0; m < num_devs; m++)  {
-        if (strcmp(devtab[m]->name, dev->name) == 0) {
-          exists = 1;
-          break;
+    p = dev->name;
+    while (p[0] && p[1]) p++;
+    if (*p == '#')
+    {
+        n = 0;
+        while (1)
+        {
+            sprintf(p, "%d", n);
+            exists = 0;
+            for (m = 0; m < num_devs; m++)
+            {
+                if (strcmp(devtab[m]->name, dev->name) == 0)
+                {
+                    exists = 1;
+                    break;
+                }
+            }
+
+            if (!exists) break;
+            n++;
+            // TODO: check for 'n' overflow
         }
-      }
-
-      if (!exists) break;
-      n++;
     }
-  }
 
-  dev->driver = driver;
-  dev->unit = unit;
-  dev->privdata = privdata;
-  dev->refcnt = 0;
-  dev->mode = 0600;
+    dev->driver = driver;
+    dev->unit = unit;
+    dev->privdata = privdata;
+    dev->refcnt = 0;
+    dev->mode = 0600;
 
-  switch (dev->driver->type) {
-    case DEV_TYPE_STREAM: dev->mode |= S_IFCHR; break;
-    case DEV_TYPE_BLOCK: dev->mode |= S_IFBLK; break;
-    case DEV_TYPE_PACKET: dev->mode |= S_IFPKT; break;
-  }
+    switch (dev->driver->type)
+    {
+        case DEV_TYPE_STREAM:
+            dev->mode |= S_IFCHR;
+            break;
+        case DEV_TYPE_BLOCK:
+            dev->mode |= S_IFBLK;
+            break;
+        case DEV_TYPE_PACKET:
+            dev->mode |= S_IFPKT;
+            break;
+    }
 
-  if (unit) unit->dev = dev;
+    if (unit) unit->dev = dev;
 
-  devno = num_devs++;
-  devtab[devno] = dev;
+    devno = num_devs++;
+    devtab[devno] = dev;
 
-  return devno;
+    return devno;
 }
 
 dev_t kdev_get_number(char *name) {

@@ -712,14 +712,16 @@ void queue_irq_dpc(struct dpc *dpc, dpcproc_t proc, void *arg)
 }
 
 
-void queue_dpc(struct dpc *dpc, dpcproc_t proc, void *arg) {
+void queue_dpc(struct dpc *dpc, dpcproc_t proc, void *arg)
+{
     cli();
     queue_irq_dpc(dpc, proc, arg);
     sti();
 }
 
 
-struct dpc *get_next_dpc() {
+struct dpc *get_next_dpc()
+{
     struct dpc *dpc;
 
     cli();

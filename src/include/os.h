@@ -500,7 +500,7 @@ struct section;
 //
 // Signals
 //
-// Some of these signals are not used in sanos, but are included
+// Some of these signals are not used in Machina, but are included
 // for completeness.
 //
 

@@ -456,7 +456,7 @@ void main(void *arg)
 
     // Initialize module loader
     // >>> init_kernel_modules();
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Get os version info from kernel version resource
     /*get_version_value((hmodule_t) OSBASE, "ProductName", peb->osname, sizeof peb->osname);
     peb->ostimestamp = get_image_header((hmodule_t) OSBASE)->header.timestamp;
@@ -512,14 +512,14 @@ kprintf("## %s %d\n", __FILE__, __LINE__);
     maxmem * PAGESIZE / (1024 * 1024),
     (totalmem - freemem) * PAGESIZE / 1024,
     freemem * PAGESIZE / 1024, (maxmem - totalmem) * PAGESIZE / 1024);
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Place arguments to start routine on stack
     stacktop = (unsigned long *) t->tib->stacktop;
     *(--stacktop) = 0;
     *(--stacktop) = 0;
     *(--stacktop) = (unsigned long) imgbase;
     *(--stacktop) = 0;
-kprintf("## %s %d\n", __FILE__, __LINE__);
+
     // Jump into user mode
     __asm__
     (

@@ -38,7 +38,7 @@ KERNEL32_OUT_DIR = build/machina/obj/kernel
 KERNEL32_OUT_FILE = $(KERNEL32_OUT_DIR)/kernel32.elf
 KERNEL32_SRC_DIR = src
 KERNEL32_SRC_FILES = \
-	sys/kernel/assert.c \
+	sys/kernel/kdebug.c \
 	sys/kernel/buf.c \
 	sys/kernel/cpu.c \
 	sys/kernel/dbg.c \

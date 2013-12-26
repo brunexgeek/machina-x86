@@ -1,7 +1,7 @@
 //
-// assert.c
+// kdebug.c
 //
-// Kernel assertion helper routine
+// Debugging functions and macros
 //
 // Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 //
@@ -31,10 +31,12 @@
 // SUCH DAMAGE.
 //
 
-#include <os.h>
+#include <kdebug.h>
+#include <os/mach.h>
 
-void _assert( void *expr, void *filename, unsigned lineno )
+void kassert_failed( char *expression, void *fileName, unsigned line )
 {
-    kprintf("[%s:%d] Assertion failed: %s\n", filename, lineno, expr);
-    panic("Assertion failed!");
+    kprintf("[%s:%d] Assertion failed: %s\n", fileName, line, expression);
+    cli();
+    halt();
 }

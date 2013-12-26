@@ -497,7 +497,7 @@ target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
     [ \
     #"sys/kernel/apm.c", \
-    "sys/kernel/assert.c", \
+    "sys/kernel/kdebug.c", \
     "sys/kernel/buf.c", \
     "sys/kernel/cpu.c", \
     "sys/kernel/dbg.c", \

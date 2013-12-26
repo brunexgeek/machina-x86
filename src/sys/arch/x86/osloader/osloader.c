@@ -94,7 +94,11 @@ void kprintf(const char *fmt,...) {
 void panic( char *message )
 {
     kprintf("panic: %s\n", message);
-    while (1);
+    __asm__
+    (
+        "cli;"
+        "hlt;"
+    );
 }
 
 
@@ -410,7 +414,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
 
     // create the memory mapping
     memory_setup(&bootparams->memmap);
-    kprintf("\nmemory: %d MB\n", mem_end / (1024 * 1024) + 1);
+    //kprintf("\nmemory: %d MiB\n", mem_end / (1024 * 1024) + 1);
 
     // Page allocation starts at 1MB
     heap = (char *) HEAP_START;

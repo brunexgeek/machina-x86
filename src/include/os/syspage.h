@@ -31,8 +31,14 @@
 // SUCH DAMAGE.
 //
 
-#ifndef SYSPAGE_H
-#define SYSPAGE_H
+#ifndef MACHINA_OS_SYSPAGE_H
+#define MACHINA_OS_SYSPAGE_H
+
+
+#include <os.h>
+#include <os/tss.h>
+#include <os/seg.h>
+
 
 #define GDT_TO_SEL(gdt) ((gdt) << 3)
 
@@ -195,4 +201,5 @@ KERNELAPI extern struct syspage *syspage;
 #define USERSPACE(addr) ((unsigned long)(addr) < OSBASE)
 #define KERNELSPACE(addr) ((unsigned long)(addr) >= OSBASE)
 
-#endif
+
+#endif  // MACHINA_OS_SYSPAGE_H

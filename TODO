@@ -34,6 +34,10 @@ TODO for sanos
   
 - What happens if a tcp pcb is freed in tcp_input() while sending segments on another socket in tcp_output()?
 
+- Stack overflow/underflow checking
+
+- Minimal buffer overrun checking
+
 IDEAS for new features
 ----------------------
 

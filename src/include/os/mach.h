@@ -35,6 +35,11 @@
 #ifndef MACHINA_OS_MACH_H
 #define MACHINA_OS_MACH_H
 
+
+#include <sys/types.h>
+#include <os/syspage.h>
+#include <os/pdir.h>
+
 //
 // Machine interface
 //

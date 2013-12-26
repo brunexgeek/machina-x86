@@ -9,16 +9,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,14 +28,12 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os.h>
 #include <string.h>
-
-#define assert(x)
 
 #define ALIGNMENT (2 * sizeof(size_t))
 #define ALIGNMASK (ALIGNMENT - 1)
@@ -76,7 +74,7 @@ typedef struct chunk *mchunkptr;
 //  Chunk details
 //
 //  (The following includes lightly edited explanations by Colin Plumb.)
-//  
+//
 //  Chunks of memory are maintained using a `boundary tag' method as
 //  described in e.g., Knuth or Standish.  (See the paper by Paul
 //  Wilson ftp://ftp.cs.utexas.edu/pub/garbage/allocsrv.ps for a
@@ -85,10 +83,10 @@ typedef struct chunk *mchunkptr;
 //  consolidating fragmented chunks into bigger chunks very fast.  The
 //  size fields also hold bits representing whether chunks are free or
 //  in use.
-//  
+//
 //  An allocated chunk looks like this:
-//  
-//  
+//
+//
 //     chunk-> +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //             |             Size of previous chunk, if allocated            | |
 //             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -101,18 +99,18 @@ typedef struct chunk *mchunkptr;
 // nextchunk-> +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //             |             Size of chunk                                     |
 //             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//  
-//  
+//
+//
 //  Where "chunk" is the front of the chunk for the purpose of most of
 //  the malloc code, but "mem" is the pointer that is returned to the
 //  user.  "Nextchunk" is the beginning of the next contiguous chunk.
-//  
+//
 //  Chunks always begin on even word boundries, so the mem portion
 //  (which is returned to the user) is also on an even word boundary, and
 //  thus at least double-word aligned.
-//  
+//
 //  Free chunks are stored in circular doubly-linked lists, and look like this:
-//  
+//
 //     chunk-> +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //             |             Size of previous chunk                            |
 //             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -128,7 +126,7 @@ typedef struct chunk *mchunkptr;
 // nextchunk-> +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //     'foot:' |             Size of chunk, in bytes                           |
 //             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//  
+//
 //  The P (PREV_INUSE) bit, stored in the unused low-order bit of the
 //  chunk size (which is always a multiple of two words), is an in-use
 //  bit for the *previous* chunk.  If that bit is *clear*, then the
@@ -139,24 +137,24 @@ typedef struct chunk *mchunkptr;
 //  prev_inuse is set for any given chunk, then you CANNOT determine
 //  the size of the previous chunk, and might even get a memory
 //  addressing fault when trying to do so.
-//  
+//
 //  Note that the `foot' of the current chunk is actually represented
 //  as the prev_size of the NEXT chunk. This makes it easier to
 //  deal with alignments etc but can be very confusing when trying
 //  to extend or adapt this code.
-//  
+//
 //  The two exceptions to all this are
-//  
+//
 //   1. The special chunk `top' doesn't bother using the
 //      trailing size field since there is no next contiguous chunk
 //      that would have to index off it. After initialization, `top'
 //      is forced to always exist.  If it would become less than
 //      MINSIZE bytes long, it is replenished.
-//  
+//
 //   2. Chunks allocated via mmap, which have the second-lowest-order
 //      bit (IS_MMAPPED) set in their size fields.  Because they are
 //      allocated one-by-one, each must contain its own trailing size field.
-//  
+//
 
 //
 // Size and alignment checks and conversions
@@ -207,13 +205,13 @@ typedef struct chunk *mchunkptr;
 #define chunk_is_mmapped(p) ((p)->size & IS_MMAPPED)
 
 //
-// Bits to mask off when extracting size 
-// 
+// Bits to mask off when extracting size
+//
 // Note: IS_MMAPPED is intentionally not masked off from size field in
 // macros for which mmapped chunks should never be seen. This should
 // cause helpful core dumps to occur if it is tried by accident by
 // people extending or adapting this malloc.
-// 
+//
 
 #define SIZE_BITS (PREV_INUSE | IS_MMAPPED)
 
@@ -252,7 +250,7 @@ typedef struct chunk *mchunkptr;
 
 #define set_head_size(p, s) ((p)->size = (((p)->size & PREV_INUSE) | (s)))
 
-// Set size/use field 
+// Set size/use field
 
 #define set_head(p, s) ((p)->size = (s))
 
@@ -262,17 +260,17 @@ typedef struct chunk *mchunkptr;
 
 //
 // Internal data structures
-// 
+//
 // All internal state is held in an instance of malloc_state defined
-// below. 
-// 
+// below.
+//
 // Beware of lots of tricks that minimize the total bookkeeping space
 // requirements. The result is a little over 1K bytes.
 //
 
-// 
+//
 // Bins
-// 
+//
 // An array of bin headers for free chunks. Each bin is doubly
 // linked.  The bins are approximately proportionally (log) spaced.
 // There are a lot of these bins (128). This may look excessive, but
@@ -283,28 +281,28 @@ typedef struct chunk *mchunkptr;
 // that no consolidated chunk physically borders another one, so each
 // chunk in a list is known to be preceeded and followed by either
 // inuse chunks or the ends of memory.
-// 
+//
 // Chunks in bins are kept in size order, with ties going to the
 // approximately least recently used chunk. Ordering isn't needed
 // for the small bins, which all contain the same-sized chunks, but
 // facilitates best-fit allocation for larger chunks. These lists
 // are just sequential. Keeping them in order almost never requires
 // enough traversal to warrant using fancier ordered data
-// structures.  
-// 
+// structures.
+//
 // Chunks of the same size are linked with the most
 // recently freed at the front, and allocations are taken from the
 // back.  This results in LRU (FIFO) allocation order, which tends
 // to give each chunk an equal opportunity to be consolidated with
 // adjacent freed chunks, resulting in larger free chunks and less
 // fragmentation.
-// 
+//
 // To simplify use in double-linked lists, each bin header acts
-// as a chunk. This avoids special-casing for headers. But to conserve 
-// space and improve locality, we allocate only the fd/bk pointers 
-// of bins, and then use repositioning tricks to treat these as the 
-// fields of a chunk.  
-// 
+// as a chunk. This avoids special-casing for headers. But to conserve
+// space and improve locality, we allocate only the fd/bk pointers
+// of bins, and then use repositioning tricks to treat these as the
+// fields of a chunk.
+//
 
 typedef struct chunk *mbinptr;
 
@@ -333,10 +331,10 @@ typedef struct chunk *mbinptr;
 
 //
 // Indexing
-// 
+//
 // Bins for sizes < 512 bytes contain chunks of all the same size, spaced
 // 8 bytes apart. Larger bins are approximately logarithmically spaced:
-// 
+//
 //  64 bins of size       8
 //  32 bins of size      64
 //  16 bins of size     512
@@ -344,13 +342,13 @@ typedef struct chunk *mbinptr;
 //   4 bins of size   32768
 //   2 bins of size  262144
 //   1 bin  of size what's left
-// 
+//
 // There is actually a little bit of slop in the numbers in bin_index
 // for the sake of speed. This makes no difference elsewhere.
-// 
+//
 // The bins top out around 1MB because we expect to service large
 // requests via mmap.
-// 
+//
 
 #define NBINS             128
 #define NSMALLBINS         64
@@ -373,22 +371,22 @@ typedef struct chunk *mbinptr;
 
 //
 // Unsorted chunks
-// 
+//
 // All remainders from chunk splits, as well as all returned chunks,
 // are first placed in the "unsorted" bin. They are then placed
 // in regular bins after malloc gives them ONE chance to be used before
 // binning. So, basically, the unsorted_chunks list acts as a queue,
 // with chunks being placed on it in free (and heap_consolidate),
 // and taken off (to be either used or placed in bins) in malloc.
-// 
+//
 
 // The otherwise unindexable 1-bin is used to hold unsorted chunks.
 
 #define unsorted_chunks(m) (bin_at(m, 1))
 
-// 
+//
 // Top
-// 
+//
 // The top-most available chunk (i.e., the one bordering the end of
 // available memory) is treated specially. It is never included in
 // any bin, is used only if no other chunk is available, and is
@@ -408,16 +406,16 @@ typedef struct chunk *mbinptr;
 
 #define initial_top(m) (unsorted_chunks(m))
 
-// 
+//
 // Binmap
-// 
+//
 // To help compensate for the large number of bins, a one-level index
 // structure is used for bin-by-bin searching.  `binmap' is a
 // bitvector recording whether bins are definitely empty so they can
 // be skipped over during during traversals.  The bits are NOT always
 // cleared as soon as bins are empty, but instead only
 // when they are noticed to be empty during traversal in malloc.
-// 
+//
 
 #define BINMAPSHIFT      5
 #define BITSPERMAP       (1U << BINMAPSHIFT)
@@ -430,9 +428,9 @@ typedef struct chunk *mbinptr;
 #define unmark_bin(m,i)  ((m)->binmap[idx2block(i)] &= ~(idx2bit(i)))
 #define get_binmap(m,i)  ((m)->binmap[idx2block(i)] & idx2bit(i))
 
-// 
+//
 // Fastbins
-// 
+//
 // An array of lists holding recently freed small chunks.  Fastbins
 // are not doubly linked.  It is faster to single-link them, and
 // since chunks are never removed from the middles of these lists,
@@ -440,12 +438,12 @@ typedef struct chunk *mbinptr;
 // are not even processed in FIFO order (they use faster LIFO) since
 // ordering doesn't much matter in the transient contexts in which
 // fastbins are normally used.
-// 
+//
 // Chunks in fastbins keep their inuse bit set, so they cannot
 // be consolidated with other free chunks. heap_consolidate
 // releases all chunks in fastbins and consolidates them with
-// other free chunks. 
-// 
+// other free chunks.
+//
 
 typedef struct chunk *mfastbinptr;
 
@@ -459,31 +457,31 @@ typedef struct chunk *mfastbinptr;
 
 #define NFASTBINS  (fastbin_index(request2size(MAX_FAST_SIZE)) + 1)
 
-// 
+//
 // FASTBIN_CONSOLIDATION_THRESHOLD is the size of a chunk in free()
 // that triggers automatic consolidation of possibly-surrounding
 // fastbin chunks. This is a heuristic, so the exact value should not
 // matter too much. It is defined at half the default trim threshold as a
 // compromise heuristic to only attempt consolidation if it is likely
 // to lead to trimming. However, it is not dynamically tunable, since
-// consolidation reduces fragmentation surrounding large chunks even 
+// consolidation reduces fragmentation surrounding large chunks even
 // if trimming is not used.
-// 
+//
 
 #define FASTBIN_CONSOLIDATION_THRESHOLD  (65536UL)
 
 //
-// Since the lowest 2 bits in max_fast don't matter in size comparisons, 
+// Since the lowest 2 bits in max_fast don't matter in size comparisons,
 // they are used as flags.
-// 
+//
 // FASTCHUNKS_BIT held in max_fast indicates that there are probably
 // some fastbin chunks. It is set true on entering a chunk into any
 // fastbin, and cleared only in heap_consolidate.
-// 
+//
 // The truth value is inverted so that have_fastchunks will be true
 // upon startup (since statics are zero-filled), simplifying
 // initialization checks.
-// 
+//
 
 #define FASTCHUNKS_BIT (1U)
 
@@ -491,14 +489,14 @@ typedef struct chunk *mfastbinptr;
 #define clear_fastchunks(m)    ((m)->max_fast |=  FASTCHUNKS_BIT)
 #define set_fastchunks(m)      ((m)->max_fast &= ~FASTCHUNKS_BIT)
 
-// 
+//
 // NONCONTIGUOUS_BIT indicates that MORECORE does not return contiguous
 // regions.  Otherwise, contiguity is exploited in merging together,
 // when possible, results from consecutive MORECORE calls.
-// 
+//
 // The initial value comes from MORECORE_CONTIGUOUS, but is
 // changed dynamically if mmap is ever used as an sbrk substitute.
-// 
+//
 
 #define NONCONTIGUOUS_BIT     (2U)
 
@@ -507,12 +505,12 @@ typedef struct chunk *mfastbinptr;
 #define set_noncontiguous(m)   ((m)->max_fast |=  NONCONTIGUOUS_BIT)
 #define set_contiguous(m)      ((m)->max_fast &= ~NONCONTIGUOUS_BIT)
 
-//  
-// Set value of max_fast. 
+//
+// Set value of max_fast.
 // Use impossibly small value if 0.
 // Precondition: there are no existing fastbin chunks.
 // Setting the value clears fastchunk bit but preserves noncontiguous bit.
-// 
+//
 
 #define set_max_fast(m, s) \
   (m)->max_fast = (((s) == 0)? SMALLBIN_WIDTH: request2size(s)) | \
@@ -559,13 +557,13 @@ struct heap {
 
 //
 // Initialize a heap struct.
-// 
+//
 // This is called only from within heap_consolidate, which needs
 // be called in the same contexts anyway.  It is never called directly
 // outside of heap_consolidate because some optimizing compilers try
 // to inline it at all call points, which turns out not to be an
 // optimization at all. (Inlining it in heap_consolidate is fine though.)
-// 
+//
 
 static heap_init(struct heap *av) {
   int i;
@@ -589,13 +587,13 @@ static heap_init(struct heap *av) {
 
 //
 // heap_consolidate
-// 
+//
 // heap_consolidate is a specialized version of free() that tears
 // down chunks held in fastbins.  Free itself cannot be used for this
 // purpose since, among other things, it might place chunks back onto
 // fastbins.  So, instead, we need to use a minor variant of the same
 // code.
-// 
+//
 // Also, because this routine needs to be called the first time through
 // malloc anyway, it turns out to be the perfect place to trigger
 // initialization code.
@@ -628,41 +626,41 @@ static void heap_consolidate(struct heap *av) {
     // placing in unsorted bin avoids needing to calculate actual bins
     // until malloc is sure that chunks aren't immediately going to be
     // reused anyway.
-    
+
     maxfb = &(av->fastbins[fastbin_index(av->max_fast)]);
     fb = &(av->fastbins[0]);
     do {
       if ((p = *fb) != 0) {
         *fb = 0;
-        
+
         do {
           nextp = p->fd;
-          
+
           // Slightly streamlined version of consolidation code in free()
           size = p->size & ~PREV_INUSE;
           nextchunk = chunk_at_offset(p, size);
           nextsize = chunksize(nextchunk);
-          
+
           if (!prev_inuse(p)) {
             prevsize = p->prev_size;
             size += prevsize;
             p = chunk_at_offset(p, -((long) prevsize));
             unlink(p, bck, fwd);
           }
-          
+
           if (nextchunk != av->top) {
             nextinuse = inuse_bit_at_offset(nextchunk, nextsize);
             set_head(nextchunk, nextsize);
-            
+
             if (!nextinuse) {
               size += nextsize;
               unlink(nextchunk, bck, fwd);
             }
-            
+
             first_unsorted = unsorted_bin->fd;
             unsorted_bin->fd = p;
             first_unsorted->bk = p;
-            
+
             set_head(p, size | PREV_INUSE);
             p->bk = unsorted_bin;
             p->fd = first_unsorted;
@@ -685,7 +683,7 @@ static void heap_consolidate(struct heap *av) {
 // On entry, it is assumed that av->top does not have enough
 // space to service request for nb bytes, thus requiring that av->top
 // be extended or replaced.
-// 
+//
 
 static void *sysalloc(size_t nb, struct heap *av) {
   mchunkptr top;                // Incoming value of av->top
@@ -809,7 +807,7 @@ void *heap_alloc(struct heap *av, size_t bytes) {
   // Convert request size to internal form by adding sizeof(size_t) bytes
   // overhead plus possibly more to obtain necessary alignment and/or
   // to obtain a size of at least MINSIZE, the smallest allocatable
-  // size. 
+  // size.
 
   nb = request2size(bytes);
 
@@ -843,7 +841,7 @@ void *heap_alloc(struct heap *av, size_t bytes) {
         set_inuse_bit_at_offset(victim, nb);
         bin->bk = bck;
         bck->fd = bin;
-        
+
         return chunk2mem(victim);
       }
     }
@@ -853,7 +851,7 @@ void *heap_alloc(struct heap *av, size_t bytes) {
     // even seeing if there is space available, this avoids
     // fragmentation problems normally associated with fastbins.
     // Also, in practice, programs tend to have runs of either small or
-    // large requests, but less often mixtures, so consolidation is not 
+    // large requests, but less often mixtures, so consolidation is not
     // invoked all that often in most programs. And the programs that
     // it is called frequently in otherwise tend to fragment.
 
@@ -866,12 +864,12 @@ void *heap_alloc(struct heap *av, size_t bytes) {
   // the most recent non-exact fit.  Place other traversed chunks in
   // bins.  Note that this step is the only place in any routine where
   // chunks are placed in bins.
-  // 
+  //
   // The outer loop here is needed because we might not realize until
   // near the end of malloc that we should have consolidated, so must
   // do so and retry. This happens at most once, and only when we would
   // otherwise need to expand memory to service a "small" request.
-    
+
   for (;;) {
     while ((victim = unsorted_chunks(av)->bk) != unsorted_chunks(av)) {
       bck = victim->bk;
@@ -888,26 +886,26 @@ void *heap_alloc(struct heap *av, size_t bytes) {
         remainder_size = size - nb;
         remainder = chunk_at_offset(victim, nb);
         unsorted_chunks(av)->bk = unsorted_chunks(av)->fd = remainder;
-        av->last_remainder = remainder; 
+        av->last_remainder = remainder;
         remainder->bk = remainder->fd = unsorted_chunks(av);
-        
+
         set_head(victim, nb | PREV_INUSE);
         set_head(remainder, remainder_size | PREV_INUSE);
         set_foot(remainder, remainder_size);
-        
+
         return chunk2mem(victim);
       }
 
       // Remove from unsorted list
       unsorted_chunks(av)->bk = bck;
       bck->fd = unsorted_chunks(av);
-      
+
       // Take now instead of binning if exact fit
       if (size == nb) {
         set_inuse_bit_at_offset(victim, size);
         return chunk2mem(victim);
       }
-      
+
       // Place chunk in bin
       if (in_smallbin_range(size)) {
         victim_index = smallbin_index(size);
@@ -933,19 +931,19 @@ void *heap_alloc(struct heap *av, size_t bytes) {
           }
         }
       }
-      
+
       mark_bin(av, victim_index);
       victim->bk = bck;
       victim->fd = fwd;
       fwd->bk = victim;
       bck->fd = victim;
     }
-   
+
     // If a large request, scan through the chunks of current bin in
     // sorted order to find smallest that fits.  This is the only step
     // where an unbounded number of chunks might be scanned without doing
     // anything useful with them. However the lists tend to be short.
-      
+
     if (!in_smallbin_range(nb)) {
       bin = bin_at(av, idx);
 
@@ -955,7 +953,7 @@ void *heap_alloc(struct heap *av, size_t bytes) {
 
         remainder_size = size - nb;
         unlink(victim, bck, fwd);
-        
+
         // Exhaust
         if (remainder_size < MINSIZE) {
           set_inuse_bit_at_offset(victim, size);
@@ -969,25 +967,25 @@ void *heap_alloc(struct heap *av, size_t bytes) {
           set_head(remainder, remainder_size | PREV_INUSE);
           set_foot(remainder, remainder_size);
           return chunk2mem(victim);
-        } 
+        }
       }
-    }    
+    }
 
     // Search for a chunk by scanning bins, starting with next largest
     // bin. This search is strictly by best-fit; i.e., the smallest
     // (with ties going to approximately the least recently used) chunk
     // that fits is selected.
-    
+
     // The bitmap avoids needing to check that most blocks are nonempty.
     // The particular case of skipping all bins during warm-up phases
     // when no chunks have been returned yet is faster than it might look.
-    
+
     idx++;
     bin = bin_at(av,idx);
     block = idx2block(idx);
     map = av->binmap[block];
     bit = idx2bit(idx);
-    
+
     for (;;) {
       // Skip rest of block if there are no more set bits in this block.
       if (bit > map || bit == 0) {
@@ -995,17 +993,17 @@ void *heap_alloc(struct heap *av, size_t bytes) {
         bin = bin_at(av, (block << BINMAPSHIFT));
         bit = 1;
       }
-      
+
       // Advance to bin with set bit. There must be one.
       while ((bit & map) == 0) {
         bin = next_bin(bin);
         bit <<= 1;
         assert(bit != 0);
       }
-      
+
       // Inspect the bin. It is likely to be non-empty
       victim = last(bin);
-      
+
       //  If a false alarm (empty bin), clear the bit.
       if (victim == bin) {
         av->binmap[block] = map &= ~bit; // Write through
@@ -1018,12 +1016,12 @@ void *heap_alloc(struct heap *av, size_t bytes) {
         assert(size >= nb);
 
         remainder_size = size - nb;
-        
+
         // Unlink
         bck = victim->bk;
         bin->bk = bck;
         bck->fd = bin;
-        
+
         // Exhaust
         if (remainder_size < MINSIZE) {
           set_inuse_bit_at_offset(victim, size);
@@ -1031,13 +1029,13 @@ void *heap_alloc(struct heap *av, size_t bytes) {
         } else {
           // Split
           remainder = chunk_at_offset(victim, nb);
-          
+
           unsorted_chunks(av)->bk = unsorted_chunks(av)->fd = remainder;
           remainder->bk = remainder->fd = unsorted_chunks(av);
-          
+
           // Advertise as last remainder
-          if (in_smallbin_range(nb)) av->last_remainder = remainder; 
-          
+          if (in_smallbin_range(nb)) av->last_remainder = remainder;
+
           set_head(victim, nb | PREV_INUSE);
           set_head(remainder, remainder_size | PREV_INUSE);
           set_foot(remainder, remainder_size);
@@ -1046,14 +1044,14 @@ void *heap_alloc(struct heap *av, size_t bytes) {
       }
     }
 
-  use_top:    
+  use_top:
     // If large enough, split off the chunk bordering the end of memory
     // (held in av->top). Note that this is in accord with the best-fit
     // search rule.  In effect, av->top is treated as larger (and thus
     // less well fitting) than any other available chunk since it can
     // be extended to be as large as necessary (up to system
     // limitations).
-    // 
+    //
     // We require that av->top always exists (i.e., has size >=
     // MINSIZE) after initialization, so if it would otherwise be
     // exhuasted by current request, it is replenished. (The main
@@ -1062,7 +1060,7 @@ void *heap_alloc(struct heap *av, size_t bytes) {
 
     victim = av->top;
     size = chunksize(victim);
-   
+
     if (size >= nb + MINSIZE) {
       remainder_size = size - nb;
       remainder = chunk_at_offset(victim, nb);
@@ -1080,7 +1078,7 @@ void *heap_alloc(struct heap *av, size_t bytes) {
       heap_consolidate(av);
       idx = smallbin_index(nb); // Restore original bin index
     } else {
-      // Otherwise, relay to handle system-dependent cases 
+      // Otherwise, relay to handle system-dependent cases
       return sysalloc(nb, av);
     }
   }
@@ -1132,7 +1130,7 @@ void heap_free(struct heap *av, void *mem) {
         nextinuse = inuse_bit_at_offset(nextchunk, nextsize);
         set_head(nextchunk, nextsize);
 
-        // Consolidate forward 
+        // Consolidate forward
         if (!nextinuse) {
           unlink(nextchunk, bck, fwd);
           size += nextsize;
@@ -1163,7 +1161,7 @@ void heap_free(struct heap *av, void *mem) {
       // If freeing a large space, consolidate possibly-surrounding
       // chunks. Then, if the total unused topmost memory exceeds trim
       // threshold, ask malloc_trim to reduce top.
-      // 
+      //
       // Unless max_fast is 0, we don't know if there are fastbins
       // bordering top, so we cannot tell for sure whether threshold
       // has been reached unless fastbins are consolidated.  But we
@@ -1171,7 +1169,7 @@ void heap_free(struct heap *av, void *mem) {
       // consolidation is performed if FASTBIN_CONSOLIDATION_THRESHOLD
       // is reached.
 
-      if (size >= FASTBIN_CONSOLIDATION_THRESHOLD) { 
+      if (size >= FASTBIN_CONSOLIDATION_THRESHOLD) {
         if (have_fastchunks(av)) heap_consolidate(av);
 
         if (chunksize(av->top) >= av->trim_threshold) {
@@ -1255,10 +1253,10 @@ void *heap_realloc(struct heap *av, void *oldmem, size_t bytes) {
         // Allocate, copy, free
         newmem = heap_alloc(av, nb - ALIGNMASK);
         if (newmem == 0) return 0; // Propagate failure
-      
+
         newp = mem2chunk(newmem);
         newsize = chunksize(newp);
-        
+
         // Avoid copy if newp is next chunk after oldp.
         if (newp == next) {
           newsize += oldsize;
@@ -1279,15 +1277,15 @@ void *heap_realloc(struct heap *av, void *oldmem, size_t bytes) {
       // Not enough extra to split off
       set_head_size(newp, newsize);
       set_inuse_bit_at_offset(newp, newsize);
-    } else { 
+    } else {
       // Split remainder
       remainder = chunk_at_offset(newp, nb);
       set_head_size(newp, nb);
       set_head(remainder, remainder_size | PREV_INUSE);
-      
+
       // Mark remainder as inuse so free() won't complain
       set_inuse_bit_at_offset(remainder, remainder_size);
-      heap_free(av, chunk2mem(remainder)); 
+      heap_free(av, chunk2mem(remainder));
     }
 
     return chunk2mem(newp);
@@ -1298,7 +1296,7 @@ void *heap_realloc(struct heap *av, void *oldmem, size_t bytes) {
     size_t pagemask = av->pagesize - 1;
     char *cp;
     unsigned long sum;
-    
+
     // Note the extra sizeof(size_t) overhead
     newsize = (nb + offset + sizeof(size_t) + pagemask) & ~pagemask;
 
@@ -1309,10 +1307,10 @@ void *heap_realloc(struct heap *av, void *oldmem, size_t bytes) {
     if (cp != (char *) MORECORE_FAILURE) {
       newp = (mchunkptr) (cp + offset);
       set_head(newp, (newsize - offset) | IS_MMAPPED);
-      
+
       assert(aligned(chunk2mem(newp)));
       assert((newp->prev_size == offset));
-      
+
       // Update statistics
       sum = av->mmapped_mem += newsize - oldsize;
       if (sum > av->max_mmapped_mem) av->max_mmapped_mem = sum;

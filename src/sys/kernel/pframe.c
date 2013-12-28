@@ -43,73 +43,84 @@ struct pageframe *freelist;   // List of free pages
 
 void panic(char *msg);
 
-unsigned long alloc_pageframe(unsigned long tag) {
-  struct pageframe *pf;
+unsigned long alloc_pageframe(unsigned long tag)
+{
+    struct pageframe *pf;
 
-  if (freemem == 0) panic("out of memory");
+    if (freemem == 0) panic("out of memory");
 
-  pf = freelist;
-  freelist = pf->next;
-  freemem--;
+    pf = freelist;
+    freelist = pf->next;
+    freemem--;
 
-  pf->tag = tag;
-  pf->next = NULL;
+    pf->tag = tag;
+    pf->next = NULL;
 
-  return pf - pfdb;
+    return pf - pfdb;
 }
 
-unsigned long alloc_linear_pageframes(int pages, unsigned long tag) {
-  struct pageframe *pf;
-  struct pageframe *prevpf;
+unsigned long alloc_linear_pageframes(int pages, unsigned long tag)
+{
+    struct pageframe *pf;
+    struct pageframe *prevpf;
 
-  if (pages == 1) return alloc_pageframe(tag);
+    if (pages == 1) return alloc_pageframe(tag);
 
-  if ((int) freemem < pages) return 0xFFFFFFFF;
+    if ((int) freemem < pages) return 0xFFFFFFFF;
 
-  prevpf = NULL;
-  pf = freelist;
-  while (pf) {
-    if (pf - pfdb + pages < (int) maxmem) {
-      int n;
+    prevpf = NULL;
+    pf = freelist;
+    while (pf)
+    {
+        if (pf - pfdb + pages < (int) maxmem)
+        {
+            int n;
 
-      for (n = 0; n < pages; n++) {
-        if (pf[n].tag != 0x46524545 /* FREE */) break;
-        if (n != 0 && pf[n - 1].next != &pf[n]) break;
-      }
+            for (n = 0; n < pages; n++)
+            {
+                if (pf[n].tag != 0x46524545 /* FREE */) break;
+                if (n != 0 && pf[n - 1].next != &pf[n]) break;
+            }
 
-      if (n == pages) {
-        if (prevpf) {
-          prevpf->next = pf[pages - 1].next;
-        } else {
-          freelist = pf[pages - 1].next;
+            if (n == pages)
+            {
+                if (prevpf)
+                {
+                    prevpf->next = pf[pages - 1].next;
+                }
+                else
+                {
+                    freelist = pf[pages - 1].next;
+                }
+
+                for (n = 0; n < pages; n++)
+                {
+                    pf[n].tag = tag;
+                    pf[n].next = NULL;
+                }
+
+                freemem -= pages;
+
+                return pf - pfdb;
+            }
         }
 
-        for (n = 0; n < pages; n++) {
-          pf[n].tag = tag;
-          pf[n].next = NULL;
-        }
-
-        freemem -= pages;
-
-        return pf - pfdb;
-      }
+        prevpf = pf;
+        pf = pf->next;
     }
 
-    prevpf = pf;
-    pf = pf->next;
-  }
-
-  return 0xFFFFFFFF;
+    return 0xFFFFFFFF;
 }
 
-void free_pageframe(unsigned long pfn) {
-  struct pageframe *pf;
+void free_pageframe(unsigned long pfn)
+{
+    struct pageframe *pf;
 
-  pf = pfdb + pfn;
-  pf->tag = 0x46524545 /* FREE */;
-  pf->next = freelist;
-  freelist = pf;
-  freemem++;
+    pf = pfdb + pfn;
+    pf->tag = PFT_FREE;
+    pf->next = freelist;
+    freelist = pf;
+    freemem++;
 }
 
 void set_pageframe_tag(void *addr, unsigned int len, unsigned long tag) {
@@ -131,11 +142,11 @@ int memmap_proc(struct proc_file *pf, void *arg) {
     char *type;
 
     switch (mm->entry[i].type) {
-      case MEMTYPE_RAM: type = "RAM "; break;
-      case MEMTYPE_RESERVED: type = "RESV"; break;
-      case MEMTYPE_ACPI: type = "ACPI"; break;
-      case MEMTYPE_NVS: type = "NVS "; break;
-      default: type = "MEM?"; break;
+      case MEMTYPE_RAM: type = PFT_RAM; break;
+      case MEMTYPE_RESERVED: type = PFT_RESERVED; break;
+      case MEMTYPE_ACPI: type = PFT_ACPI; break;
+      case MEMTYPE_NVS: type = PFT_NVS; break;
+      default: type = PFT_MEM; break;
     }
 
     pprintf(pf, "0x%08x-0x%08x type %s %8d KB\n",

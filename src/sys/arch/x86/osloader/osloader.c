@@ -421,6 +421,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
 
     // Allocate page for page directory
     pdir = (pte_t *) heap_alloc(1);
+    kprintf("\nPage directory physical address: 0x%p\n", pdir);
 
     // Make recursive entry for access to page tables
     pdir[PDEIDX(PTBASE)] = (unsigned long) pdir | PT_PRESENT | PT_WRITABLE;

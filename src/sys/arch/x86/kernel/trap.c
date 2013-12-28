@@ -738,10 +738,10 @@ static int pagefault_handler(struct context *ctxt, void *arg) {
 
   if (usermode(ctxt)) {
     int signal = SIGSEGV;
-    if (page_directory_mapped(pageaddr)) {
-      pte_t flags = get_page_flags(pageaddr);
+    if (kpage_is_directory_mapped(pageaddr)) {
+      pte_t flags = kpage_get_flags(pageaddr);
       if (flags & PT_GUARD) {
-        unguard_page(pageaddr);
+        kpage_unguard(pageaddr);
         signal = SIGSTKFLT;
         if (guard_page_handler(pageaddr) == 0) signal = 0;
       } else if (flags & PT_FILE) {

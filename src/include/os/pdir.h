@@ -61,12 +61,32 @@ typedef unsigned long pte_t;
 #define PT_PFNMASK   0xFFFFF000
 #define PT_PFNSHIFT  12
 
+/**
+ * Return the page directory entry index for given virtual address.
+ *
+ * The page directory can reference up to 1024 page tables. We divide the memory
+ * in groups of 4MiB (each PT can map up to 1024 pages of 4KiB). This macro returns the
+ * entry of the PD that point to the PT which maps the 4 MiB block address space where
+ * the given address is whithin.
+ */
 #define PDEIDX(vaddr)  (((unsigned long) vaddr) >> 22)
+
+/**
+ * Return the page table entry index for given virtual address.
+ */
 #define PTEIDX(vaddr)  ((((unsigned long) vaddr) >> 12) & 0x3FF)
+
 #define PGOFF(vaddr)   (((unsigned long) vaddr) & 0xFFF)
 #define PTABIDX(vaddr) (((unsigned long) vaddr) >> 12)
 
+/**
+ * Return the number of pages it's necessary to store the given amount of bytes.
+ */
 #define PAGES(x) (((unsigned long)(x) + (PAGESIZE - 1)) >> PAGESHIFT)
+
+/**
+ * Return the page address which the given address is within.
+ */
 #define PAGEADDR(x) ((unsigned long)(x) & ~(PAGESIZE - 1))
 
 #define PTOB(x) ((unsigned long)(x) << PAGESHIFT)
@@ -74,7 +94,15 @@ typedef unsigned long pte_t;
 
 #define SET_PDE(vaddr, val) set_page_dir_entry(&pdir[PDEIDX(vaddr)], (val))
 #define SET_PTE(vaddr, val) set_page_table_entry(&ptab[PTABIDX(vaddr)], (val))
+
+/**
+ * Returns the page directory entry for the given virtal address.
+ */
 #define GET_PDE(vaddr) (pdir[PDEIDX(vaddr)])
+
+/**
+ * Returns the page table entry for the given virtal address.
+ */
 #define GET_PTE(vaddr) (ptab[PTABIDX(vaddr)])
 
 struct pdirstat {
@@ -92,16 +120,16 @@ struct pdirstat {
 extern pte_t *pdir;
 extern pte_t *ptab;
 
-KERNELAPI void map_page(void *vaddr, unsigned long pfn, unsigned long flags);
-KERNELAPI void unmap_page(void *vaddr);
+KERNELAPI void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags);
+KERNELAPI void kpage_unmap(void *vaddr);
 KERNELAPI unsigned long virt2phys(void *vaddr);
 KERNELAPI unsigned long virt2pfn(void *vaddr);
-KERNELAPI pte_t get_page_flags(void *vaddr);
-KERNELAPI void set_page_flags(void *vaddr, unsigned long flags);
-KERNELAPI int page_mapped(void *vaddr);
-KERNELAPI int page_directory_mapped(void *vaddr);
-KERNELAPI void unguard_page(void *vaddr);
-KERNELAPI void clear_dirty(void *vaddr);
+KERNELAPI pte_t kpage_get_flags(void *vaddr);
+KERNELAPI void kpage_set_flags(void *vaddr, unsigned long flags);
+KERNELAPI int kpage_is_mapped(void *vaddr);
+KERNELAPI int kpage_is_directory_mapped(void *vaddr);
+KERNELAPI void kpage_unguard(void *vaddr);
+KERNELAPI void kpage_clear_dirty(void *vaddr);
 
 KERNELAPI int mem_access(void *vaddr, int size, pte_t access);
 KERNELAPI int str_access(char *s, pte_t access);

@@ -162,13 +162,28 @@ struct thread
     struct object object;
 
     int state;
+
+    /// Remaining quantum
     int quantum;
+
+    /// Reason for thread is stoped
     int wait_reason;
+
+    /// Thread flags
     int flags;
+
+    /// Thread dynamic priority (can be boosted)
     int priority;
+
+    /// Thread base (and static) priority defined when it's created
     int base_priority;
+
+    /// ID for thread information block
     tid_t id;
+
+    /// Handle assigned for the thread
     handle_t hndl;
+
     struct tib *tib;
     int suspend_count;
     void *entrypoint;

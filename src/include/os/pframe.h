@@ -37,14 +37,24 @@
 #define DMA_BUFFER_START 0x10000
 #define DMA_BUFFER_PAGES 16
 
-struct pageframe {
-  unsigned long tag;
-  union {
-    unsigned long locks;        // Number of locks
-    unsigned long size;         // Size/buckets for kernel pages
-    handle_t owner;             // Reference to owner for file maps
-    struct pageframe *next;     // Next free page frame for free pages
-  };
+#define PFT_FREE              0x46524545 // FREE
+#define PFT_RAM               (*((const uint32_t*)("RAM ")))
+#define PFT_RESERVED          (*((const uint32_t*)("RESV")))
+#define PFT_MEM               (*((const uint32_t*)("MEM?")))
+#define PFT_NVS               (*((const uint32_t*)("NVS ")))
+#define PFT_ACPI              (*((const uint32_t*)("ACPI")))
+
+
+struct pageframe
+{
+    unsigned long tag;
+    union
+    {
+        unsigned long locks;        // Number of locks
+        unsigned long size;         // Size/buckets for kernel pages
+        handle_t owner;             // Reference to owner for file maps
+        struct pageframe *next;     // Next free page frame for free pages
+    };
 };
 
 extern struct pageframe *pfdb;

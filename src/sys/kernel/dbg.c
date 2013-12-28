@@ -367,7 +367,7 @@ static void dbg_get_modules(struct dbg_hdr *hdr, union dbg_body *body) {
     }
   }
 
-  if (page_mapped(peb) && peb->usermods) {
+  if (kpage_is_mapped(peb) && peb->usermods) {
     mod = peb->usermods->modules;
     while (1) {
       body->modl.mods[n].hmod = mod->hmod;

@@ -588,7 +588,8 @@ static void init_drive(char *devname, struct fd *fd, struct fdc *fdc, int drive,
     fd->geom->tracks, fd->geom->heads, fd->geom->spt);
 }
 
-void init_fd() {
+void init_fd()
+{
   int i;
   unsigned char fdtypes;
   int first_floppy;
@@ -645,7 +646,8 @@ void init_fd() {
   fdc.bufh = (DMA_BUFFER_START >> 8) & 0xFF;
   fdc.bufl = DMA_BUFFER_START & 0xFF;
 
-  for (i = 0; i < DMA_BUFFER_PAGES; i++) map_page(fdc.dmabuf + i * PAGESIZE, BTOP(DMA_BUFFER_START) + i, PT_WRITABLE | PT_PRESENT);
+  for (i = 0; i < DMA_BUFFER_PAGES; i++)
+    kpage_map(fdc.dmabuf + i * PAGESIZE, BTOP(DMA_BUFFER_START) + i, PT_WRITABLE | PT_PRESENT);
 
   register_interrupt(&fdc.intr, INTR_FD, fd_handler, &fdc);
   enable_irq(IRQ_FD);

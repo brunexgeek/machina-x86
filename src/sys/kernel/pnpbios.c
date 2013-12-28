@@ -629,7 +629,7 @@ int enum_isapnp(struct bus *bus) {
   int i, length;
 
   // Map first 1MB physical memory
-  for (i = 0; i < 256; i++) map_page((void *) PTOB(i), i, PT_WRITABLE | PT_PRESENT);
+  for (i = 0; i < 256; i++) kpage_map((void *) PTOB(i), i, PT_WRITABLE | PT_PRESENT);
 
   // Search the defined area (0xf0000-0xffff0) for a valid PnP BIOS
   // structure and, if one is found, sets up the selectors and
@@ -666,11 +666,11 @@ int enum_isapnp(struct bus *bus) {
     set_gdt_entry(GDT_PNPDATA, 0, 0, 0, 0);
     set_gdt_entry(GDT_PNPTHUNK, 0, 0, 0, 0);
 
-    for (i = 0; i < 256; i++) unmap_page((void *) PTOB(i));
+    for (i = 0; i < 256; i++) kpage_unmap((void *) PTOB(i));
     return 1;
   }
 
-  for (i = 0; i < 256; i++) unmap_page((void *) PTOB(i));
+  for (i = 0; i < 256; i++) kpage_unmap((void *) PTOB(i));
   return 0;
 }
 

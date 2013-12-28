@@ -1,4 +1,4 @@
-TODO for sanos
+TODO
 --------------
 
 - Change control87() to use the MSVCRT definitions of FPU control flags.
@@ -15,7 +15,7 @@ TODO for sanos
 
 - Keyboard locks up when pressing CAPSLOCK
     - Check ext flags in processing modifier keys (shift, alt, etc.)
- 
+
 - Implement ICMP messages host unreachable, net unreachable and port unreachable
 
 - Finish implementation of NDIS subsystem
@@ -31,10 +31,10 @@ TODO for sanos
 - Implement krealloc() in kmalloc.c
 
 - Handle reopening of files in smbfs after reconnect
-  
+
 - What happens if a tcp pcb is freed in tcp_input() while sending segments on another socket in tcp_output()?
 
-- Stack overflow/underflow checking
+- Stack underflow handling (problably with guard page)
 
 - Minimal buffer overrun checking
 
@@ -63,5 +63,7 @@ IDEAS for new features
 
 - ACPI support
 
-- Memory paging support
+- Swap disk/file support
+
+- Multiple processes model (change page directory at context switch)
 

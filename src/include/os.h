@@ -632,11 +632,12 @@ struct sigaction {
 // Critical sections
 //
 
-struct critsect {
-  long count;
-  long recursion;
-  tid_t owner;
-  handle_t event;
+struct critsect
+{
+    int count;
+    long recursion;
+    tid_t owner;
+    handle_t event;
 };
 
 typedef struct critsect *critsect_t;

@@ -1,8 +1,9 @@
 //
-// critsect.c
+// sysapi.h
 //
-// Critical sections
+// Operating System API
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,62 +32,36 @@
 // SUCH DAMAGE.
 //
 
-#include <os.h>
-#include <atomic.h>
 
-__inline tid_t threadid()
-{
-    struct tib *tib;
+    .intel_syntax noprefix
+    .text
+    .global ___syscall
+    .global ___syscall_int48
 
-    __asm__
-    (
-        "mov eax, fs:[%0];"
-        "mov %1, eax;"
-        :
-        : "i" (TIB_SELF_OFFSET), "m" (tib)
-    );
 
-    return tib->tid;
-}
+___syscall:
+    push  ebp
+    mov   ebp, esp
 
-void mkcs(critsect_t cs)
-{
-    cs->count = -1;
-    cs->recursion = 0;
-    cs->owner = NOHANDLE;
-    cs->event = mkevent(0, 0);
-}
+    mov   eax, 8[ebp]
+    mov   edx, 12[ebp]
+    mov   ecx, offset 1f
 
-void csfree(critsect_t cs)
-{
-    close(cs->event);
-}
+    sysenter
 
-void enter(critsect_t cs)
-{
-    tid_t tid = threadid();
+1:
+    pop   ebp
+    ret
 
-    if (cs->owner == tid)
-    {
-        cs->recursion++;
-    }
-    else
-    {
-        if (atomic_add(&cs->count, 1) > 0) while (waitone(cs->event, INFINITE) != 0);
-        cs->owner = tid;
-    }
-}
 
-void leave(critsect_t cs)
-{
-    if (cs->owner != threadid()) return;
-    if (cs->recursion > 0)
-    {
-        cs->recursion--;
-    }
-    else
-    {
-        cs->owner = NOHANDLE;
-        if (atomic_add(&cs->count, -1) >= 0) eset(cs->event);
-    }
-}
+___syscall_int48:
+    push  ebp
+    mov   ebp, esp
+
+    mov   eax, 8[ebp]
+    mov   edx, 12[ebp]
+
+    int   48
+
+    leave
+    ret

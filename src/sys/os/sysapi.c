@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os.h>
 #include <string.h>
@@ -38,40 +38,12 @@
 
 int sprintf(char *buf, const char *fmt, ...);
 
-__declspec(naked) int syscall(int syscallno, void *params) {
-  __asm {
-    push  ebp
-    mov   ebp, esp
+int syscall(int syscallno, void *params) __asm__("___syscall");
 
-    mov   eax, 8[ebp]
-    mov   edx, 12[ebp]
-    mov   ecx, offset sys_return
-
-    sysenter
-
-sys_return:
-    pop   ebp
-    ret
-  }
-}
-
-__declspec(naked) int syscall_int48(int syscallno, void *params) {
-  __asm {
-    push  ebp
-    mov   ebp, esp
-
-    mov   eax, 8[ebp]
-    mov   edx, 12[ebp]
-
-    int   48
-
-    leave
-    ret
-  }
-}
+int syscall_int48(int syscallno, void *params) __asm__("___syscall_int48");
 
 void init_syscall() {
-  // If the processor does not support sysenter patch the 
+  // If the processor does not support sysenter patch the
   // syscall routine with a jump to syscall_int48
 
   if (!getpeb()->fast_syscalls_supported) {
@@ -128,7 +100,7 @@ int mount(const char *type, const char *mntto, const char *mntfrom, const char *
     }
 
     rc = _mount(type, mntto, mntfrom, newopts);
-    
+
     free(newopts);
     return rc;
   } else {

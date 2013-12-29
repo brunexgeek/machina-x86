@@ -10,16 +10,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,13 +29,14 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os.h>
 #include <string.h>
 #include <inifile.h>
+#include <stdint.h>
 
 #include "resolv.h"
 
@@ -45,10 +46,10 @@ struct res_state res;
 
 static int res_nsend(struct res_state *statp, const char *buf, int buflen, char *answer, int anslen);
 
-static int res_nquery(struct res_state *statp, const char *dname, 
+static int res_nquery(struct res_state *statp, const char *dname,
                       int class, int type, unsigned char *answer, int anslen);
 
-static int res_nsearch(struct res_state *statp, const char *name, int class, int type, 
+static int res_nsearch(struct res_state *statp, const char *name, int class, int type,
                        unsigned char *answer, int anslen);
 
 static int res_nquerydomain(struct res_state *statp, const char *name, const char *domain,
@@ -107,7 +108,7 @@ static int printable(int ch)  {
 // not the pointer to the start of the message.
 //
 
-static int dn_find(unsigned char *domain, unsigned char *msg, 
+static int dn_find(unsigned char *domain, unsigned char *msg,
                    unsigned char **dnptrs, unsigned char **lastdnptr) {
   unsigned char *dn, *cp, *sp;
   unsigned char **cpp;
@@ -115,7 +116,7 @@ static int dn_find(unsigned char *domain, unsigned char *msg,
 
   for (cpp = dnptrs; cpp < lastdnptr; cpp++) {
     sp = *cpp;
-    
+
     // Terminate search on:
     //   - root label
     //   - compression pointer
@@ -129,7 +130,7 @@ static int dn_find(unsigned char *domain, unsigned char *msg,
           case 0: // normal case, n == len
             if (n != *dn++) goto next;
             for (; n > 0; n--) if (mklower(*dn++) != mklower(*cp++)) goto next;
-            
+
             // Is next root for both ?
             if (*dn == '\0' && *cp == '\0') return (sp - msg);
             if (*dn) continue;
@@ -178,7 +179,7 @@ int ns_name_ntop(const unsigned char *src, char *dst, int dstsiz) {
       return -1;
     }
 
-    if (dn != dst) {
+    if (dn != (uint8_t*)dst) {
       if (dn >= eom) {
         errno = EMSGSIZE;
         return -1;
@@ -218,7 +219,7 @@ int ns_name_ntop(const unsigned char *src, char *dst, int dstsiz) {
     }
   }
 
-  if (dn == dst) {
+  if (dn == (uint8_t*)dst) {
     if (dn >= eom) {
       errno = EMSGSIZE;
       return -1;
@@ -232,12 +233,12 @@ int ns_name_ntop(const unsigned char *src, char *dst, int dstsiz) {
   }
   *dn++ = '\0';
 
-  return dn - dst;
+  return (int) ((uint8_t*)dn - (uint8_t*)dst);
 }
 
 //
 // ns_name_pton
-//      
+//
 // Convert a ascii string into an encoded domain name as per RFC1035.
 //
 // Return:
@@ -292,7 +293,7 @@ int ns_name_pton(const char *src, unsigned char *dst, int dstsiz) {
         return -1;
       }
       *label = c;
-      
+
       // Fully qualified ?
       if (*src == '\0') {
         if (c != 0) {
@@ -383,7 +384,7 @@ static int ns_name_pack(const unsigned char *src, unsigned char *dst, int dstsiz
       for (cpp = dnptrs; *cpp != NULL; cpp++);
       lpp = cpp;
     }
-  } 
+  }
   else {
     msg = NULL;
   }
@@ -439,7 +440,7 @@ cleanup:
     if (msg != NULL) *lpp = NULL;
     errno = EMSGSIZE;
     return -1;
-  } 
+  }
 
   return dstp - dst;
 }
@@ -451,7 +452,7 @@ cleanup:
 // Return error if it fails, or consumed octets if it succeeds.
 //
 
-static int ns_name_unpack(const unsigned char *msg, const unsigned char *eom, 
+static int ns_name_unpack(const unsigned char *msg, const unsigned char *eom,
                           const unsigned char *src, unsigned char *dst, int dstsiz) {
   const unsigned char *srcp, *dstlim;
   unsigned char *dstp;
@@ -497,7 +498,7 @@ static int ns_name_unpack(const unsigned char *msg, const unsigned char *eom,
         }
         checked += 2;
 
-        // Check for loops in the compressed name; 
+        // Check for loops in the compressed name;
         // if we've looked at the whole message, there must be a loop.
         if (checked >= eom - msg) {
           errno = EMSGSIZE;
@@ -544,7 +545,7 @@ int res_init() {
   res.nscount = 0;
 
   if (peb->primary_dns.s_addr != INADDR_ANY) {
-    res.nsaddr_list[res.nscount].sin_addr.s_addr = peb->primary_dns.s_addr;    
+    res.nsaddr_list[res.nscount].sin_addr.s_addr = peb->primary_dns.s_addr;
     res.nsaddr_list[res.nscount].sin_family = AF_INET;
     res.nsaddr_list[res.nscount].sin_port = htons(NS_DEFAULTPORT);
     res.nscount++;
@@ -594,7 +595,7 @@ int res_init() {
 //
 
 static int send_vc(struct res_state *statp,
-                   const unsigned char *buf, int buflen, 
+                   const unsigned char *buf, int buflen,
                    unsigned char *answer, int anslen,
                    int *terrno, int ns) {
   const struct dns_hdr *hp = (const struct dns_hdr *) buf;
@@ -614,7 +615,7 @@ static int send_vc(struct res_state *statp,
     return -1;
   }
 
-  rc = connect(s, (struct sockaddr *) nsap, sizeof *nsap); 
+  rc = connect(s, (struct sockaddr *) nsap, sizeof *nsap);
   if (rc < 0) {
     *terrno = rc;
     close(s);
@@ -662,7 +663,7 @@ static int send_vc(struct res_state *statp,
     close(s);
     return 0;
   }
-  
+
   cp = answer;
   while (len != 0 && (n = recv(s, cp, len, 0)) > 0) {
     cp += n;
@@ -687,7 +688,7 @@ static int send_vc(struct res_state *statp,
 //
 
 static int send_dg(struct res_state *statp,
-                   const unsigned char *buf, int buflen, 
+                   const unsigned char *buf, int buflen,
                    unsigned char *answer, int anslen,
                    int *terrno, int ns, int *v_circuit, int *gotsomewhere) {
   const struct dns_hdr *hp = (const struct dns_hdr *) buf;
@@ -722,7 +723,7 @@ static int send_dg(struct res_state *statp,
   if (ns > 0) timeout /= statp->nscount;
   if (timeout <= 0) timeout = 1;
   timeout = timeout * 1000;
-  setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *) &timeout, sizeof(int)); 
+  setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *) &timeout, sizeof(int));
 
 wait:
   fromlen = sizeof(struct sockaddr_in);
@@ -746,7 +747,7 @@ wait:
   }
 
   *gotsomewhere = 1;
-  
+
   if (resplen < NS_HFIXEDSZ) {
     // Undersized message
     *terrno = -EMSGSIZE;
@@ -766,7 +767,7 @@ wait:
     return 1;
   }
 
-  // All is well, or the error is fatal.  
+  // All is well, or the error is fatal.
   // Signal that the next nameserver ought not be tried.
   close(s);
   return resplen;
@@ -811,7 +812,7 @@ static int res_nsend(struct res_state *statp, const char *buf, int buflen, char 
   for (try = 0; try < statp->retry; try++) {
     for (ns = 0; ns < statp->nscount; ns++) {
       struct sockaddr_in *nsap = &statp->nsaddr_list[ns];
-  
+
 same_ns:
       if (v_circuit) {
         // Use VC; at most one attempt per server.
@@ -848,7 +849,7 @@ same_ns:
       return -1;
     }
   } else {
-    errno = -terrno; 
+    errno = -terrno;
     return -1;
   }
 }
@@ -865,7 +866,7 @@ int res_send(const char *buf, int buflen, char *answer, int anslen) {
 // res_nquery
 //
 
-static int res_nquery(struct res_state *statp, const char *dname, 
+static int res_nquery(struct res_state *statp, const char *dname,
                       int class, int type, unsigned char *answer, int anslen) {
   unsigned char buf[QUERYBUF_SIZE];
   struct dns_hdr *hp = (struct dns_hdr *) answer;
@@ -917,7 +918,7 @@ int res_query(const char *dname, int class, int type, unsigned char *answer, int
 // res_nsearch
 //
 
-static int res_nsearch(struct res_state *statp, const char *name, int class, int type, 
+static int res_nsearch(struct res_state *statp, const char *name, int class, int type,
                        unsigned char *answer, int anslen) {
   const char *cp;
   char **domain;
@@ -1074,7 +1075,7 @@ static int res_nquerydomain(struct res_state *statp, const char *name, const cha
 // res_querydomain
 //
 
-int res_querydomain(const char *name, const char *domain, int class, int type, 
+int res_querydomain(const char *name, const char *domain, int class, int type,
                     unsigned char *answer, int anslen) {
   return res_nquerydomain(&res, name, domain, class, type, answer, anslen);
 }
@@ -1131,10 +1132,10 @@ static int res_nmkquery(struct res_state *statp, int op, const char *dname,
 
       *(unsigned short *) cp = htons((unsigned short) type);
       cp += sizeof(unsigned short);
-      
+
       *(unsigned short *) cp = htons((unsigned short) class);
       cp += sizeof(unsigned short);
-      
+
       hp->qdcount = htons(1);
       if (op == DNS_OP_QUERY || data == NULL) break;
 
@@ -1147,19 +1148,19 @@ static int res_nmkquery(struct res_state *statp, int op, const char *dname,
       }
       cp += n;
       buflen -= n;
-      
+
       *(unsigned short *) cp = htons(DNS_TYPE_NULL);
       cp += sizeof(unsigned short);
-      
+
       *(unsigned short *) cp = htons((unsigned short) class);
       cp += sizeof(unsigned short);
 
       *(unsigned long *) cp = 0;
       cp += sizeof(unsigned long);
-      
+
       *(unsigned short *) cp = 0;
       cp += sizeof(unsigned short);
-      
+
       hp->arcount = htons(1);
       break;
 
@@ -1170,7 +1171,7 @@ static int res_nmkquery(struct res_state *statp, int op, const char *dname,
         return -1;
       }
       *cp++ = '\0'; // No domain name
- 
+
       *(unsigned short *) cp = htons((unsigned short) type);
       cp += sizeof(unsigned short);
 
@@ -1179,10 +1180,10 @@ static int res_nmkquery(struct res_state *statp, int op, const char *dname,
 
       *(unsigned long *) cp = 0;
       cp += sizeof(unsigned long);
-     
+
       *(unsigned short *) cp = htons((unsigned short) datalen);
       cp += sizeof(unsigned short);
-      
+
       if (datalen) {
         memcpy(cp, data, datalen);
         cp += datalen;
@@ -1203,7 +1204,7 @@ static int res_nmkquery(struct res_state *statp, int op, const char *dname,
 // res_mkquery
 //
 
-int res_mkquery(int op, const char *dname, int class, int type, char *data, int datalen, 
+int res_mkquery(int op, const char *dname, int class, int type, char *data, int datalen,
                 unsigned char *newrr, char *buf, int buflen) {
   return res_nmkquery(&res, op, dname, class, type, data, datalen, newrr, buf, buflen);
 }

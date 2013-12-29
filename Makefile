@@ -386,8 +386,8 @@ LIBKERNEL_WELCOME:
 	@echo
 	@echo Building Machina Kernel Library for x86
 
-LIBKERNEL_CFLAGS =  -I src/include -D OS_LIB $(CFLAGS)
-LIBKERNEL_LDFLAGS =  -shared -entry _start@12 -fixed 0x7FF00000 -nostdlib $(LDFLAGS)
+LIBKERNEL_CFLAGS =  -I src/include -D OS_LIB -masm=intel -nostdlib $(CFLAGS)
+LIBKERNEL_LDFLAGS =  -shared -nostdlib $(LDFLAGS)
 LIBKERNEL_NFLAGS = $(NFLAGS)
 LIBKERNEL_OUT_DIR = build/install/boot
 LIBKERNEL_OUT_FILE = $(LIBKERNEL_OUT_DIR)/kernel32.so
@@ -402,6 +402,7 @@ LIBKERNEL_SRC_FILES = \
 	sys/os/signal.c \
 	sys/os/sntp.c \
 	sys/os/sysapi.c \
+	sys/os/sysapi.s \
 	sys/os/syserr.c \
 	sys/os/syslog.c \
 	sys/os/thread.c \
@@ -435,6 +436,9 @@ LIBKERNEL_OBJ_MKDIR:
 
 $(LIBKERNEL_OBJ_DIR)/%.c.o: $(LIBKERNEL_SRC_DIR)/%.c
 	$(CC) $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+
+$(LIBKERNEL_OBJ_DIR)/%.s.o: $(LIBKERNEL_SRC_DIR)/%.s
+	$(CC) -x assembler-with-cpp $(LIBKERNEL_CFLAGS) -c $< -o $@
 
 $(LIBKERNEL_OBJ_DIR)/%.asm.o: $(LIBKERNEL_SRC_DIR)/%.asm
 	$(NASM) $(LIBKERNEL_NFLAGS) $< -o $@

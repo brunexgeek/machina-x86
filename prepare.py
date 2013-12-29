@@ -619,8 +619,8 @@ target = {}
 target[FIELD_DESCRIPTION] = "Machina Kernel Library for x86"
 target[FIELD_PREFFIX] = "LIBKERNEL"
 target[FIELD_TYPE] = BIN_DYNAMIC
-target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
-target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x7FF00000 -nostdlib"
+target[FIELD_CFLAGS] = "-I src/include -D OS_LIB -masm=intel -nostdlib"
+target[FIELD_LDFLAGS] = "-shared -nostdlib"
 target[FIELD_DEPENDENCIES] = ["build/tools/nasm"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "kernel32.so"
@@ -636,6 +636,7 @@ target[FIELD_SOURCES] = \
     "sys/os/signal.c", \
     "sys/os/sntp.c", \
     "sys/os/sysapi.c", \
+    "sys/os/sysapi.s", \
     "sys/os/syserr.c", \
     "sys/os/syslog.c", \
     "sys/os/thread.c", \

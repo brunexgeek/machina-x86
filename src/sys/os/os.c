@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os.h>
 #include <string.h>
@@ -80,21 +80,28 @@ void stop_syslog();
 
 void globalhandler(struct siginfo *info);
 
+int syscall(int syscallno, void *params) __asm__("___syscall");
+
+int syscall_int48(int syscallno, void *params) __asm__("___syscall_int48");
+
 //
 // Error handling
 //
 
-void panic(const char *msg) {
-  syslog(LOG_CRIT, "panic: %s", msg);
-  exit(3);
+void panic(const char *msg)
+{
+    syslog(LOG_CRIT, "panic: %s", msg);
+    exit(3);
 }
 
-int *_errno() {
-  return &(gettib()->errnum);
+int *_errno()
+{
+    return &(gettib()->errnum);
 }
 
-void dbgbreak() {
-  __asm { int 3 };
+void dbgbreak()
+{
+    __asm__("int 3;");
 }
 
 //
@@ -111,7 +118,7 @@ int __getstdhndl(int n) {
 
 static int check_access(struct stat64 *st, int mode) {
   int uid = getuid();
-  
+
   if (uid == 0) return 0;
 
   if (uid == st->st_uid) {
@@ -168,7 +175,7 @@ off64_t filelength64(handle_t f) {
 
 int isatty(handle_t f)  {
   int rc, tty;
-  
+
   rc = ioctl(f, IOCTL_GET_TTY, &tty, sizeof(tty));
   if (rc < 0) return rc;
   if (tty) {
@@ -415,7 +422,7 @@ static void *load_image(char *filename) {
     free(buffer);
     return NULL;
   }
-  
+
   doshdr = (struct dos_header *) buffer;
   imghdr = (struct image_header *) (buffer + doshdr->e_lfanew);
 
@@ -508,7 +515,7 @@ int getmodpath(hmodule_t hmod, char *buffer, int size) {
   enter(&mod_lock);
   rc = get_module_filename(&usermods, hmod, buffer, size);
   leave(&mod_lock);
-  
+
   if (rc < 0) {
     errno = -rc;
     return -1;
@@ -637,7 +644,7 @@ void dump_stack(struct context *ctxt) {
       error_output(" ");
       write(fderr, func, fend - func);
     }
-    
+
     if (f->file) {
       error_output(" (");
       error_output(f->file);
@@ -720,7 +727,7 @@ int uname(struct utsname *buf) {
 
 unsigned sleep(unsigned seconds) {
   int rc;
-  
+
   rc = msleep(seconds * 1000);
   if (rc > 0) return rc / 1000;
   return 0;

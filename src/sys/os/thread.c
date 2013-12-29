@@ -51,6 +51,11 @@ void freeenv(char **env);
 struct critsect proc_lock;
 int nextprocid = 1;
 
+int syscall(int syscallno, void *params) __asm__("___syscall");
+
+int syscall_int48(int syscallno, void *params) __asm__("___syscall_int48");
+
+
 void init_threads(hmodule_t hmod, struct term *initterm) {
   struct tib *tib = gettib();
   struct peb *peb = getpeb();
@@ -240,13 +245,14 @@ void endproc(struct process *proc, int status) {
   if (ppid != -1) kill(ppid, SIGCHLD);
 }
 
-void endthread(int status) {
-  struct process *proc;
+void endthread(int status)
+{
+    struct process *proc;
 
-  proc = gettib()->proc;
-  if (atomic_add(&proc->threadcnt, -1) == 0) endproc(proc, status);
+    proc = gettib()->proc;
+    if (atomic_add(&proc->threadcnt, -1) == 0) endproc(proc, status);
 
-  syscall(SYSCALL_ENDTHREAD, &status);
+    syscall(SYSCALL_ENDTHREAD, &status);
 }
 
 tid_t gettid() {
@@ -371,26 +377,31 @@ struct tib *gettib()
 {
     struct tib *tib;
 
-    __asm {
-    mov eax, fs:[TIB_SELF_OFFSET]
-    mov [tib], eax
-    }
+    __asm__
+    (
+        "mov eax, fs:[%0];"
+        "mov %1, eax;"
+        :
+        : "i" (TIB_SELF_OFFSET), "m" (tib)
+    );
 
     return tib;
 }
 
-void exit(int status) {
-  struct process *proc = gettib()->proc;
+void exit(int status)
+{
+    struct process *proc = gettib()->proc;
 
-  if (proc->atexit) proc->atexit(status, 0);
-  endthread(status);
+    if (proc->atexit) proc->atexit(status, 0);
+    endthread(status);
 }
 
-void _exit(int status) {
-  struct process *proc = gettib()->proc;
+void _exit(int status)
+{
+    struct process *proc = gettib()->proc;
 
-  if (proc->atexit) proc->atexit(status, 1);
-  endthread(status);
+    if (proc->atexit) proc->atexit(status, 1);
+    endthread(status);
 }
 
 static void __stdcall spawn_program(void *args) {

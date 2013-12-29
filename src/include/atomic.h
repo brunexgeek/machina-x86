@@ -3,6 +3,7 @@
 //
 // Atomic operations
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,71 +32,79 @@
 // SUCH DAMAGE.
 //
 
-#if _MSC_VER > 1000
-#pragma once
-#endif
 
-#ifndef ATOMIC_H
-#define ATOMIC_H
+#ifndef MACHINA_ATOMIC_H
+#define MACHINA_ATOMIC_H
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
 
 // On uniprocessors, the 'lock' prefixes are not necessary (and expensive).
-// Since sanos does not (yet) support SMP the 'lock' prefix is disabled for now.
+// Since Machina does not (yet) support SMP the 'lock' prefix is disabled for now.
 
-#pragma warning(disable: 4035) // Disables warnings reporting missing return statement
-
-static __inline int atomic_add(int *dest, int value) {
-  __asm {
-    mov edx, dest;
-    mov eax, value;
-    mov ecx, eax;
-    /*lock*/ xadd dword ptr [edx], eax;
-    add eax, ecx;
-  }
+static __inline int atomic_add(int *dest, int value)
+{
+    __asm__
+    (
+        //"mov edx, dest;"
+        //"mov eax, value;"
+        "mov ecx, eax;"
+        /*lock*/ "xadd dword ptr [edx], eax;"
+        "add eax, ecx;"
+        :
+        : "d" (dest), "a" (value)
+    );
 }
 
-static __inline int atomic_increment(int *dest) {
-  __asm {
-    mov edx, dest;
-    mov eax, 1;
-    /*lock*/ xadd dword ptr [edx], eax;
-    inc eax;
-  }
+
+static __inline int atomic_increment(int *dest)
+{
+    __asm__
+    (
+        //"mov edx, dest;"
+        "mov eax, 1;"
+        /*lock*/ "xadd dword ptr [edx], eax;"
+        "inc eax;"
+        :
+        : "d" (dest)
+    );
 }
 
-static __inline int atomic_decrement(int *dest) {
-  __asm {
-    mov edx, dest;
-    mov eax, -1;
-    /*lock*/ xadd dword ptr [edx], eax;
-    dec eax;
-  }
+static __inline int atomic_decrement(int *dest)
+{
+    __asm__
+    (
+        //"mov edx, dest;"
+        "mov eax, -1;"
+        /*lock*/ "xadd dword ptr [edx], eax;"
+        "dec eax;"
+        :
+        : "d" (dest)
+    );
 }
 
-static __inline int atomic_exchange(int *dest, int value) {
-  __asm {
-    mov eax, value;
-    mov ecx, dest;
-    xchg eax, dword ptr [ecx];
-  }
+static __inline int atomic_exchange(int *dest, int value)
+{
+    __asm__
+    (
+        //"mov eax, value;"
+        //"mov ecx, dest;"
+        "xchg eax, dword ptr [ecx];"
+        :
+        : "c" (dest), "a" (value)
+    );
 }
 
-static __inline int atomic_compare_and_exchange(int *dest, int exchange, int comperand) {
-  __asm {
-    mov edx, dest
-    mov ecx, exchange
-    mov eax, comperand
-    /*lock*/ cmpxchg dword ptr [edx], ecx
-  }
+static __inline int atomic_compare_and_exchange(int *dest, int exchange, int comperand)
+{
+    __asm__
+    (
+        //"mov edx, dest;"
+        //"mov ecx, exchange;"
+        //"mov eax, comperand;"
+        /*lock*/ "cmpxchg dword ptr [edx], ecx;"
+        :
+        : "d" (dest), "c" (exchange), "a" (comperand)
+    );
 }
 
-#pragma warning(default: 4035)
-
-#ifdef  __cplusplus
-}
-#endif
 
 #endif

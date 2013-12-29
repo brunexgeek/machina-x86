@@ -32,6 +32,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/dfs.h>
+#include <os/buf.h>
 
 static int open_existing(struct filsys *fs, char *name, struct inode **retval) {
   struct inode *inode;

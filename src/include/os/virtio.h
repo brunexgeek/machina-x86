@@ -34,6 +34,10 @@
 #ifndef VIRTIO_H
 #define VIRTIO_H
 
+
+#include <os/trap.h>
+
+
 //
 // PCI virtio I/O registers.
 //

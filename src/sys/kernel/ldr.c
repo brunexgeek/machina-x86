@@ -31,7 +31,8 @@
 // SUCH DAMAGE.
 //
 
-#include <os/krnl.h>
+#include <os/ldr.h>
+#include <os/kmalloc.h>
 
 struct moddb kmods;
 struct mutex ldr_lock;
@@ -85,10 +86,10 @@ void *load_image_file(char *filename, int userspace) {
   // Allocate memory for module
   if (userspace) {
     // User module
-    imgbase = (char *) vmalloc((void *) (imghdr->optional.image_base), imghdr->optional.size_of_image, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 'UMOD', NULL);
+    imgbase = (char *) vmalloc((void *) (imghdr->optional.image_base), imghdr->optional.size_of_image, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, PFT_UMOD, NULL);
     if (imgbase == NULL) {
       // Try to load image at any available address
-      imgbase = (char *) vmalloc(NULL, imghdr->optional.size_of_image, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 'UMOD', NULL);
+      imgbase = (char *) vmalloc(NULL, imghdr->optional.size_of_image, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, PFT_UMOD, NULL);
     }
   } else {
     // Kernel module
@@ -234,8 +235,8 @@ void init_kernel_modules() {
   kmods.unload_image = unload_image;
   kmods.protect_region = NULL;
   kmods.log = logldr;
-  kmods.notify_load = dbg_notify_load_module;
-  kmods.notify_unload = dbg_notify_unload_module;
+  kmods.notify_load = NULL/*dbg_notify_load_module*/;
+  kmods.notify_unload = NULL/*dbg_notify_unload_module*/;
 
   init_module_database(&kmods, "krnl.dll", (hmodule_t) OSBASE, get_property(krnlcfg, "kernel", "libpath", "/boot"), find_section(krnlcfg, "modaliases"), 0);
 
@@ -243,5 +244,5 @@ void init_kernel_modules() {
   register_proc_inode("umods", umods_proc, NULL);
 
   krnlmod = kmods.modules;
-  set_pageframe_tag(krnlmod->hmod, get_image_header(krnlmod->hmod)->optional.size_of_image, 'KMOD');
+  set_pageframe_tag(krnlmod->hmod, get_image_header(krnlmod->hmod)->optional.size_of_image, PFT_KMOD);
 }

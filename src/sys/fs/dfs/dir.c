@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,11 +27,13 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
+#include <os/dfs.h>
+#include <os/buf.h>
 
 #define NAME_ALIGN_LEN(l) (((l) + 3) & ~3)
 
@@ -276,7 +278,7 @@ static int lookup_name(struct filsys *fs, ino_t ino, char *name, int len, ino_t 
       name++;
       len--;
     }
-    
+
     if (len == 0) {
       *retval = ino;
       return 0;
@@ -293,7 +295,7 @@ static int lookup_name(struct filsys *fs, ino_t ino, char *name, int len, ino_t 
     // Find inode for next name part
     rc = get_inode(fs, ino, &inode);
     if (rc < 0) return rc;
-    
+
     rc = find_dir_entry(inode, name, l, &ino);
     release_inode(inode);
     if (rc < 0) return rc;
@@ -353,7 +355,7 @@ int diri(struct filsys *fs, char **name, int *len, struct inode **inode) {
 int namei(struct filsys *fs, char *name, struct inode **inode) {
   ino_t ino;
   int rc;
-  
+
   rc = lookup_name(fs, DFS_INODE_ROOT, name, strlen(name), &ino);
   if (rc < 0) return rc;
 
@@ -416,7 +418,7 @@ int dfs_readdir(struct file *filp, struct direntry *dirp, int count) {
   dirp->namelen = de->namelen;
   memcpy(dirp->name, de->name, de->namelen);
   dirp->name[de->namelen] = 0;
-  
+
   filp->pos += de->reclen;
 
   release_buffer(inode->fs->cache, buf);

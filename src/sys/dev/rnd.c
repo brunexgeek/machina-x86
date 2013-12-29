@@ -33,6 +33,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/cpu.h>
 
 #ifdef RANDOMDEV
 

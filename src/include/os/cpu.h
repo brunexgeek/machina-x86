@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,12 +27,12 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
-#ifndef CPU_H
-#define CPU_H
+#ifndef MACHINA_OS_CPU_H
+#define MACHINA_OS_CPU_H
 
 //
 // ASM instructions
@@ -51,7 +51,7 @@
 #define EFLAG_ZF        0x00000040          // Zero
 #define EFLAG_SF        0x00000080          // Sign
 #define EFLAG_TF        0x00000100          // Single step
-#define EFLAG_IF        0x00000200          // Interrupts 
+#define EFLAG_IF        0x00000200          // Interrupts
 #define EFLAG_DF        0x00000400          // Direction
 #define EFLAG_OF        0x00000800          // Overflow
 #define EFLAG_IOPL      0x00003000          // I/O privilege level
@@ -162,16 +162,17 @@
 // CPU information
 //
 
-struct cpu {
-  int family;
-  int vendor;
-  int model;
-  int stepping;
-  int mhz;
-  unsigned long features;
-  unsigned long cpuid_level;
-  char vendorid[16];
-  char modelid[64];
+struct cpu
+{
+    int family;
+    int vendor;
+    int model;
+    int stepping;
+    int mhz;
+    unsigned long features;
+    unsigned long cpuid_level;
+    char vendorid[16];
+    char modelid[64];
 };
 
 #ifdef KERNEL
@@ -184,4 +185,4 @@ unsigned long eflags();
 
 #endif
 
-#endif
+#endif  // MACHINA_OS_CPU_H

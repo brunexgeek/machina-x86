@@ -32,6 +32,7 @@
 //
 
 #include <os/krnl.h>
+#include <os/pic.h>
 
 // All IRQs disabled initially except cascade
 

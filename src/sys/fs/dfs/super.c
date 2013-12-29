@@ -32,6 +32,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/dfs.h>
+#include <os/buf.h>
+
 
 #define DEFAULT_BLOCKSIZE       4096
 #define DEFAULT_INODE_RATIO     4096

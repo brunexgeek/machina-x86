@@ -34,6 +34,7 @@
 //
 
 #include <net/net.h>
+#include <os/kmalloc.h>
 
 static struct dhcp_state *dhcp_client_list = NULL;
 int dhcp_arp_check = 0;

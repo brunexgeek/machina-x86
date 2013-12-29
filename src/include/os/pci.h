@@ -34,6 +34,10 @@
 #ifndef PCI_H
 #define PCI_H
 
+
+#include <os/krnl.h>
+#include <os/dev.h>
+
 //
 // Ports for access to PCI config space
 //

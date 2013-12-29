@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,12 +27,15 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #ifndef SMB_H
 #define SMB_H
+
+#include <net/ipaddr.h>
+#include <os/dev.h>
 
 #define ROUNDUP(x) (((x) + 3) & ~3)
 
@@ -169,10 +172,10 @@
 //
 
 #define SMB_FILE_ATTR_ARCHIVE           0x020   // The file has not been archived since it was last modified.
-#define SMB_FILE_ATTR_COMPRESSED        0x800   // The file or directory is compressed. 
-#define SMB_FILE_ATTR_NORMAL            0x080   // The file has no other attributes set. 
-#define SMB_FILE_ATTR_HIDDEN            0x002   // The file is hidden. 
-#define SMB_FILE_ATTR_READONLY          0x001   // The file is read only. 
+#define SMB_FILE_ATTR_COMPRESSED        0x800   // The file or directory is compressed.
+#define SMB_FILE_ATTR_NORMAL            0x080   // The file has no other attributes set.
+#define SMB_FILE_ATTR_HIDDEN            0x002   // The file is hidden.
+#define SMB_FILE_ATTR_READONLY          0x001   // The file is read only.
 #define SMB_FILE_ATTR_TEMPORARY         0x100   // The file is temporary
 #define SMB_FILE_ATTR_DIRECTORY         0x010   // The file is a directory
 #define SMB_FILE_ATTR_SYSTEM            0x004   // The file is part of or is used exclusively by the operating system.
@@ -495,7 +498,7 @@ struct smb_create_file_response {
   unsigned long ext_file_attributes;    // The file attributes
   smb_size allocation_size;             // The number of byes allocated
   smb_size end_of_file;                 // The end of file offset
-  unsigned short file_type;     
+  unsigned short file_type;
   unsigned short device_state;          // State of IPC device (e.g. pipe)
   unsigned char directory;              // TRUE if this is a directory
 };
@@ -539,7 +542,7 @@ struct smb_read_file_request {
 struct smb_read_file_response {
   struct smb_andx andx;
   unsigned short remaining;             // Reserved -- must be -1
-  unsigned short data_compaction_mode;  
+  unsigned short data_compaction_mode;
   unsigned short reserved1;             // Reserved (must be 0)
   unsigned short data_length;           // Number of data bytes (min = 0)
   unsigned short data_offset;           // Offset (from header start) to data
@@ -666,7 +669,7 @@ struct smb_trans_request {
 struct smb_trans_response {
   unsigned short total_parameter_count; // Total parameter bytes being sent
   unsigned short total_data_count;      // Total data bytes being sent
-  unsigned short reserved;              
+  unsigned short reserved;
   unsigned short parameter_count;       // Parameter bytes sent this buffer
   unsigned short parameter_offset;      // Offset (from header start) to Parameters
   unsigned short parameter_displacement;// Displacement of these Parameter bytes
@@ -760,15 +763,15 @@ struct smb_fsinfo_request {
 };
 
 struct smb_info_standard {
-  unsigned short creation_date;         // Date when file was created   
-  unsigned short creation_time;         // Time when file was created   
-  unsigned short last_access_date;      // Date of last file access     
-  unsigned short last_access_time;      // Time of last file access     
-  unsigned short last_write_date;       // Date of last write to the file       
-  unsigned short last_write_time;       // Time of last write to the file       
-  unsigned long data_size;              // File Size    
-  unsigned long allocation_size;        // Size of filesystem allocation unit   
-  unsigned short attributes;            // File Attributes      
+  unsigned short creation_date;         // Date when file was created
+  unsigned short creation_time;         // Time when file was created
+  unsigned short last_access_date;      // Date of last file access
+  unsigned short last_access_time;      // Time of last file access
+  unsigned short last_write_date;       // Date of last write to the file
+  unsigned short last_write_time;       // Time of last write to the file
+  unsigned long data_size;              // File Size
+  unsigned long allocation_size;        // Size of filesystem allocation unit
+  unsigned short attributes;            // File Attributes
   unsigned long ea_size;                // Size of file's EA information
 };
 
@@ -816,7 +819,7 @@ struct smb_file_end_of_file_info {
 };
 
 struct smb_findfirst_request {
-  unsigned short search_attributes;     // Search attributes    
+  unsigned short search_attributes;     // Search attributes
   unsigned short search_count;          // Maximum number of entries to return
   unsigned short flags;                 // Additional information:
                                         //   Bit 0 - close search after this request
@@ -825,7 +828,7 @@ struct smb_findfirst_request {
                                         //   Bit 3 - continue search from previous ending place
                                         //   Bit 4 - find with backup intent
   unsigned short infolevel;             // Information level
-  unsigned long search_storage_type;    
+  unsigned long search_storage_type;
   char filename[MAXPATH];               // Pattern for the search
 };
 
@@ -860,13 +863,13 @@ struct smb_findnext_response {
 
 struct smb_file_directory_info {
   unsigned long next_entry_offset;      // Offset from this structure to beginning of next one
-  unsigned long file_index;     
+  unsigned long file_index;
   smb_time creation_time;               // File creation time
   smb_time last_access_time;            // Last access time
   smb_time last_write_time;             // Last write time
   smb_time change_time;                 // Last attribute change time
   smb_size end_of_file;                 // File size
-  smb_size allocation_aize;             // Size of filesystem allocation information 
+  smb_size allocation_aize;             // Size of filesystem allocation information
   unsigned long ext_file_attributes;    // Extended file attributes (see section 3.12)
   unsigned long filename_length;        // Length of filename in bytes
   char filename[0];                     // Name of the file
@@ -971,7 +974,7 @@ int smb_recv(struct smb_share *share, struct smb *smb);
 int smb_request(struct smb_share *share, struct smb *smb, unsigned char cmd, int params, char *data, int datasize, int retry);
 
 int smb_trans(struct smb_share *share,
-              unsigned short cmd, 
+              unsigned short cmd,
               void *reqparams, int reqparamlen,
               void *reqdata, int reqdatalen,
               void *rspparams, int *rspparamlen,

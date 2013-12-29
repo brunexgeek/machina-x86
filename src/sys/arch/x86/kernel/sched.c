@@ -34,6 +34,7 @@
 
 #include <os/krnl.h>
 #include <os/asmutil.h>
+#include <os/syspage.h>
 
 #define DEFAULT_STACK_SIZE           (1 * 1024 * 1024)
 #define DEFAULT_INITIAL_STACK_COMMIT (8 * 1024)

@@ -31,8 +31,12 @@
 // SUCH DAMAGE.
 //
 
-#ifndef KRNL_H
-#define KRNL_H
+#ifndef MACHINA_OS_KRNL_H
+#define MACHINA_OS_KRNL_H
+
+
+#define KERNELAPI
+
 
 #include <os/config.h>
 #include <os.h>
@@ -44,11 +48,15 @@
 #include <time.h>
 
 #include <bitops.h>
-#include <rmap.h>
-#include <inifile.h>
-#include <moddb.h>
-#include <verinfo.h>
+/*
 
+#include <rmap.h>
+*/
+#include <inifile.h>
+/*
+#include <moddb.h>*/
+#include <verinfo.h>
+/*
 #include <os/tss.h>
 #include <os/seg.h>
 #include <os/fpu.h>
@@ -57,27 +65,29 @@
 #include <os/pdir.h>
 #include <os/pframe.h>
 
-#include <os/mach.h>
-
+*/
+#include <os/mach.h>/*
 #include <os/kmem.h>
 #include <os/kmalloc.h>
 #include <os/vmm.h>
-
+*/
 #include <os/syspage.h>
-
+/*
 #include <os/pe.h>
 
 #include <os/buf.h>
 
 #include <os/timer.h>
 #include <os/user.h>
+*/
 #include <os/object.h>
+/*
 #include <os/queue.h>
 #include <os/sched.h>
 #include <os/trap.h>
-#include <os/dbg.h>
+#include <os/dbg.h>*/
 #include <os/klog.h>
-
+/*
 #include <os/pic.h>
 #include <os/pit.h>
 
@@ -93,9 +103,9 @@
 #include <os/iovec.h>
 #include <os/vfs.h>
 #include <os/dfs.h>
-#include <os/devfs.h>
+#include <os/devfs.h>*/
 #include <os/procfs.h>
-
+/*
 #include <os/mbr.h>
 
 #include <os/pe.h>
@@ -104,10 +114,7 @@
 #include <os/syscall.h>
 
 #include <net/net.h>
-
-#if _MSC_VER < 1300
-#pragma warning(disable : 4761)
-#endif
+*/
 
 // start.c
 
@@ -121,57 +128,7 @@ KERNELAPI int license();
 
 KERNELAPI void stop(int mode);
 
-// syscall.c
 
-void init_syscall();
-
-// cpu.c
-
-int cpu_proc(struct proc_file *pf, void *arg);
-
-// smbfs.c
-
-void init_smbfs();
-
-// pipefs.c
-
-void init_pipefs();
-int pipe(struct file **readpipe, struct file **writepipe);
-
-// cdfs.c
-
-void init_cdfs();
-
-// cons.c
-
-extern int serial_console;
-void init_console();
-void console_print(char *buffer, int size);
-
-// serial.c
-
-void init_serial();
-
-// ramdisk.c
-
-int create_initrd();
-
-// hd.c
-
-void init_hd();
-
-// fd.c
-
-void init_fd();
-
-// virtioblk.c
-
-void init_vblk();
-
-// apm.c
-
-void apm_power_off();
-extern int apm_enabled;
 
 // opts.c
 
@@ -187,4 +144,4 @@ unsigned long strtoul(const char *nptr, char **endptr, int ibase);
 int vsprintf(char *buf, const char *fmt, va_list args);
 int sprintf(char *buf, const char *fmt, ...);
 
-#endif
+#endif  // MACHINA_OS_KRNL_H

@@ -32,6 +32,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/syspage.h>
+#include <os/pdir.h>
 
 #define HANDLES_PER_PAGE (PAGESIZE / sizeof(handle_t))
 

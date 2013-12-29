@@ -32,6 +32,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/kmalloc.h>
+#include <os/virtio.h>
+#include <os/queue.h>
 
 void virtio_dpc(void *arg) {
   struct virtio_device *vd = (struct virtio_device *) arg;

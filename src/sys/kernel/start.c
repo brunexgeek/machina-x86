@@ -32,6 +32,14 @@
 //
 
 #include <os/krnl.h>
+#include <os/cpu.h>
+#include <os/vmm.h>
+#include <os/pdir.h>
+#include <os/pframe.h>
+#include <os/kmem.h>
+#include <os/mach.h>
+#include <os/dev.h>
+
 
 #ifdef BSD
 char *copyright =
@@ -81,6 +89,62 @@ char *copyright =
 #define ONPANIC_DEBUG     EXITOS_DEBUG
 #define ONPANIC_POWEROFF  EXITOS_POWEROFF
 
+
+
+// syscall.c
+
+void init_syscall();
+
+// cpu.c
+
+int cpu_proc(struct proc_file *pf, void *arg);
+
+// smbfs.c
+
+void init_smbfs();
+
+// pipefs.c
+
+void init_pipefs();
+int pipe(struct file **readpipe, struct file **writepipe);
+
+// cdfs.c
+
+void init_cdfs();
+
+// cons.c
+
+extern int serial_console;
+void init_console();
+void console_print(char *buffer, int size);
+
+// serial.c
+
+void init_serial();
+
+// ramdisk.c
+
+int create_initrd();
+
+// hd.c
+
+void init_hd();
+
+// fd.c
+
+void init_fd();
+
+// virtioblk.c
+
+void init_vblk();
+
+// apm.c
+
+void apm_power_off();
+extern int apm_enabled;
+
+
+
 struct thread *mainthread;
 struct section *krnlcfg;
 int onpanic = ONPANIC_HALT;
@@ -125,24 +189,29 @@ void stop(int mode) {
   }
 }
 
-void panic(char *msg) {
-  static int inpanic = 0;
+void panic(char *msg)
+{
+    static int inpanic = 0;
 
-  if (inpanic) {
-    kprintf(KERN_EMERG "double panic: %s, halting\n", msg);
-    cli();
-    halt();
-  }
+    if (inpanic)
+    {
+        kprintf(KERN_EMERG "double panic: %s, halting\n", msg);
+        cli();
+        halt();
+    }
 
-  inpanic = 1;
-  kprintf(KERN_EMERG "panic: %s\n", msg);
+    inpanic = 1;
+    kprintf(KERN_EMERG "panic: %s\n", msg);
 
-  if (onpanic == ONPANIC_DEBUG) {
-    if (debugging) dbg_output(msg);
-    dbg_break();
-  } else {
-    stop(onpanic);
-  }
+    /*if (onpanic == ONPANIC_DEBUG)
+    {
+        if (debugging) dbg_output(msg);
+        dbg_break();
+    }
+    else*/
+    {
+        stop(onpanic);
+    }
 }
 
 static int load_kernel_config() {

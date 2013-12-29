@@ -34,6 +34,10 @@
 #ifndef KMALLOC_H
 #define KMALLOC_H
 
+#include <os/krnl.h>
+#include <os/pdir.h>
+#include <os/pframe.h>
+
 struct bucket {
   void *mem;            // List of chunks of memory
   unsigned long elems;  // # chunks available in this bucket

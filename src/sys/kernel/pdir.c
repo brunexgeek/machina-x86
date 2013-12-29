@@ -1,8 +1,9 @@
 //
 // pdir.c
 //
-// Page directory
+// Page directory management
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,7 +32,10 @@
 // SUCH DAMAGE.
 //
 
-#include <os/krnl.h>
+#include <os/pdir.h>
+#include <os/procfs.h>
+#include <os/syspage.h>
+#include <os/pframe.h>
 
 pte_t *pdir = (pte_t *) PAGEDIR_ADDRESS; // Page directory
 pte_t *ptab = (pte_t *) PTBASE;          // Page tables

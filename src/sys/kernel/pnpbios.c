@@ -32,6 +32,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/pdir.h>
+#include <os/dev.h>
+#include <os/pnpbios.h>
 
 #pragma warning(disable: 4731)
 

@@ -32,6 +32,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/virtio.h>
 
 //
 // Feature bits

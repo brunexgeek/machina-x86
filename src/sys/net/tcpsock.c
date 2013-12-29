@@ -32,6 +32,7 @@
 //
 
 #include <net/net.h>
+#include <os/kmalloc.h>
 
 static err_t recv_tcp(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err);
 static err_t sent_tcp(void *arg, struct tcp_pcb *pcb, unsigned short len);

@@ -34,7 +34,7 @@
 
 #include <os/krnl.h>
 #include <os/mach.h>
-
+#include <os/cpu.h>
 
 void printnum( unsigned int value )
 {

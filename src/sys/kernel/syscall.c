@@ -33,6 +33,12 @@
 //
 
 #include <os/krnl.h>
+#include <os/pdir.h>
+#include <os/vmm.h>
+#include <os/syscall.h>
+#include <os/object.h>
+#include <net/socket.h>
+
 
 #define SYSCALL_PROFILE
 //#define SYSCALL_LOGENTER

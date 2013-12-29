@@ -33,6 +33,10 @@
 //
 
 #include <os/krnl.h>
+#include <os/pit.h>
+#include <os/cpu.h>
+#include <os/procfs.h>
+#include <os/trap.h>
 
 #define TMR_CTRL        0x43    // I/O for control
 #define TMR_CNT0        0x40    // I/O for counter 0

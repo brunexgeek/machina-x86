@@ -32,6 +32,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/kbd.h>
+#include <os/trap.h>
+#include <os/dbg.h>
 
 //
 // Keyboard Ports

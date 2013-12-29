@@ -3,6 +3,7 @@
 //
 // Page directory routines
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,11 +32,9 @@
 // SUCH DAMAGE.
 //
 
-#ifndef PDIR_H
-#define PDIR_H
+#ifndef MACHINA_PDIR_H
+#define MACHINA_PDIR_H
 
-
-#include <os/procfs.h>
 
 typedef unsigned long pte_t;
 
@@ -105,15 +104,20 @@ typedef unsigned long pte_t;
  */
 #define GET_PTE(vaddr) (ptab[PTABIDX(vaddr)])
 
-struct pdirstat {
-  int present;
-  int user;
-  int kernel;
-  int readonly;
-  int readwrite;
-  int accessed;
-  int dirty;
+struct pdirstat
+{
+    int present;
+    int user;
+    int kernel;
+    int readonly;
+    int readwrite;
+    int accessed;
+    int dirty;
 };
+
+#include <os/krnl.h>
+#include <sys/types.h>
+#include <os/procfs.h>
 
 #ifdef KERNEL
 
@@ -139,6 +143,6 @@ int pdir_proc(struct proc_file *pf, void *arg);
 int virtmem_proc(struct proc_file *pf, void *arg);
 int pdir_stat(void *addr, int len, struct pdirstat *buf);
 
-#endif
+#endif  // KERNEL
 
-#endif
+#endif  // MACHINA_PDIR_H

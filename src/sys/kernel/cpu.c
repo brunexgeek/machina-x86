@@ -32,6 +32,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/cpu.h>
+#include <string.h>
 
 struct cpu cpu;
 
@@ -234,13 +236,14 @@ int cpu_sysinfo(struct cpuinfo *info) {
   return 0;
 }
 
-/*__declspec(naked)*/ unsigned long eflags()
+
+// TODO: became "naked" function
+unsigned long eflags()
 {
     __asm__
     (
         "pushfd;"
         "pop eax;"
-        "ret;"
     );
 }
 

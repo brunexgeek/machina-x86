@@ -31,8 +31,13 @@
 // SUCH DAMAGE.
 //
 
-#ifndef PFRAME_H
-#define PFRAME_H
+#ifndef MACHINA_OS_PFRAME_H
+#define MACHINA_OS_PFRAME_H
+
+
+#include <os/krnl.h>
+#include <os/procfs.h>
+
 
 #define DMA_BUFFER_START 0x10000
 #define DMA_BUFFER_PAGES 16
@@ -76,4 +81,5 @@ int physmem_proc(struct proc_file *pf, void *arg);
 
 void init_pfdb();
 
-#endif
+
+#endif  // MACHINA_OS_PFRAME_H

@@ -3,6 +3,7 @@
 //
 // Floating point unit
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -32,6 +33,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/cpu.h>
+#include <os/sched.h>
+#include <os/trap.h>
 
 struct interrupt fpuintr;
 struct interrupt fpuxcpt;

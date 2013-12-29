@@ -35,7 +35,9 @@
 #include <os/krnl.h>
 #include <os/trap.h>
 #include <os/asmutil.h>
-
+#include <os/pdir.h>
+#include <os/cpu.h>
+#include <os/mach.h>
 
 #define INTRS MAXIDT
 

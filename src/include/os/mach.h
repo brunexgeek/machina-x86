@@ -40,6 +40,7 @@
 #include <os/syspage.h>
 #include <os/pdir.h>
 
+
 //
 // Machine interface
 //
@@ -83,96 +84,6 @@ struct mach {
 };
 
 extern struct mach mach;
-/*
-#ifdef VMACH
-
-//
-// Interface functions for virtual machine layer
-//
-
-static __inline void sti() {
-  mach.sti();
-}
-
-static __inline void cli() {
-  mach.cli();
-}
-
-static __inline void halt() {
-  mach.hlt();
-}
-
-static __inline void insw(port_t port, void *buf, int count) {
-  mach.insw(port, buf, count);
-}
-
-static __inline void insd(port_t port, void *buf, int count) {
-  mach.insd(port, buf, count);
-}
-
-static __inline void outsw(port_t port, void *buf, int count) {
-  mach.outsw(port, buf, count);
-}
-
-static __inline void outsd(port_t port, void *buf, int count) {
-  mach.outsd(port, buf, count);
-}
-
-static __inline unsigned long get_cr0() {
-  return mach.get_cr0();
-}
-
-static __inline void set_cr0(unsigned long val) {
-  mach.set_cr0(val);
-}
-
-static __inline unsigned long get_cr2() {
-  return mach.get_cr2();
-}
-
-unsigned static __int64 __inline rdtsc() {
-  return mach.rdtsc();
-}
-
-static __inline void wrmsr(unsigned long reg, unsigned long valuelow, unsigned long valuehigh) {
-  mach.wrmsr(reg, valuelow, valuehigh);
-}
-
-static __inline void switch_kernel_stack() {
-  mach.switch_kernel_stack();
-}
-
-static __inline void register_page_dir(unsigned long pfn) {
-  mach.register_page_dir(pfn);
-}
-
-static __inline void register_page_table(unsigned long pfn) {
-  mach.register_page_table(pfn);
-}
-
-static __inline void set_page_dir_entry(pte_t *pde, unsigned long value) {
-  mach.set_page_dir_entry(pde, value);
-}
-
-static __inline void set_page_table_entry(pte_t *pte, unsigned long value) {
-  mach.set_page_table_entry(pte, value);
-}
-
-#define inp(port)  (mach.in(port))
-#define inpw(port) (mach.inw(port))
-#define inpd(port) (mach.ind(port))
-
-#define outp(port, val)  (mach.out((port), (val)))
-#define outpw(port, val) (mach.outw((port), (val)))
-#define outpd(port, val) (mach.outd((port), (val)))
-
-#define CLI call cs:mach.cli
-#define STI call cs:mach.sti
-#define IRETD call cs:mach.iretd
-#define SYSEXIT call cs:mach.sysret
-
-#else
-*/
 
 //
 // Interface functions for direct hardware access

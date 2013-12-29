@@ -32,6 +32,10 @@
 //
 
 #include <os/krnl.h>
+#include <os/vmm.h>
+#include <rmap.h>
+#include <os/pdir.h>
+#include <os/pframe.h>
 
 #define VMAP_ENTRIES 1024
 #define VMEM_START (64 * 1024)

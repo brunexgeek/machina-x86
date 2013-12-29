@@ -36,6 +36,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <inifile.h>
+#include <malloc.h>
 
 #include <moddb.h>
 

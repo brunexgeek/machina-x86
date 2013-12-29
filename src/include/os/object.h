@@ -34,6 +34,7 @@
 #ifndef THREAD_H
 #define THREAD_H
 
+
 #define MAX_WAIT_OBJECTS  16
 
 #define WAIT_ALL 0
@@ -152,6 +153,7 @@ struct mutex {
   int recursion;
 };
 
+
 struct waitable_timer {
   struct object object;
   struct timer timer;
@@ -236,6 +238,10 @@ struct filemap {
 
   handle_t self;
 };
+
+#include <os/sched.h>
+#include <os/krnl.h>
+#include <os/pit.h>
 
 #ifdef KERNEL
 

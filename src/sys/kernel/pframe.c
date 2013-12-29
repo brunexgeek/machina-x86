@@ -31,7 +31,10 @@
 // SUCH DAMAGE.
 //
 
-#include <os/krnl.h>
+#include <os/pframe.h>
+#include <os/pdir.h>
+#include <os/object.h>
+#include <os/syspage.h>
 
 #define MAX_MEMTAGS           128
 
@@ -142,11 +145,11 @@ int memmap_proc(struct proc_file *pf, void *arg) {
     char *type;
 
     switch (mm->entry[i].type) {
-      case MEMTYPE_RAM: type = PFT_RAM; break;
-      case MEMTYPE_RESERVED: type = PFT_RESERVED; break;
-      case MEMTYPE_ACPI: type = PFT_ACPI; break;
-      case MEMTYPE_NVS: type = PFT_NVS; break;
-      default: type = PFT_MEM; break;
+      case MEMTYPE_RAM: type = (uint8_t*)PFT_RAM; break;
+      case MEMTYPE_RESERVED: type = (uint8_t*)PFT_RESERVED; break;
+      case MEMTYPE_ACPI: type = (uint8_t*)PFT_ACPI; break;
+      case MEMTYPE_NVS: type = (uint8_t*)PFT_NVS; break;
+      default: type = (uint8_t*)PFT_MEM; break;
     }
 
     pprintf(pf, "0x%08x-0x%08x type %s %8d KB\n",

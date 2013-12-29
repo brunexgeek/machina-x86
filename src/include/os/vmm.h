@@ -35,6 +35,7 @@
 #define VMM_H
 
 #include <os/vfs.h>
+#include <os/procfs.h>
 
 extern struct rmap *vmap;
 

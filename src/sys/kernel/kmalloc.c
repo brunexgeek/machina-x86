@@ -31,7 +31,9 @@
 // SUCH DAMAGE.
 //
 
-#include <os/krnl.h>
+
+#include <os/kmalloc.h>
+#include <os/kmem.h>
 
 unsigned char log2[2048] = {
    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,

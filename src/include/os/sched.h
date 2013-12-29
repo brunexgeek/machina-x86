@@ -35,6 +35,8 @@
 #define SCHED_H
 
 
+#include <os/krnl.h>
+#include <os/syspage.h>
 #include <stdint.h>
 #include <os/asmutil.h>
 
@@ -187,6 +189,8 @@ int kthread_suspend(struct thread *t);
  * If the 'suspended' count reach zero, the thread is marked as ready to run again.
  */
 int kthread_resume(struct thread *t);
+
+struct thread *kthread_get(tid_t tid);
 
 void terminate_thread(int exitcode);
 void suspend_all_user_threads();

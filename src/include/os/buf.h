@@ -31,8 +31,17 @@
 // SUCH DAMAGE.
 //
 
-#ifndef BUF_H
-#define BUF_H
+#ifndef MACHINA_OS_BUF_H
+#define MACHINA_OS_BUF_H
+
+
+#include <sys/types.h>
+#include <os/krnl.h>
+#include <os/dev.h>
+#include <os/procfs.h>
+#include <os/object.h>
+#include <string.h>
+
 
 #define BUFPOOL_HASHSIZE 512
 
@@ -121,4 +130,4 @@ KERNELAPI void invalidate_buffer(struct bufpool *pool, blkno_t blkno);
 KERNELAPI int flush_buffers(struct bufpool *pool, int interruptable);
 KERNELAPI int sync_buffers(struct bufpool *pool, int interruptable);
 
-#endif
+#endif  // MACHINA_OS_BUF_H

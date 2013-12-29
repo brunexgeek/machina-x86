@@ -31,7 +31,7 @@
 // SUCH DAMAGE.
 //
 
-#include <os/krnl.h>
+#include <os/pci.h>
 
 struct {
   int classcode;

@@ -34,6 +34,20 @@
 #ifndef LDR_H
 #define LDR_H
 
+
+#define PFT_UMOD              (*((const uint32_t*)("UMOD")))
+
+
+#include <os/krnl.h>
+#include <os/pe.h>
+#include <os/procfs.h>
+#include <os/kmem.h>
+#include <os/vmm.h>
+#include <os/dbg.h>
+#include <os/syspage.h>
+#include <moddb.h>
+
+
 extern struct moddb kmods;
 
 void *load_image_file(char *filename, int userspace);

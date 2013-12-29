@@ -31,7 +31,12 @@
 // SUCH DAMAGE.
 //
 
+
 #include <os/krnl.h>
+#include <os/dbg.h>
+#include <os/sched.h>
+#include <moddb.h>
+
 
 #define DEBUGPORT         0x3F8 // COM1
 #define MAX_DBG_CHUNKSIZE PAGESIZE
@@ -39,6 +44,7 @@
 #define MAX_DBG_PACKETLEN (MAX_DBG_CHUNKSIZE + sizeof(union dbg_body))
 
 extern char *trapnames[]; // Defined in trap.c
+extern struct moddb kmods; // Define in ???
 
 int debugging = 0;
 int debugger_active = 0;

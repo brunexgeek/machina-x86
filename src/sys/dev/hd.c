@@ -32,6 +32,11 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/trap.h>
+#include <os/pci.h>
+#include <os/mbr.h>
+
 
 #define CDSECTORSIZE            2048
 

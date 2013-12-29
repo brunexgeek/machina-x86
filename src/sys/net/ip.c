@@ -9,16 +9,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,11 +28,12 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <net/net.h>
+#include <os/dbg.h>
 
 void ip_debug_print(struct pbuf *p);
 
@@ -54,7 +55,7 @@ void ip_init() {
 
 int ip_ownaddr(struct ip_addr *addr) {
   struct netif *netif;
-  
+
   for (netif = netif_list; netif != NULL; netif = netif->next) {
     if (!ip_addr_isany(addr) && ip_addr_cmp(addr, &netif->ipaddr)) return 1;
   }
@@ -74,7 +75,7 @@ int ip_ownaddr(struct ip_addr *addr) {
 
 struct netif *ip_route(struct ip_addr *dest) {
   struct netif *netif;
-  
+
   for (netif = netif_list; netif != NULL; netif = netif->next) {
     if (ip_addr_cmp(dest, &netif->ipaddr)) return netif;
   }
@@ -122,7 +123,7 @@ static err_t ip_forward(struct pbuf *p, struct ip_hdr *iphdr, struct netif *inp)
     //kprintf("ip_forward: not forward packets back on incoming interface. (%a->%a)\n", &iphdr->src, &iphdr->dest);
     return -EROUTE;
   }
-  
+
   // Decrement TTL and send ICMP if ttl == 0
   IPH_TTL_SET(iphdr, IPH_TTL(iphdr) - 1);
   if (IPH_TTL(iphdr) == 0) {
@@ -131,7 +132,7 @@ static err_t ip_forward(struct pbuf *p, struct ip_hdr *iphdr, struct netif *inp)
     pbuf_free(p);
     return 0;
   }
-  
+
   // Incremental update of the IP checksum
   if (IPH_CHKSUM(iphdr) >= htons(0xffff - 0x100)) {
     IPH_CHKSUM_SET(iphdr, IPH_CHKSUM(iphdr) + htons(0x100) + 1);
@@ -165,7 +166,7 @@ err_t ip_input(struct pbuf *p, struct netif *inp) {
   int rc;
 
   stats.ip.recv++;
-  
+
   //kprintf("receiving IP datagram on %s:\n", inp->name);
   //ip_debug_print(p);
 
@@ -177,7 +178,7 @@ err_t ip_input(struct pbuf *p, struct netif *inp) {
     stats.ip.drop++;
     return -EPROTO;
   }
-  
+
   // Check header length
   hl = IPH_HL(iphdr);
   iphdrlen = hl * 4;
@@ -222,8 +223,8 @@ err_t ip_input(struct pbuf *p, struct netif *inp) {
   if (!netif && IPH_PROTO(iphdr) == IP_PROTO_UDP &&
       ((struct udp_hdr *)((char *) iphdr + IPH_HL(iphdr) * 4))->src == DHCP_SERVER_PORT) {
     netif = inp;
-  }  
-  
+  }
+
   if (netif == NULL) {
     // Packet not for us, route or discard
     if (!ip_addr_isbroadcast(&iphdr->dest, &inp->netmask)) {
@@ -240,7 +241,7 @@ err_t ip_input(struct pbuf *p, struct netif *inp) {
     stats.ip.drop++;
     return -EPROTO;
   }
-  
+
   if (iphdrlen > IP_HLEN) {
     kprintf("IP packet dropped since there were IP options.\n");
     stats.ip.opterr++;
@@ -263,7 +264,7 @@ err_t ip_input(struct pbuf *p, struct netif *inp) {
 
     case IP_PROTO_ICMP:
       return icmp_input(p, inp);
-  
+
     default:
       // Send ICMP destination protocol unreachable unless is was a broadcast
       if (!ip_addr_isbroadcast(&iphdr->dest, &inp->netmask) && !ip_addr_ismulticast(&iphdr->dest)) {
@@ -306,7 +307,7 @@ err_t ip_input_dur(int code, struct pbuf *p) {
 err_t ip_output_if(struct pbuf *p, struct ip_addr *src, struct ip_addr *dest, int ttl, int proto, struct netif *netif) {
   struct ip_hdr *iphdr;
   static unsigned short ip_id = 0;
-  
+
   if (dest != IP_HDRINCL) {
     if (pbuf_header(p, IP_HLEN)) {
       kprintf("ip_output: not enough room for IP header in pbuf\n");
@@ -319,7 +320,7 @@ err_t ip_output_if(struct pbuf *p, struct ip_addr *src, struct ip_addr *dest, in
 
     IPH_TTL_SET(iphdr, ttl);
     IPH_PROTO_SET(iphdr, proto);
-    
+
     ip_addr_set(&iphdr->dest, dest);
 
     IPH_VHLTOS_SET(iphdr, 4, IP_HLEN / 4, 0);
@@ -361,7 +362,7 @@ err_t ip_output_if(struct pbuf *p, struct ip_addr *src, struct ip_addr *dest, in
 
 err_t ip_output(struct pbuf *p, struct ip_addr *src, struct ip_addr *dest, int ttl, int proto) {
   struct netif *netif;
-  
+
   if ((netif = ip_route(dest)) == NULL) {
     kprintf("ip_output: No route to %a\n", &dest);
 
@@ -377,12 +378,12 @@ void ip_debug_print(struct pbuf *p) {
   unsigned char *payload;
 
   payload = (unsigned char *) iphdr + IP_HLEN;
-  
+
   kprintf("+-------------------------------+\n");
-  kprintf("|%2d |%2d |   %2d  |      %4d     | (v, hl, tos, len)\n", 
-          IPH_V(iphdr), 
-          IPH_HL(iphdr), 
-          IPH_TOS(iphdr), 
+  kprintf("|%2d |%2d |   %2d  |      %4d     | (v, hl, tos, len)\n",
+          IPH_V(iphdr),
+          IPH_HL(iphdr),
+          IPH_TOS(iphdr),
           ntohs(IPH_LEN(iphdr)));
   kprintf("+-------------------------------+\n");
   kprintf("|    %5d      |%d%d%d|    %4d   | (id, flags, offset)\n",

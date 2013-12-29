@@ -32,6 +32,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/cpu.h>
 
 #define KLOG_SIZE (64 * 1024)
 
@@ -111,7 +113,7 @@ static void add_to_klog(char *buf, int size)
     }
 
     // TODO: fix this!
-    //release_klog_waiters(NULL);
+    release_klog_waiters(NULL);
 }
 
 void kprintf(const char *fmt,...)
@@ -126,7 +128,7 @@ void kprintf(const char *fmt,...)
 
     add_to_klog(buffer, len);
 
-    //if (debugging) dbg_output(buffer);
+    if (debugging) dbg_output(buffer);
 
     if (kprint_enabled)
     {

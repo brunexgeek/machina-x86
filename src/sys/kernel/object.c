@@ -31,7 +31,7 @@
 // SUCH DAMAGE.
 //
 
-#include <os/krnl.h>
+#include <os/object.h>
 
 struct waitable_timer *timer_list = NULL;
 int nexttid = 1;

@@ -32,6 +32,7 @@
 //
 
 #include <os/krnl.h>
+#include <os/vfs.h>
 
 struct filesystem *fslist = NULL;
 struct fs *mountlist = NULL;

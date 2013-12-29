@@ -32,6 +32,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/buf.h>
+#include <os/devfs.h>
 
 #define DEVROOT ((struct devfile *) NODEV)
 

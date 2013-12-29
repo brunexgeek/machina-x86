@@ -34,6 +34,19 @@
 #ifndef KMEM_H
 #define KMEM_H
 
+
+#define PFT_KMEM              (*((const uint32_t*)("KMEM")))
+#define PFT_KMOD              (*((const uint32_t*)("KMOD")))
+#define PFT_SYS               (*((const uint32_t*)("SYS ")))
+
+
+#include <os/krnl.h>
+#include <os/pdir.h>
+#include <os/syspage.h>
+#include <os/pframe.h>
+#include <rmap.h>
+
+
 extern struct rmap *osvmap;
 extern struct rmap *kmodmap;
 

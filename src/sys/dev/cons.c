@@ -32,6 +32,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/video.h>
+#include <os/kbd.h>
 
 #define CTRL(c) ((c) - 'A' + 1)
 

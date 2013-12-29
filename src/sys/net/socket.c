@@ -32,6 +32,7 @@
 //
 
 #include <net/net.h>
+#include <os/iovec.h>
 
 extern struct sockops tcpops;
 extern struct sockops udpops;

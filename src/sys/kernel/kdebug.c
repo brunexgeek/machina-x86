@@ -37,6 +37,6 @@
 void kassert_failed( char *expression, void *fileName, unsigned line )
 {
     kprintf("[%s:%d] Assertion failed: %s\n", fileName, line, expression);
-    cli();
-    halt();
+    kmach_cli();
+    kmach_halt();
 }

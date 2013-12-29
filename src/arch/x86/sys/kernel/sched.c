@@ -71,7 +71,7 @@ void mark_thread_running() {
     {
         // Update TIB descriptor
 #ifdef VMACH
-        set_gdt_entry(GDT_TIB, (unsigned long) tib, PAGESIZE, D_DATA | D_DPL3 | D_WRITE | D_PRESENT, 0);
+        kmach_set_gdt_entry(GDT_TIB, (unsigned long) tib, PAGESIZE, D_DATA | D_DPL3 | D_WRITE | D_PRESENT, 0);
 #else
         struct segment *seg;
 

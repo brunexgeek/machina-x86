@@ -32,7 +32,7 @@ KERNEL32_WELCOME:
 	@echo Building Machina Kernel for x86
 
 KERNEL32_CFLAGS =  -g -O0 -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel $(CFLAGS)
-KERNEL32_LDFLAGS =  -nostdlib -Wl,-T,src/sys/arch/x86/kernel/kernel.lds $(LDFLAGS)
+KERNEL32_LDFLAGS =  -nostdlib -Wl,-T,src/arch/x86/sys/kernel/kernel.lds $(LDFLAGS)
 KERNEL32_NFLAGS = $(NFLAGS)
 KERNEL32_OUT_DIR = build/machina/obj/kernel
 KERNEL32_OUT_FILE = $(KERNEL32_OUT_DIR)/kernel32.elf
@@ -60,10 +60,10 @@ KERNEL32_SRC_FILES = \
 	sys/kernel/pnpbios.c \
 	sys/kernel/queue.c \
 	sys/kernel/sched.c \
-	sys/arch/x86/kernel/sched.c \
-	sys/arch/x86/kernel/sched.s \
-	sys/arch/x86/kernel/mach.c \
-	sys/arch/x86/kernel/mach.s \
+	arch/x86/sys/kernel/trap.c \
+	arch/x86/sys/kernel/sched.c \
+	arch/x86/sys/kernel/sched.s \
+	arch/x86/sys/kernel/mach.s \
 	sys/kernel/start.c \
 	sys/kernel/syscall.c \
 	sys/kernel/timer.c \
@@ -140,14 +140,14 @@ $(KERNEL32_OBJ_FILES): | KERNEL32_OBJ_MKDIR
 
 KERNEL32_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/kernel
-	@mkdir -p build/machina/obj/kernel/sys/net
+	@mkdir -p build/machina/obj/kernel/sys/fs/smbfs
 	@mkdir -p build/machina/obj/kernel/sys/fs/pipefs
 	@mkdir -p build/machina/obj/kernel/lib/libc
-	@mkdir -p build/machina/obj/kernel/sys/fs/smbfs
 	@mkdir -p build/machina/obj/kernel/sys/fs/dfs
-	@mkdir -p build/machina/obj/kernel/sys/arch/x86/kernel
+	@mkdir -p build/machina/obj/kernel/sys/net
 	@mkdir -p build/machina/obj/kernel/sys/kernel
 	@mkdir -p build/machina/obj/kernel/sys/dev
+	@mkdir -p build/machina/obj/kernel/arch/x86/sys/kernel
 	@mkdir -p build/machina/obj/kernel/sys/fs/procfs
 	@mkdir -p build/machina/obj/kernel/sys/fs/cdfs
 	@mkdir -p build/machina/obj/kernel/sys/fs/devfs

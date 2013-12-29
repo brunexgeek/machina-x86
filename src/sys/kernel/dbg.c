@@ -218,7 +218,7 @@ static void dbg_connect(struct dbg_hdr *hdr, union dbg_body *body) {
     body->conn.thr.tib = t->tib;
     body->conn.thr.tcb = t;
     body->conn.thr.startaddr = t->entrypoint;
-    body->conn.cpu = cpu;
+    body->conn.cpu = global_cpu;
 
     dbg_send_packet(hdr->cmd + DBGCMD_REPLY, hdr->id, body, sizeof(struct dbg_connect));
   }
@@ -295,7 +295,7 @@ static void dbg_get_thread_context(struct dbg_hdr *hdr, union dbg_body *body) {
 
     // Kernel mode contexts does not have ss:esp in context, fixup
     if (KERNELSPACE(body->ctx.ctxt.eip)) {
-      body->ctx.ctxt.ess = SEL_KDATA | mach.kring;
+      body->ctx.ctxt.ess = SEL_KDATA | global_kring;
       body->ctx.ctxt.esp = (unsigned long) t->ctxt + sizeof(struct context) - 8;
     }
   } else {
@@ -311,10 +311,10 @@ static void dbg_get_thread_context(struct dbg_hdr *hdr, union dbg_body *body) {
     body->ctx.ctxt.eip = kctxt->eip;
     body->ctx.ctxt.esp = (unsigned long) kctxt->stack;
 
-    body->ctx.ctxt.ds = SEL_KDATA | mach.kring;
-    body->ctx.ctxt.es = SEL_KDATA | mach.kring;
-    body->ctx.ctxt.ess = SEL_KDATA | mach.kring;
-    body->ctx.ctxt.ecs = SEL_KTEXT | mach.kring;
+    body->ctx.ctxt.ds = SEL_KDATA | global_kring;
+    body->ctx.ctxt.es = SEL_KDATA | global_kring;
+    body->ctx.ctxt.ess = SEL_KDATA | global_kring;
+    body->ctx.ctxt.ecs = SEL_KTEXT | global_kring;
   }
 
   dbg_send_packet(hdr->cmd | DBGCMD_REPLY, hdr->id, body, sizeof(struct dbg_context));
@@ -509,14 +509,14 @@ void dbg_enter(struct context *ctxt, void *addr) {
   last_trap.eip = ctxt->eip;
   last_trap.addr = addr;
 
-  if (!debug_nointr) sti();
+  if (!debug_nointr) kmach_sti();
 
   if (debugging) {
     if (debugger_active) {
       kprintf("dbg: trap %d thread %d, addr %p while debugger active, system halted.\n", ctxt->traptype, self()->id, addr);
       dumpregs(ctxt);
-      cli();
-      halt();
+      kmach_cli();
+      kmach_halt();
     }
 
     dbg_send_packet(DBGEVT_TRAP, 0, &last_trap, sizeof(struct dbg_evt_trap));

@@ -91,8 +91,8 @@ typedef unsigned long pte_t;
 #define PTOB(x) ((unsigned long)(x) << PAGESHIFT)
 #define BTOP(x) ((unsigned long)(x) >> PAGESHIFT)
 
-#define SET_PDE(vaddr, val) set_page_dir_entry(&pdir[PDEIDX(vaddr)], (val))
-#define SET_PTE(vaddr, val) set_page_table_entry(&ptab[PTABIDX(vaddr)], (val))
+#define SET_PDE(vaddr, val) kmach_set_page_dir_entry(&pdir[PDEIDX(vaddr)], (val))
+#define SET_PTE(vaddr, val) kmach_set_page_table_entry(&ptab[PTABIDX(vaddr)], (val))
 
 /**
  * Returns the page directory entry for the given virtal address.

@@ -177,7 +177,7 @@ struct cpu
 
 #ifdef KERNEL
 
-extern struct cpu cpu;
+extern struct cpu global_cpu;
 
 void init_cpu();
 int cpu_sysinfo(struct cpuinfo *info);

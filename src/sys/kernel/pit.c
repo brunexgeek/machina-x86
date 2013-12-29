@@ -200,10 +200,10 @@ static void set_cmos_time(struct tm *tm) {
 static void tsc_delay(unsigned long cycles) {
   long end, now;
 
-  end = (unsigned long) rdtsc() + cycles;
+  end = (unsigned long) kmach_rdtsc() + cycles;
   do  {
     __asm__("nop");
-    now = (unsigned long) rdtsc();
+    now = (unsigned long) kmach_rdtsc();
   } while (end - now > 0);
 }
 
@@ -237,7 +237,7 @@ void calibrate_delay() {
     unsigned long t, bit;
     int precision;
 
-    if (cpu.features & CPU_FEATURE_TSC)
+    if (global_cpu.features & CPU_FEATURE_TSC)
     {
 
         unsigned long start;
@@ -245,11 +245,11 @@ void calibrate_delay() {
 
         t = ticks;
         while (t == ticks);
-        start = (unsigned long) rdtsc();
+        start = (unsigned long) kmach_rdtsc();
 
         t = ticks;
         while (t == ticks);
-        end = (unsigned long) rdtsc();
+        end = (unsigned long) kmach_rdtsc();
 
         cycles_per_tick = end - start;
     }
@@ -314,7 +314,7 @@ void calibrate_delay() {
     }
 
     kprintf(KERN_INFO "speed: %d cycles/tick, %d MHz processor\n", cycles_per_tick, mhz);
-    cpu.mhz = mhz;
+    global_cpu.mhz = mhz;
 }
 
 static int uptime_proc(struct proc_file *pf, void *arg) {
@@ -378,20 +378,22 @@ void init_pit() {
   register_proc_inode("loadavg", loadavg_proc, NULL);
 }
 
-void udelay(unsigned long us) {
-  if (cpu.features & CPU_FEATURE_TSC) {
-    tsc_delay(us * (cycles_per_tick / (1000000 / TIMER_FREQ)));
-  } else {
-    timed_delay(us * (loops_per_tick / (1000000 / TIMER_FREQ)));
-  }
+void udelay(unsigned long us)
+{
+    if (global_cpu.features & CPU_FEATURE_TSC)
+        tsc_delay(us * (cycles_per_tick / (1000000 / TIMER_FREQ)));
+    else
+        timed_delay(us * (loops_per_tick / (1000000 / TIMER_FREQ)));
 }
 
-unsigned int get_ticks() {
-  return ticks;
+unsigned int get_ticks()
+{
+    return ticks;
 }
 
-time_t get_time() {
-  return systemclock.tv_sec;
+time_t get_time()
+{
+    return systemclock.tv_sec;
 }
 
 time_t time(time_t *time) {

@@ -234,7 +234,7 @@ void kthread_preempt()
     struct thread *t = self();
 
     // Enable interrupt in case we have been called in interupt context
-    sti();
+    kmach_sti();
 
     // Count number of preempted context switches
     t->preempts++;
@@ -717,9 +717,9 @@ void queue_irq_dpc(struct dpc *dpc, dpcproc_t proc, void *arg)
 
 void queue_dpc(struct dpc *dpc, dpcproc_t proc, void *arg)
 {
-    cli();
+    kmach_cli();
     queue_irq_dpc(dpc, proc, arg);
-    sti();
+    kmach_sti();
 }
 
 
@@ -727,7 +727,7 @@ struct dpc *get_next_dpc()
 {
     struct dpc *dpc;
 
-    cli();
+    kmach_cli();
 
     if (dpc_queue_head)
     {
@@ -740,7 +740,7 @@ struct dpc *get_next_dpc()
         dpc = NULL;
     }
 
-    sti();
+    kmach_sti();
 
     return dpc;
 }
@@ -911,7 +911,7 @@ void idle_task()
         {
             if (system_idle())
             {
-                halt();
+                kmach_halt();
             }
         }
 

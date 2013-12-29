@@ -385,21 +385,21 @@ static int serial_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
       return 0;
 
     case IOCTL_SERIAL_FLUSH_TX_BUFFER:
-      cli();
+      kmach_cli();
       fifo_clear(&sp->txq);
       set_sem(&sp->tx_sem, QUEUE_SIZE);
       sp->tx_queue_rel = 0;
       if (sp->type == UART_16550A) outp(sp->iobase + UART_FCR, FCR_ENABLE | FCR_XMT_RST | FCR_TRIGGER_14);
-      sti();
+      kmach_sti();
       return 0;
 
     case IOCTL_SERIAL_FLUSH_RX_BUFFER:
-      cli();
+      kmach_cli();
       fifo_clear(&sp->rxq);
       set_sem(&sp->rx_sem, 0);
       sp->rx_queue_rel = 0;
       if (sp->type == UART_16550A) outp(sp->iobase + UART_FCR, FCR_ENABLE | FCR_RCV_RST | FCR_TRIGGER_14);
-      sti();
+      kmach_sti();
       return 0;
   }
 
@@ -419,9 +419,9 @@ static int serial_read(struct dev *dev, void *buffer, size_t count, blkno_t blkn
     if (wait_for_object(&sp->rx_sem, n == 0 ? sp->cfg.rx_timeout : 0) < 0) break;
 
     // Remove next char from receive queue
-    cli();
+    kmach_cli();
     *bufp++ = fifo_get(&sp->rxq);
-    sti();
+    kmach_sti();
 
     //kprintf("serial: read %02X\n", bufp[-1]);
   }
@@ -443,9 +443,9 @@ static int serial_write(struct dev *dev, void *buffer, size_t count, blkno_t blk
     if (wait_for_object(&sp->tx_sem, sp->cfg.tx_timeout) < 0) break;
 
     // Insert next char in transmit queue
-    cli();
+    kmach_cli();
     fifo_put(&sp->txq, *bufp++);
-    sti();
+    kmach_sti();
 
     //kprintf("serial: write %02X\n", bufp[-1]);
     //kprintf("fifo put: h:%d t:%d c:%d\n", sp->txq.head, sp->txq.tail, sp->txq.count);
@@ -468,7 +468,7 @@ static void drain_tx_queue(struct serial_port *sp) {
 
   count = 0;
   while (1) {
-    cli();
+    kmach_cli();
 
     // Is UART ready to transmit next byte
     lsr = inp((unsigned short) (sp->iobase + UART_LSR));
@@ -476,13 +476,13 @@ static void drain_tx_queue(struct serial_port *sp) {
     //kprintf("drain_tx_queue: lsr=%02X\n", lsr);
 
     if (!(lsr & LSR_TXRDY)) {
-      sti();
+      kmach_sti();
       break;
     }
 
     // Is tx queue empty
     if (fifo_empty(&sp->txq)) {
-      sti();
+      kmach_sti();
       break;
     }
 
@@ -494,7 +494,7 @@ static void drain_tx_queue(struct serial_port *sp) {
     outp(sp->iobase + UART_TX, b);
     sp->tx_busy = 1;
     count++;
-    sti();
+    kmach_sti();
   }
 
   // Release transmitter queue resources
@@ -512,7 +512,7 @@ static void serial_dpc(void *arg) {
 
   // Release transmitter and receiver queue resources and
   // signal line or modem status change
-  cli();
+  kmach_cli();
   tqr = sp->tx_queue_rel;
   sp->tx_queue_rel = 0;
   rqr = sp->rx_queue_rel;
@@ -521,7 +521,7 @@ static void serial_dpc(void *arg) {
   sp->mlsc = 0;
   rls = sp->rls;
   sp->rls = 0;
-  sti();
+  kmach_sti();
 
   if (tqr > 0) release_sem(&sp->tx_sem, tqr);
   if (rqr > 0) release_sem(&sp->rx_sem, rqr);

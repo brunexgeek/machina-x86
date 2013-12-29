@@ -233,22 +233,24 @@ static void kbd_write_command(unsigned char cmd) {
 // Reboot machine
 //
 
-void kbd_reboot() {
-  kbd_wait();
-  kbd_write_command(0xFE);
-  cli();
-  halt();
+void kbd_reboot()
+{
+    kbd_wait();
+    kbd_write_command(0xFE);
+    kmach_cli();
+    kmach_halt();
 }
 
 //
 // Set keyboard LEDs
 //
 
-static void setleds() {
-  kbd_write_data(KBD_CMD_SET_LEDS);
-  kbd_wait();
-  kbd_write_data(led_status);
-  kbd_wait();
+static void setleds()
+{
+    kbd_write_data(KBD_CMD_SET_LEDS);
+    kbd_wait();
+    kbd_write_data(led_status);
+    kbd_wait();
 }
 
 //
@@ -299,7 +301,7 @@ static void process_scancode(unsigned int scancode) {
 
   // Ctrl-Alt-Del
   if ((control_keys & (CK_LCTRL | CK_LALT)) && scancode == 0x53) {
-    if (ctrl_alt_del_enabled) reboot();
+    if (ctrl_alt_del_enabled) kmach_reboot();
   }
 
   // LED keys, i.e. scroll lock, num lock, and caps lock

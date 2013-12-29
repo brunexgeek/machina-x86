@@ -60,7 +60,7 @@ void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags)
         }
 
         memset(ptab + PDEIDX(vaddr) * PTES_PER_PAGE, 0, PAGESIZE);
-        register_page_table(pdfn);
+        kmach_register_page_table(pdfn);
     }
 
     // map page frame into address space
@@ -70,7 +70,7 @@ void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags)
 void kpage_unmap(void *vaddr)
 {
     SET_PTE(vaddr, 0);
-    invlpage(vaddr);
+    kmach_invlpage(vaddr);
 }
 
 unsigned long virt2phys(void *vaddr)
@@ -91,7 +91,7 @@ pte_t kpage_get_flags(void *vaddr)
 void kpage_set_flags(void *vaddr, unsigned long flags)
 {
     SET_PTE(vaddr, (GET_PTE(vaddr) & PT_PFNMASK) | flags);
-    invlpage(vaddr);
+    kmach_invlpage(vaddr);
 }
 
 /**
@@ -115,13 +115,13 @@ int kpage_is_directory_mapped(void *vaddr)
 void kpage_unguard(void *vaddr)
 {
     SET_PTE(vaddr, (GET_PTE(vaddr) & ~PT_GUARD) | PT_USER);
-    invlpage(vaddr);
+    kmach_invlpage(vaddr);
 }
 
 void kpage_clear_dirty(void *vaddr)
 {
     SET_PTE(vaddr, GET_PTE(vaddr) & ~PT_DIRTY);
-    invlpage(vaddr);
+    kmach_invlpage(vaddr);
 }
 
 int mem_access(void *vaddr, int size, pte_t access)

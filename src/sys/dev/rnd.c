@@ -369,8 +369,8 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned long n
   long delta, delta2, delta3;
   int entropy = 0;
 
-  if (cpu.features & CPU_FEATURE_TSC) {
-    time = (unsigned long) rdtsc();
+  if (global_cpu.features & CPU_FEATURE_TSC) {
+    time = (unsigned long) kmach_rdtsc();
   } else {
     time = ticks;
   }

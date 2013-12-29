@@ -1,5 +1,5 @@
 //
-// mach.c
+// mach.h
 //
 // Interface to physical x86 machine
 //
@@ -32,53 +32,36 @@
 // SUCH DAMAGE.
 //
 
+#if (TARGET_MACHINE==x86)
+
 #include <os/krnl.h>
-#include <os/mach.h>
 #include <os/cpu.h>
+#include <os/pdir.h>
+#include <os/syspage.h>
 
-void printnum( unsigned int value )
-{
-    kprintf("printnum: 0x%x\n", value);
-}
 
-static void hw_sti()
+#define kmach_reboot()        { kbd_reboot(); }
+
+static inline void kmach_sti()
 {
     __asm__("sti;");
 }
 
 
-static void hw_cli()
+static inline void kmach_cli()
 {
     __asm__("cli;");
 }
 
 
-static void hw_hlt()
+static inline void kmach_halt()
 {
-      __asm__("hlt;");
+    __asm__("hlt;");
 }
 
 
-static void hw_iretd()
+static inline void kmach_cpuid(unsigned long reg, unsigned long values[4])
 {
-    __asm__
-    (
-        "add esp,4;"
-        "iretd;"
-    );
-}
-
-static void hw_sysret()
-{
-    __asm__
-    (
-        "add esp,4;"
-        "sysexit;"
-    );
-}
-
-
-static void hw_cpuid(unsigned long reg, unsigned long values[4]) {
     __asm__
     (
         //"mov    eax, reg;"
@@ -93,8 +76,10 @@ static void hw_cpuid(unsigned long reg, unsigned long values[4]) {
     );
 }
 
-static unsigned long hw_get_cr0() {
-  unsigned long val;
+
+static inline unsigned long kmach_get_cr0()
+{
+    unsigned long val;
 
     __asm__
     (
@@ -103,10 +88,12 @@ static unsigned long hw_get_cr0() {
         : "=r" (val)
     );
 
-  return val;
+    return val;
 }
 
-static void hw_set_cr0(unsigned long val) {
+
+static inline void kmach_set_cr0(unsigned long val)
+{
     __asm__
     (
         //"mov eax, %0;"
@@ -116,7 +103,8 @@ static void hw_set_cr0(unsigned long val) {
     );
 }
 
-static unsigned long hw_get_cr2()
+
+static inline unsigned long kmach_get_cr2()
 {
     unsigned long val;
 
@@ -131,7 +119,7 @@ static unsigned long hw_get_cr2()
 }
 
 
-static void hw_wrmsr(
+static inline void kmach_wrmsr(
     unsigned long reg,
     unsigned long valuelow,
     unsigned long valuehigh )
@@ -147,28 +135,42 @@ static void hw_wrmsr(
     );
 }
 
-static void hw_set_gdt_entry(int entry, unsigned long addr, unsigned long size, int access, int granularity) {
-  seginit(&syspage->gdt[entry], addr, size, access, granularity);
+
+static inline void kmach_set_gdt_entry(
+    int entry,
+    unsigned long addr,
+    unsigned long size,
+    int access,
+    int granularity)
+{
+    seginit(&syspage->gdt[entry], addr, size, access, granularity);
 }
 
-static void hw_set_idt_gate(int intrno, void *handler) {
-  syspage->idt[intrno].offset_low = (unsigned short) (((unsigned long) handler) & 0xFFFF);
-  syspage->idt[intrno].selector = SEL_KTEXT | mach.kring;
-  syspage->idt[intrno].access = D_PRESENT | D_INT | D_DPL0;
-  syspage->idt[intrno].offset_high = (unsigned short) (((unsigned long) handler) >> 16);
+
+static inline void kmach_set_idt_gate(int intrno, void *handler)
+{
+    syspage->idt[intrno].offset_low = (unsigned short) (((unsigned long) handler) & 0xFFFF);
+    syspage->idt[intrno].selector = SEL_KTEXT | global_kring;
+    syspage->idt[intrno].access = D_PRESENT | D_INT | D_DPL0;
+    syspage->idt[intrno].offset_high = (unsigned short) (((unsigned long) handler) >> 16);
 }
 
-static void hw_set_idt_trap(int intrno, void *handler) {
-  syspage->idt[intrno].offset_low = (unsigned short) (((unsigned long) handler) & 0xFFFF);
-  syspage->idt[intrno].selector = SEL_KTEXT | mach.kring;
-  syspage->idt[intrno].access = D_PRESENT | D_TRAP | D_DPL3;
-  syspage->idt[intrno].offset_high = (unsigned short) (((unsigned long) handler) >> 16);
+
+static inline void kmach_set_idt_trap(int intrno, void *handler)
+{
+    syspage->idt[intrno].offset_low = (unsigned short) (((unsigned long) handler) & 0xFFFF);
+    syspage->idt[intrno].selector = SEL_KTEXT | global_kring;
+    syspage->idt[intrno].access = D_PRESENT | D_TRAP | D_DPL3;
+    syspage->idt[intrno].offset_high = (unsigned short) (((unsigned long) handler) >> 16);
 }
 
-static void hw_switch_kernel_stack() {
+
+static inline void kmach_switch_kernel_stack()
+{
 }
 
-static void hw_flushtlb()
+
+static inline void kmach_flushtlb()
 {
     __asm__
     (
@@ -177,8 +179,9 @@ static void hw_flushtlb()
     );
 }
 
-static void hw_invlpage(void *addr) {
-    if (cpu.family < CPU_FAMILY_486)
+static inline void kmach_invlpage(void *addr)
+{
+    if (global_cpu.family < CPU_FAMILY_486)
     {
         __asm__
         (
@@ -198,32 +201,32 @@ static void hw_invlpage(void *addr) {
     }
 }
 
-static void hw_register_page_dir(unsigned long pfn)
+static inline void kmach_register_page_dir(unsigned long pfn)
 {
     // Do nothing
 }
 
-static void hw_register_page_table(unsigned long pfn)
+static inline void kmach_register_page_table(unsigned long pfn)
 {
     // Do nothing
 }
 
-static void hw_set_page_dir_entry(pte_t *pde, unsigned long value)
+static inline void kmach_set_page_dir_entry(pte_t *pde, unsigned long value)
 {
     *pde = value;
 }
 
-static void hw_set_page_table_entry(pte_t *pte, unsigned long value)
+static inline void kmach_set_page_table_entry(pte_t *pte, unsigned long value)
 {
     *pte = value;
 }
 
-static void hw_poweroff()
+static inline void kmach_poweroff()
 {
     /*if (apm_enabled)
         apm_power_off();
     else*/
-        kprintf("kernel: power management not enabled, system stopped...\n");
+        //kprintf("kernel: power management not enabled, system stopped...\n");
 
     while (1)
     {
@@ -236,49 +239,24 @@ static void hw_poweroff()
 }
 
 
-static void hw_reboot()
-{
-    kbd_reboot();
-}
+unsigned int kmach_rdtsc() __asm__("___hw_rdtsc");
 
+KERNELAPI unsigned char inb(port_t port) __asm__("___inb");
+KERNELAPI unsigned char inp(port_t port) __asm__("___inp");
+KERNELAPI unsigned short inpw(port_t port) __asm__("___inpw");
+KERNELAPI unsigned long inpd(port_t port) __asm__("___inpd");
 
-unsigned int __inline hw_rdtsc() __asm__("___hw_rdtsc");
+KERNELAPI void insw(port_t port, void *buf, int count) __asm__("___insw");
+KERNELAPI void insd(port_t port, void *buf, int count) __asm__("___insd");
 
+KERNELAPI unsigned char outb(port_t port, unsigned char val) __asm__("___outb");
+KERNELAPI unsigned char outp(port_t port, unsigned char val) __asm__("___outp");
+KERNELAPI unsigned short outw(port_t port, unsigned short val) __asm__("___outw");
+KERNELAPI unsigned short outpw(port_t port, unsigned short val) __asm__("___outpw");
+KERNELAPI unsigned long outd(port_t port, unsigned long val) __asm__("___outd");
+KERNELAPI unsigned long outpd(port_t port, unsigned long val) __asm__("___outpd");
 
-struct mach mach =
-{
-  0, // kernel ring
-  hw_sti,
-  hw_cli,
-  hw_hlt,
-  hw_iretd,
-  hw_sysret,
-  NULL,//hw_in,
-  NULL,//hw_inw,
-  NULL,//hw_ind,
-  NULL,//hw_insw,
-  NULL,//hw_insd,
-  NULL,//hw_out,
-  NULL,//hw_outw,
-  NULL,//hw_outd,
-  NULL,//hw_outsw,
-  NULL,//hw_outsd,
-  hw_cpuid,
-  hw_get_cr0,
-  hw_set_cr0,
-  hw_get_cr2,
-  NULL,//hw_rdtsc
-  hw_wrmsr,
-  hw_set_gdt_entry,
-  hw_set_idt_gate,
-  hw_set_idt_trap,
-  hw_switch_kernel_stack,
-  hw_flushtlb,
-  hw_invlpage,
-  hw_register_page_dir,
-  hw_register_page_table,
-  hw_set_page_dir_entry,
-  hw_set_page_table_entry,
-  hw_poweroff,
-  hw_reboot
-};
+KERNELAPI void outsw(port_t port, void *buf, int count) __asm__("___outsw");
+KERNELAPI void outsd(port_t port, void *buf, int count) __asm__("___outsd");
+
+#endif  // (TARGET_MACHINE==x86)

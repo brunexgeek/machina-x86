@@ -489,7 +489,7 @@ target[FIELD_DESCRIPTION] = "Machina Kernel for x86"
 target[FIELD_PREFFIX] = "KERNEL32"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-g -O0 -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel"
-target[FIELD_LDFLAGS] = "-nostdlib -Wl,-T,src/sys/arch/x86/kernel/kernel.lds"
+target[FIELD_LDFLAGS] = "-nostdlib -Wl,-T,src/arch/x86/sys/kernel/kernel.lds"
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/kernel"
 target[FIELD_OUTPUT_FILE] = "kernel32.elf"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel"
@@ -520,10 +520,10 @@ target[FIELD_SOURCES] = \
     "sys/kernel/pnpbios.c", \
     "sys/kernel/queue.c", \
     "sys/kernel/sched.c", \
-    "sys/arch/x86/kernel/sched.c", \
-    "sys/arch/x86/kernel/sched.s", \
-    "sys/arch/x86/kernel/mach.c", \
-    "sys/arch/x86/kernel/mach.s", \
+    "arch/x86/sys/kernel/trap.c", \
+    "arch/x86/sys/kernel/sched.c", \
+    "arch/x86/sys/kernel/sched.s", \
+    "arch/x86/sys/kernel/mach.s", \
     "sys/kernel/start.c", \
     "sys/kernel/syscall.c", \
     "sys/kernel/timer.c", \

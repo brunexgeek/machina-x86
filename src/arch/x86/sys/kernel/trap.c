@@ -152,7 +152,7 @@ __asm__
     "push    es;"
     "mov     ax, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment (SEL_KDATA)
     #ifdef VMACH
-    "or      eax, cs:mach.kring;"
+    "or      eax, cs:global_kring;"
     #endif
     "mov     ds, ax;"
     "mov     es, ax;"
@@ -199,7 +199,7 @@ __asm__
 
     "mov     bx, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment  (SEL_KDATA)
     #ifdef VMACH
-    "or      ebx, cs:mach.kring;"
+    "or      ebx, cs:global_kring;"
     #endif
     "mov     ds, bx;"
     "mov     es, bx;"
@@ -262,7 +262,7 @@ __asm__
 
     "mov     bx, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment
     #ifdef VMACH
-    "or      ebx, cs:mach.kring;"
+    "or      ebx, cs:global_kring;"
     #endif
     "mov     ds, bx;"
     "mov     es, bx;"
@@ -735,7 +735,7 @@ static int pagefault_handler(struct context *ctxt, void *arg) {
   void *addr;
   void *pageaddr;
 
-  addr = (void *) get_cr2();
+  addr = (void *) kmach_get_cr2();
   pageaddr = (void *) PAGEADDR(addr);
 
   if (usermode(ctxt)) {
@@ -748,7 +748,7 @@ static int pagefault_handler(struct context *ctxt, void *arg) {
         if (guard_page_handler(pageaddr) == 0) signal = 0;
       } else if (flags & PT_FILE) {
         if ((flags & PT_PRESENT) == 0) {
-          sti();
+          kmach_sti();
           if (fetch_page(pageaddr) == 0) signal = 0;
         }
       }
@@ -768,7 +768,7 @@ static int pagefault_handler(struct context *ctxt, void *arg) {
 
 static int alignment_handler(struct context *ctxt, void *arg) {
   if (usermode(ctxt)) {
-    send_signal(ctxt, SIGBUS, (void *) get_cr2());
+    send_signal(ctxt, SIGBUS, (void *) kmach_get_cr2());
   } else {
     kprintf(KERN_CRIT "trap: alignment exception in kernel mode\n");
     dbg_enter(ctxt, 0);
@@ -816,70 +816,70 @@ void init_trap()
     }
 
     // Setup idt
-    set_idt_gate(0, isr0);
-    set_idt_gate(1, isr1);
-    set_idt_gate(2, isr2);
-    set_idt_trap(3, isr3);
-    set_idt_gate(4, isr4);
-    set_idt_gate(5, isr5);
-    set_idt_gate(6, isr6);
-    set_idt_gate(7, isr7);
-    set_idt_gate(8, isr8);
-    set_idt_gate(9, isr9);
-    set_idt_gate(10, isr10);
-    set_idt_gate(11, isr11);
-    set_idt_gate(12, isr12);
-    set_idt_gate(13, isr13);
-    set_idt_gate(14, isr14);
-    set_idt_gate(15, isr15);
-    set_idt_gate(16, isr16);
-    set_idt_gate(17, isr17);
-    set_idt_gate(18, isr18);
-    set_idt_gate(19, isr19);
-    set_idt_gate(20, isr20);
-    set_idt_gate(21, isr21);
-    set_idt_gate(22, isr22);
-    set_idt_gate(23, isr23);
-    set_idt_gate(24, isr24);
-    set_idt_gate(25, isr25);
-    set_idt_gate(26, isr26);
-    set_idt_gate(27, isr27);
-    set_idt_gate(28, isr28);
-    set_idt_gate(29, isr29);
-    set_idt_gate(30, isr30);
-    set_idt_gate(31, isr31);
-    set_idt_gate(32, isr32);
-    set_idt_gate(33, isr33);
-    set_idt_gate(34, isr34);
-    set_idt_gate(35, isr35);
-    set_idt_gate(36, isr36);
-    set_idt_gate(37, isr37);
-    set_idt_gate(38, isr38);
-    set_idt_gate(39, isr39);
-    set_idt_gate(40, isr40);
-    set_idt_gate(41, isr41);
-    set_idt_gate(42, isr42);
-    set_idt_gate(43, isr43);
-    set_idt_gate(44, isr44);
-    set_idt_gate(45, isr45);
-    set_idt_gate(46, isr46);
-    set_idt_gate(47, isr47);
-    set_idt_trap(48, systrap);
-    set_idt_trap(49, isr49);
-    set_idt_gate(50, isr50);
-    set_idt_gate(51, isr51);
-    set_idt_gate(52, isr52);
-    set_idt_gate(53, isr53);
-    set_idt_gate(54, isr54);
-    set_idt_gate(55, isr55);
-    set_idt_gate(56, isr56);
-    set_idt_gate(57, isr57);
-    set_idt_gate(58, isr58);
-    set_idt_gate(59, isr59);
-    set_idt_gate(60, isr60);
-    set_idt_gate(61, isr61);
-    set_idt_gate(62, isr62);
-    set_idt_gate(63, isr63);
+    kmach_set_idt_gate(0, isr0);
+    kmach_set_idt_gate(1, isr1);
+    kmach_set_idt_gate(2, isr2);
+    kmach_set_idt_trap(3, isr3);
+    kmach_set_idt_gate(4, isr4);
+    kmach_set_idt_gate(5, isr5);
+    kmach_set_idt_gate(6, isr6);
+    kmach_set_idt_gate(7, isr7);
+    kmach_set_idt_gate(8, isr8);
+    kmach_set_idt_gate(9, isr9);
+    kmach_set_idt_gate(10, isr10);
+    kmach_set_idt_gate(11, isr11);
+    kmach_set_idt_gate(12, isr12);
+    kmach_set_idt_gate(13, isr13);
+    kmach_set_idt_gate(14, isr14);
+    kmach_set_idt_gate(15, isr15);
+    kmach_set_idt_gate(16, isr16);
+    kmach_set_idt_gate(17, isr17);
+    kmach_set_idt_gate(18, isr18);
+    kmach_set_idt_gate(19, isr19);
+    kmach_set_idt_gate(20, isr20);
+    kmach_set_idt_gate(21, isr21);
+    kmach_set_idt_gate(22, isr22);
+    kmach_set_idt_gate(23, isr23);
+    kmach_set_idt_gate(24, isr24);
+    kmach_set_idt_gate(25, isr25);
+    kmach_set_idt_gate(26, isr26);
+    kmach_set_idt_gate(27, isr27);
+    kmach_set_idt_gate(28, isr28);
+    kmach_set_idt_gate(29, isr29);
+    kmach_set_idt_gate(30, isr30);
+    kmach_set_idt_gate(31, isr31);
+    kmach_set_idt_gate(32, isr32);
+    kmach_set_idt_gate(33, isr33);
+    kmach_set_idt_gate(34, isr34);
+    kmach_set_idt_gate(35, isr35);
+    kmach_set_idt_gate(36, isr36);
+    kmach_set_idt_gate(37, isr37);
+    kmach_set_idt_gate(38, isr38);
+    kmach_set_idt_gate(39, isr39);
+    kmach_set_idt_gate(40, isr40);
+    kmach_set_idt_gate(41, isr41);
+    kmach_set_idt_gate(42, isr42);
+    kmach_set_idt_gate(43, isr43);
+    kmach_set_idt_gate(44, isr44);
+    kmach_set_idt_gate(45, isr45);
+    kmach_set_idt_gate(46, isr46);
+    kmach_set_idt_gate(47, isr47);
+    kmach_set_idt_trap(48, systrap);
+    kmach_set_idt_trap(49, isr49);
+    kmach_set_idt_gate(50, isr50);
+    kmach_set_idt_gate(51, isr51);
+    kmach_set_idt_gate(52, isr52);
+    kmach_set_idt_gate(53, isr53);
+    kmach_set_idt_gate(54, isr54);
+    kmach_set_idt_gate(55, isr55);
+    kmach_set_idt_gate(56, isr56);
+    kmach_set_idt_gate(57, isr57);
+    kmach_set_idt_gate(58, isr58);
+    kmach_set_idt_gate(59, isr59);
+    kmach_set_idt_gate(60, isr60);
+    kmach_set_idt_gate(61, isr61);
+    kmach_set_idt_gate(62, isr62);
+    kmach_set_idt_gate(63, isr63);
 
     // Set system trap handlers
     register_interrupt(&divintr, INTR_DIV, div_handler, NULL);
@@ -895,11 +895,11 @@ void init_trap()
     register_interrupt(&sigexitintr, INTR_SIGEXIT, sigexit_handler, NULL);
 
     // Initialize fast syscall
-    if (cpu.features & CPU_FEATURE_SEP)
+    if (global_cpu.features & CPU_FEATURE_SEP)
     {
-        wrmsr(MSR_SYSENTER_CS, SEL_KTEXT | mach.kring, 0);
-        wrmsr(MSR_SYSENTER_ESP, TSS_ESP0, 0);
-        wrmsr(MSR_SYSENTER_EIP, (unsigned long) sysentry, 0);
+        kmach_wrmsr(MSR_SYSENTER_CS, SEL_KTEXT | global_kring, 0);
+        kmach_wrmsr(MSR_SYSENTER_ESP, TSS_ESP0, 0);
+        kmach_wrmsr(MSR_SYSENTER_EIP, (unsigned long) sysentry, 0);
     }
 
     // Register /proc/traps

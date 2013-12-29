@@ -157,36 +157,39 @@ int license() {
   return LICENSE;
 }
 
-void stop(int mode) {
-  suspend_all_user_threads();
-  umount_all();
-  tcp_shutdown();
-  msleep(200);
+void stop(int mode)
+{
+    suspend_all_user_threads();
+    umount_all();
+    tcp_shutdown();
+    msleep(200);
 
-  switch (mode) {
-    case EXITOS_HALT:
-      kprintf("kernel: system stopped\n");
-      break;
+    switch (mode)
+    {
+        case EXITOS_HALT:
+            kprintf("kernel: system stopped\n");
+            break;
 
-    case EXITOS_POWEROFF:
-      kprintf("kernel: power down...\n");
-      poweroff();
-      break;
+        case EXITOS_POWEROFF:
+            kprintf("kernel: power down...\n");
+            kmach_poweroff();
+            break;
 
-    case EXITOS_REBOOT:
-      kprintf("kernel: rebooting...\n");
-      reboot();
-      break;
+        case EXITOS_REBOOT:
+            kprintf("kernel: rebooting...\n");
+            kmach_reboot();
+            break;
 
-    case EXITOS_DEBUG:
-      dbg_break();
-      break;
-  }
+        case EXITOS_DEBUG:
+            dbg_break();
+            break;
+    }
 
-  while (1) {
-    cli();
-    halt();
-  }
+    while (1)
+    {
+        kmach_cli();
+        kmach_halt();
+    }
 }
 
 void panic(char *msg)
@@ -196,8 +199,8 @@ void panic(char *msg)
     if (inpanic)
     {
         kprintf(KERN_EMERG "double panic: %s, halting\n", msg);
-        cli();
-        halt();
+        kmach_cli();
+        kmach_halt();
     }
 
     inpanic = 1;
@@ -403,7 +406,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
     init_vmm();
 
     // Flush tlb
-    flushtlb();
+    kmach_flushtlb();
 
     // Register memory management procs
     register_proc_inode("memmap", memmap_proc, NULL);
@@ -432,7 +435,7 @@ console(NULL, NULL);
     init_syscall();
 
     // Enable interrupts and calibrate delay
-    sti();
+    kmach_sti();
     calibrate_delay();
 
     // Start main task and dispatch to idle task
@@ -478,7 +481,7 @@ void main(void *arg)
     peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 0x00504542 /* PEB */, NULL);
     if (!peb) panic("unable to allocate PEB");
     memset(peb, 0, PAGESIZE);
-    peb->fast_syscalls_supported = (cpu.features & CPU_FEATURE_SEP) != 0;
+    peb->fast_syscalls_supported = (global_cpu.features & CPU_FEATURE_SEP) != 0;
 
     // Enumerate root host buses and units
     enum_host_bus();

@@ -218,7 +218,7 @@ OSLDRS_NFLAGS = $(NFLAGS) -f bin
 OSLDRS_OUT_DIR = build/machina/obj/osloader
 OSLDRS_OUT_FILE = $(OSLDRS_OUT_DIR)/osloader-stub.bin
 OSLDRS_SRC_FILES = \
-	src/sys/arch/x86/osloader/stub.asm
+	src/arch/x86/sys/osloader/stub.asm
 
 $(OSLDRS_OUT_FILE) osloader-stub : nasm 
 	@echo
@@ -354,7 +354,7 @@ NETBOOT_NFLAGS = $(NFLAGS) -f bin
 NETBOOT_OUT_DIR = build/install/boot
 NETBOOT_OUT_FILE = $(NETBOOT_OUT_DIR)/netboot.bin
 NETBOOT_SRC_FILES = \
-	src/sys/arch/x86/boot/netboot.asm
+	src/arch/x86/boot/netboot.asm
 
 $(NETBOOT_OUT_FILE) netboot : nasm 
 	@echo
@@ -370,7 +370,7 @@ CDEMBOOT_NFLAGS = $(NFLAGS) -f bin
 CDEMBOOT_OUT_DIR = build/install/boot
 CDEMBOOT_OUT_FILE = $(CDEMBOOT_OUT_DIR)/cdemboot.bin
 CDEMBOOT_SRC_FILES = \
-	src/sys/arch/x86/boot/cdemboot.asm
+	src/arch/x86/boot/cdemboot.asm
 
 $(CDEMBOOT_OUT_FILE) cdemboot : nasm 
 	@echo
@@ -452,7 +452,7 @@ $(LIBKERNEL_OUT_FILE) : build/tools/nasm  LIBKERNEL_WELCOME $(LIBKERNEL_OBJ_FILE
 #
 ISO_OUT_DIR = build
 ISO_OUT_FILE = $(ISO_OUT_DIR)/machina.iso
-$(ISO_OUT_FILE) iso : cdemboot osloader kernel-image 
+$(ISO_OUT_FILE) iso : cdemboot osloader $(MKDFS_OUT_FILE) kernel-image 
 	@echo
 	@echo Building Machina CD image
 	@mkdir -p $(ISO_OUT_DIR)
@@ -467,7 +467,7 @@ DISKBOOT_NFLAGS = $(NFLAGS) -f bin
 DISKBOOT_OUT_DIR = build/install/boot
 DISKBOOT_OUT_FILE = $(DISKBOOT_OUT_DIR)/diskboot.bin
 DISKBOOT_SRC_FILES = \
-	src/sys/arch/x86/boot/boot.asm
+	src/arch/x86/boot/boot.asm
 
 $(DISKBOOT_OUT_FILE) diskboot : nasm 
 	@echo
@@ -509,18 +509,18 @@ OSLDRM_WELCOME:
 	@echo Building Machina OS Loader Main
 
 OSLDRM_CFLAGS =  -D OSLDR -D KERNEL -I src/include -masm=intel -nostdlib $(CFLAGS)
-OSLDRM_LDFLAGS =  -Wl,-e,start -Wl,-T,src/sys/arch/x86/osloader/osloader.lds -nostdlib $(LDFLAGS)
+OSLDRM_LDFLAGS =  -Wl,-e,start -Wl,-T,src/arch/x86/sys/osloader/osloader.lds -nostdlib $(LDFLAGS)
 OSLDRM_NFLAGS = $(NFLAGS)
 OSLDRM_OUT_DIR = build/machina/obj/osloader
 OSLDRM_OUT_FILE = $(OSLDRM_OUT_DIR)/osloader-main.elf
 OSLDRM_SRC_DIR = src
 OSLDRM_SRC_FILES = \
-	sys/arch/x86/osloader/osloader.c \
-	sys/arch/x86/osloader/kernel.c \
-	sys/arch/x86/osloader/unzip.c \
+	arch/x86/sys/osloader/osloader.c \
+	arch/x86/sys/osloader/kernel.c \
+	arch/x86/sys/osloader/unzip.c \
 	lib/libc/vsprintf.c \
 	lib/libc/string.c \
-	sys/arch/x86/osloader/bioscall.asm
+	arch/x86/sys/osloader/bioscall.asm
 OSLDRM_OBJ_DIR = build/machina/obj/osloader
 OSLDRM_OBJ_FILES = $(patsubst %,$(OSLDRM_OBJ_DIR)/%.o ,$(OSLDRM_SRC_FILES))
 
@@ -528,8 +528,8 @@ $(OSLDRM_OBJ_FILES): | OSLDRM_OBJ_MKDIR
 
 OSLDRM_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/osloader
+	@mkdir -p build/machina/obj/osloader/arch/x86/sys/osloader
 	@mkdir -p build/machina/obj/osloader/lib/libc
-	@mkdir -p build/machina/obj/osloader/sys/arch/x86/osloader
 
 $(OSLDRM_OBJ_DIR)/%.c.o: $(OSLDRM_SRC_DIR)/%.c
 	$(CC) $(OSLDRM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@

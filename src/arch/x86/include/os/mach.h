@@ -136,6 +136,8 @@ static inline void kmach_wrmsr(
 }
 
 
+#ifndef OSLDR
+
 static inline void kmach_set_gdt_entry(
     int entry,
     unsigned long addr,
@@ -164,6 +166,7 @@ static inline void kmach_set_idt_trap(int intrno, void *handler)
     syspage->idt[intrno].offset_high = (unsigned short) (((unsigned long) handler) >> 16);
 }
 
+#endif
 
 static inline void kmach_switch_kernel_stack()
 {

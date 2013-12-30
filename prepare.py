@@ -766,7 +766,7 @@ target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "diskboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
-target[FIELD_SOURCES] = ["sys/arch/x86/boot/boot.asm"]
+target[FIELD_SOURCES] = ["arch/x86/boot/boot.asm"]
 generator.addTarget(target);
 #
 # Machina CD-ROM Stage 1 Bootloader
@@ -782,7 +782,7 @@ target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "cdemboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
-target[FIELD_SOURCES] = ["sys/arch/x86/boot/cdemboot.asm"]
+target[FIELD_SOURCES] = ["arch/x86/boot/cdemboot.asm"]
 generator.addTarget(target);
 #
 # Machina PXE Stage 1 Bootloader
@@ -798,7 +798,7 @@ target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "netboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
-target[FIELD_SOURCES] = ["sys/arch/x86/boot/netboot.asm"]
+target[FIELD_SOURCES] = ["arch/x86/boot/netboot.asm"]
 generator.addTarget(target);
 #
 # Machina OS Loader Stub
@@ -815,7 +815,7 @@ target[FIELD_OUTPUT_FILE] = "osloader-stub.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
-    ["sys/arch/x86/osloader/stub.asm" ]
+    ["arch/x86/sys/osloader/stub.asm" ]
 generator.addTarget(target);
 #
 # Machina OS Loader Main
@@ -826,19 +826,19 @@ target[FIELD_DESCRIPTION] = "Machina OS Loader Main"
 target[FIELD_PREFFIX] = "OSLDRM"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-D OSLDR -D KERNEL -I src/include -masm=intel -nostdlib"
-target[FIELD_LDFLAGS] = "-Wl,-e,start -Wl,-T,src/sys/arch/x86/osloader/osloader.lds -nostdlib" #-Wl,-Ttext,0x90800"
+target[FIELD_LDFLAGS] = "-Wl,-e,start -Wl,-T,src/arch/x86/sys/osloader/osloader.lds -nostdlib" #-Wl,-Ttext,0x90800"
 target[FIELD_DEPENDENCIES] = ["nasm", "osloader-stub"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_OUTPUT_FILE] = "osloader-main.elf"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
-    ["sys/arch/x86/osloader/osloader.c", \
-    "sys/arch/x86/osloader/kernel.c", \
-    "sys/arch/x86/osloader/unzip.c", \
+    ["arch/x86/sys/osloader/osloader.c", \
+    "arch/x86/sys/osloader/kernel.c", \
+    "arch/x86/sys/osloader/unzip.c", \
     "lib/libc/vsprintf.c", \
     "lib/libc/string.c", \
-    "sys/arch/x86/osloader/bioscall.asm" ]
+    "arch/x86/sys/osloader/bioscall.asm" ]
 generator.addTarget(target);
 #
 # Machina OS Loader
@@ -863,7 +863,7 @@ target = {}
 target[FIELD_NAME] = "iso"
 target[FIELD_DESCRIPTION] = "Machina CD image"
 target[FIELD_PREFFIX] = "ISO"
-target[FIELD_DEPENDENCIES] = ["cdemboot", "osloader", "kernel-image"]
+target[FIELD_DEPENDENCIES] = ["cdemboot", "osloader", "$(MKDFS_OUT_FILE)", "kernel-image"]
 target[FIELD_OUTPUT_DIRECTORY] = "build"
 target[FIELD_OUTPUT_FILE] = "machina.iso"
 target[FIELD_COMMANDS] = [

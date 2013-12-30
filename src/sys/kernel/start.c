@@ -206,12 +206,12 @@ void panic(char *msg)
     inpanic = 1;
     kprintf(KERN_EMERG "panic: %s\n", msg);
 
-    /*if (onpanic == ONPANIC_DEBUG)
+    if (onpanic == ONPANIC_DEBUG)
     {
         if (debugging) dbg_output(msg);
         dbg_break();
     }
-    else*/
+    else
     {
         stop(onpanic);
     }

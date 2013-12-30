@@ -218,7 +218,8 @@ static void timed_delay(unsigned long loops) {
     );
 }
 
-void calibrate_delay() {
+void calibrate_delay()
+{
     static int cpu_speeds[] =  {
         16, 20, 25, 33, 40, 50, 60, 66, 75, 80, 90,
         100, 110, 120, 133, 150, 166, 180, 188,
@@ -313,7 +314,7 @@ void calibrate_delay() {
         mhz = bestmhz;
     }
 
-    kprintf(KERN_INFO "speed: %d cycles/tick, %d MHz processor\n", cycles_per_tick, mhz);
+    kprintf(KERN_INFO "cpu: %d cycles/tick, %d MHz processor\n", cycles_per_tick, mhz);
     global_cpu.mhz = mhz;
 }
 

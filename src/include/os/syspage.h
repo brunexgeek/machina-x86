@@ -118,13 +118,15 @@ struct apmparams {
 
 #pragma pack(push, 1)
 
-struct memmap {
-  int count;              // Number of entries in memory map
-  struct mementry {
-    unsigned __int64 addr;     // Start of memory segment
-    unsigned __int64 size;     // Size of memory segment
-    unsigned long type;        // Type of memory segment
-  } entry[MAX_MEMENTRIES];
+struct memmap
+{
+    int count;              // Number of entries in memory map
+    struct mementry
+    {
+        unsigned __int64 addr;     // start of memory segment
+        unsigned __int64 size;     // size of memory segment
+        unsigned long type;        // type of memory segment
+    } entry[MAX_MEMENTRIES];
 };
 
 // Boot parameter block

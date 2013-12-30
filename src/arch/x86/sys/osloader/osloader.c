@@ -51,6 +51,26 @@
 #define VIDEO_BASE           0xB8000
 #define HEAP_START           (1024 * 1024)
 
+
+const char *MEM_TYPE_NAMES[] =
+{
+    "???",
+    "RAM",
+    "RESV",
+    "ACPI",
+    "NVS"
+};
+
+
+const char *MEM_UNIT_NAMES[] =
+{
+    "B",
+    "KiB",
+    "MiB",
+    "GiB"
+};
+
+
 unsigned long mem_end = 0;      // Size of memory
 char *heap;                     // Heap pointer point to next free page in memory
 pte_t *pdir;                    // Page directory
@@ -185,80 +205,47 @@ char *heap_alloc( int numpages )
     return p;
 }
 
-/**
- * Calculate the memory size through brute force. This function try to write a fixed
- * value on several memory locations and detect valid addresses reading their content.
- *
- * This function is only used if the OS loader stub can not use the BIOS int 15 ax=0xE80
- * interruption.
- */
-unsigned long memory_getSize()
+
+void mmap_print( struct memmap *memmap )
 {
-    volatile unsigned long *mem;
-    unsigned long addr;
-    unsigned long value;
-    unsigned long cr0save;
-    unsigned long cr0new;
+    unsigned int type;
+    unsigned int i;
+    unsigned int size;
+    unsigned int unit;
 
-    // start at 1MB
-    addr = 1024 * 1024;
+    if (memmap == NULL) return;
 
-    // save a copy of CR0
-    __asm__
-    (
-        "mov eax, cr0;"
-        "mov DWORD PTR %0, eax;"
-        :
-        : "m" (cr0save)
-    );
-
-    // invalidate the cache (write-back and invalidate the cache)
-    __asm__("wbinvd");
-    // set cr0 with just PE/CD/NW (cache disable(486+), no-writeback(486+), 32bit mode(386+))
-    cr0new = cr0save | 0x00000001 | 0x40000000 | 0x20000000;
-    __asm__
-    (
-        "mov eax, %0;"
-        "mov cr0, eax;"
-        :
-        : "m" (cr0new)
-    );
-
-    // probe for each megabyte of RAM (until almost 4GB)
-    while (addr < 0xFFF00000)
+    kprintf("System memory map:\n");
+    for (i = 0; i < (uint8_t)memmap->count; i++)
     {
-        addr += 1024 * 1024;
-        mem = (unsigned long *) addr;
-        value = *mem;
-        // test the memory location
-        *mem = 0x55AA55AA;
-        if (*mem != 0x55AA55AA) break;
-        *mem = 0xAA55AA55;
-        if(*mem != 0xAA55AA55) break;
-        // restore the old value
-        *mem = value;
+        type = memmap->entry[i].type;
+        if (type >= MEMTYPE_RAM && type <= MEMTYPE_NVS) type = 0;
+
+        size = (uint32_t)memmap->entry[i].size;
+        unit = 0;
+        while (size > 1024)
+        {
+            size /= 1024;
+            unit++;
+        }
+
+        kprintf("   From 0x%08X to 0x%08X %-4s (%d %s)\n",
+            (uint32_t)memmap->entry[i].addr,
+            (uint32_t)memmap->entry[i].addr + (uint32_t)memmap->entry[i].size,
+            MEM_TYPE_NAMES[memmap->entry[i].type],
+            size,
+            MEM_UNIT_NAMES[unit] );
     }
-
-    // restore the CR0 value
-    __asm__
-    (
-        "mov eax, %0;"
-        "mov cr0, eax;"
-        :
-        : "m" (cr0save)
-    );
-
-    return addr;
 }
 
 
-void memory_setup( struct memmap *memmap )
+void mmap_setup( struct memmap *memmap )
 {
     int i;
 
     if (memmap->count != 0)
     {
-        // Determine largest available RAM address from BIOS memory map
+        // determine largest available RAM address from BIOS memory map
         mem_end = 0;
         for (i = 0; i < memmap->count; i++)
         {
@@ -270,20 +257,7 @@ void memory_setup( struct memmap *memmap )
     }
     else
     {
-        // no BIOS memory map, probe memory and create a simple map with 640K:1M hole
-        mem_end = memory_getSize();
-
-        memmap->entry[0].addr = 0;
-        memmap->entry[0].size = 0xA0000;
-        memmap->entry[0].type = MEMTYPE_RAM;
-
-        memmap->entry[1].addr = 0xA0000;
-        memmap->entry[1].size = 0x60000;
-        memmap->entry[1].type = MEMTYPE_RESERVED;
-
-        memmap->entry[2].addr = 0x100000;
-        memmap->entry[2].size = mem_end - 0x100000;
-        memmap->entry[2].type = MEMTYPE_RESERVED;
+        panic("BIOS too old! This OS requires a BIOS that support INT 15h E820h.");
     }
 }
 
@@ -366,43 +340,45 @@ void setup_descriptors()
 }
 
 void copy_ramdisk(char *bootimg) {
-  struct superblock *super = (struct superblock *) (bootimg + SECTORSIZE);
-  int i;
-  int rdpages;
+    struct superblock *super = (struct superblock *) (bootimg + SECTORSIZE);
+    int i;
+    int rdpages;
 
-  // Copy ram disk to heap
-  if (!bootimg) panic("no boot image");
-  if (super->signature != DFS_SIGNATURE) panic("invalid DFS signature on initial RAM disk");
+    // Copy ram disk to heap
+    if (!bootimg) panic("no boot image");
+    if (super->signature != DFS_SIGNATURE) panic("invalid DFS signature on initial RAM disk");
 
-  initrd_size = (1 << super->log_block_size) * super->block_count;
-  rdpages = PAGES(initrd_size);
-  initrd = heap_alloc(rdpages);
+    initrd_size = (1 << super->log_block_size) * super->block_count;
+    rdpages = PAGES(initrd_size);
+    initrd = heap_alloc(rdpages);
 
-  if (super->compress_size != 0) {
-    char *zheap;
-    unsigned int zofs;
-    unsigned int zsize;
+    if (super->compress_size != 0)
+    {
+        char *zheap;
+        unsigned int zofs;
+        unsigned int zsize;
 
-    //kprintf("Uncompressing boot image\n");
+        kprintf("[DEBUG] uncompressing boot image\n");
 
-    // Copy uncompressed part of image
-    memcpy(initrd, bootimg, super->compress_offset);
+        // Copy uncompressed part of image
+        memcpy(initrd, bootimg, super->compress_offset);
 
-    // Uncompress compressed part of image
-    zheap = heap_check(64 * 1024 / PAGESIZE);
-    zofs = super->compress_offset;
-    zsize = super->compress_size;
-    unzip(bootimg + zofs, zsize, initrd + zofs, initrd_size - zofs, zheap, 64 * 1024);
-  } else {
-    memcpy(initrd, bootimg, initrd_size);
-  }
+        // Uncompress compressed part of image
+        zheap = heap_check(64 * 1024 / PAGESIZE);
+        zofs = super->compress_offset;
+        zsize = super->compress_size;
+        unzip(bootimg + zofs, zsize, initrd + zofs, initrd_size - zofs, zheap, 64 * 1024);
+    }
+    else
+    {
+        memcpy(initrd, bootimg, initrd_size);
+    }
 
-  // Map initial initial ram disk into syspages
-  for (i = 0; i < rdpages; i++) {
-    syspagetable[PTEIDX(INITRD_ADDRESS) + i] = ((unsigned long) initrd + i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
-  }
+    // Map initial initial ram disk into syspages
+    for (i = 0; i < rdpages; i++)
+        syspagetable[PTEIDX(INITRD_ADDRESS) + i] = ((unsigned long) initrd + i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
 
-  //kprintf("%d KB boot image found\n", initrd_size / 1024);
+    kprintf("[DEBUG] %d KB boot image found\n", initrd_size / 1024);
 }
 
 
@@ -412,36 +388,32 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
     int i;
     char *bootimg = bootparams->bootimg;
 
+    kprintf("\n");
+
     // create the memory mapping
-    memory_setup(&bootparams->memmap);
-    //kprintf("\nmemory: %d MiB\n", mem_end / (1024 * 1024) + 1);
+    mmap_setup(&bootparams->memmap);
+    mmap_print(&bootparams->memmap);
 
-    // Page allocation starts at 1MB
+    // page allocation starts at 1MB
     heap = (char *) HEAP_START;
-
-    // Allocate page for page directory
+    // allocate page for page directory
     pdir = (pte_t *) heap_alloc(1);
-    kprintf("\nPage directory physical address: 0x%p\n", pdir);
-
-    // Make recursive entry for access to page tables
+    // make recursive entry for access to page tables
     pdir[PDEIDX(PTBASE)] = (unsigned long) pdir | PT_PRESENT | PT_WRITABLE;
 
-    // Allocate system page
+    // allocate system page
     syspage = (struct syspage *) heap_alloc(1);
-
-    // Allocate initial thread control block
+    // allocate initial thread control block
     inittcb = (struct tcb *) heap_alloc(PAGES_PER_TCB);
-
-    // Allocate system page directory page
+    // allocate a page for system page table
     syspagetable = (pte_t *) heap_alloc(1);
 
-    // Map system page, page directory and and video buffer
+    // map system page, system page table and video buffer
     pdir[PDEIDX(SYSBASE)] = (unsigned long) syspagetable | PT_PRESENT | PT_WRITABLE;
     syspagetable[PTEIDX(SYSPAGE_ADDRESS)] = (unsigned long) syspage | PT_PRESENT | PT_WRITABLE;
     syspagetable[PTEIDX(PAGEDIR_ADDRESS)] = (unsigned long) pdir | PT_PRESENT | PT_WRITABLE;
     syspagetable[PTEIDX(VIDBASE_ADDRESS)] = VIDEO_BASE | PT_PRESENT | PT_WRITABLE;
-
-    // Map initial TCB
+    // map initial TCB
     for (i = 0; i < PAGES_PER_TCB; i++)
     {
         syspagetable[PTEIDX(INITTCB_ADDRESS) + i] = ((unsigned long) inittcb + i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;

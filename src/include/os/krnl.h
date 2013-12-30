@@ -119,10 +119,11 @@
 // start.c
 
 KERNELAPI extern dev_t bootdev;
+#ifndef OSLDR
 KERNELAPI extern char krnlopts[KRNLOPTS_LEN];
+#endif
 KERNELAPI extern struct section *krnlcfg;
 KERNELAPI extern struct peb *peb;
-
 KERNELAPI void panic(char *msg);
 KERNELAPI int license();
 

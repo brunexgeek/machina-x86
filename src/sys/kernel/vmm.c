@@ -33,9 +33,12 @@
 
 #include <os/krnl.h>
 #include <os/vmm.h>
+#include <os/kmalloc.h>
 #include <rmap.h>
 #include <os/pdir.h>
 #include <os/pframe.h>
+#include <os/kmem.h>
+
 
 #define VMAP_ENTRIES 1024
 #define VMEM_START (64 * 1024)
@@ -480,7 +483,7 @@ void miounmap(void *addr, int size) {
 
 int guard_page_handler(void *addr) {
   unsigned long pfn;
-  struct thread *t = self();
+  struct thread *t = kthread_self();
 
   if (!t->tib) return -EFAULT;
 

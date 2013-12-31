@@ -3,6 +3,7 @@
 //
 // CPU information
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -34,12 +35,15 @@
 #ifndef MACHINA_OS_CPU_H
 #define MACHINA_OS_CPU_H
 
+
+#include <os/procfs.h>
+
 //
 // ASM instructions
 //
 
-#define sysenter __asm _emit 0x0F __asm _emit 0x34
-#define sysexit  __asm _emit 0x0F __asm _emit 0x35
+//#define sysenter __asm _emit 0x0F __asm _emit 0x34
+//#define sysexit  __asm _emit 0x0F __asm _emit 0x35
 
 //
 // x86 EFLAGS
@@ -139,15 +143,17 @@
 // CPU vendors
 //
 
-#define CPU_VENDOR_UNKNOWN   0
-#define CPU_VENDOR_INTEL     1
-#define CPU_VENDOR_CYRIX     2
-#define CPU_VENDOR_AMD       3
-#define CPU_VENDOR_UMC       4
-#define CPU_VENDOR_NEXGEN    5
-#define CPU_VENDOR_CENTAUR   6
-#define CPU_VENDOR_RISE      7
-#define CPU_VENDOR_TRANSMETA 8
+#define CPU_VENDOR_UNKNOWN    0x00
+#define CPU_VENDOR_INTEL      0x01
+#define CPU_VENDOR_CYRIX      0x02
+#define CPU_VENDOR_AMD        0x03
+#define CPU_VENDOR_VIA        0x04
+#define CPU_VENDOR_NEXGEN     0x05
+#define CPU_VENDOR_CENTAUR    0x06
+#define CPU_VENDOR_KVM        0x07
+#define CPU_VENDOR_VMWARE     0x08
+#define CPU_VENDOR_MS         0x09
+#define CPU_VENDOR_TRANSMETA  0x0A
 
 //
 // CPU family
@@ -162,6 +168,11 @@
 // CPU information
 //
 
+#define CPU_VENDOR_ID_SIZE     0x10
+#define CPU_MODEL_ID_SIZE      0x40
+#define CPU_VENDOR_NAME_SIZE   0x10
+
+
 struct cpu
 {
     int family;
@@ -171,8 +182,9 @@ struct cpu
     int mhz;
     unsigned long features;
     unsigned long cpuid_level;
-    char vendorid[16];
-    char modelid[64];
+    char vendor_id[CPU_VENDOR_ID_SIZE];
+    char model_id[CPU_MODEL_ID_SIZE];
+    char vendor_name[CPU_VENDOR_NAME_SIZE];
 };
 
 #ifdef KERNEL
@@ -180,8 +192,12 @@ struct cpu
 extern struct cpu global_cpu;
 
 void init_cpu();
-int cpu_sysinfo(struct cpuinfo *info);
-unsigned long eflags();
+int kcpu_get_info(struct cpuinfo *info);
+unsigned long kcpu_get_eflags();
+
+#ifndef OSLDR
+int kcpu_proc(struct proc_file *pf, void *arg);
+#endif
 
 #endif
 

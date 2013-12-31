@@ -98,27 +98,32 @@ struct dpc
     int flags;
 };
 
-struct task {
-  taskproc_t proc;
-  void *arg;
-  struct task *next;
-  int flags;
+
+struct task
+{
+    taskproc_t proc;
+    void *arg;
+    struct task *next;
+    int flags;
 };
 
-struct task_queue {
-  struct task *head;
-  struct task *tail;
-  struct thread *thread;
-  int maxsize;
-  int size;
-  int flags;
+
+struct task_queue
+{
+    struct task *head;
+    struct task *tail;
+    struct thread *thread;
+    int maxsize;
+    int size;
+    int flags;
 };
 
-struct kernel_context {
-  unsigned long esi, edi;
-  unsigned long ebx, ebp;
-  unsigned long eip;
-  char stack[0];
+struct kernel_context
+{
+    unsigned long esi, edi;
+    unsigned long ebx, ebp;
+    unsigned long eip;
+    char stack[0];
 };
 
 extern struct thread *idlethread;
@@ -149,11 +154,11 @@ static __inline struct thread *self() {
 }
 #endif
 
-struct thread *self(void) __asm__("___thread_self");
+struct thread *kthread_self(void) __asm__("___kthread_self");
 
 __asm__
 (
-    "___thread_self: "
+    "___kthread_self: "
     "mov eax, esp;"
     "and eax, " TO_STRING(TCBMASK) ";"
     "ret;"
@@ -192,12 +197,12 @@ int kthread_resume(struct thread *t);
 
 struct thread *kthread_get(tid_t tid);
 
-void terminate_thread(int exitcode);
-void suspend_all_user_threads();
+void kthread_terminate(int exitcode);
+void ksched_suspend_user_threads();
 int schedule_alarm(unsigned int seconds);
 
-int get_thread_priority(struct thread *t);
-int set_thread_priority(struct thread *t, int priority);
+int kthread_get_priority(struct thread *t);
+int kthread_set_priority(struct thread *t, int priority);
 
 KERNELAPI int init_task_queue(struct task_queue *tq, int priority, int maxsize, char *name);
 KERNELAPI void init_task(struct task *task);
@@ -216,7 +221,8 @@ void kthread_preempt();
 KERNELAPI void dispatch();
 KERNELAPI int system_idle();
 
-void init_sched();
+void ksched_init();
+void ksched_destroy();
 
 static __inline void check_dpc_queue()
 {

@@ -136,13 +136,14 @@ void __inline change_state(struct bufpool *pool, struct buf *buf, int newstate) 
 // wait_for_buffer
 //
 
-static int wait_for_buffer(struct buf *buf) {
-  struct thread *t = self();
+static int wait_for_buffer(struct buf *buf)
+{
+    struct thread *t = kthread_self();
 
-  t->next_waiter = buf->waiters;
-  buf->waiters = t;
-  enter_wait(THREAD_WAIT_BUFFER);
-  return t->waitkey;
+    t->next_waiter = buf->waiters;
+    buf->waiters = t;
+    enter_wait(THREAD_WAIT_BUFFER);
+    return t->waitkey;
 }
 
 //

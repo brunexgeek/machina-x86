@@ -35,6 +35,8 @@
 #include <os/dev.h>
 #include <os/video.h>
 #include <os/kbd.h>
+#include <os/trap.h>
+
 
 #define CTRL(c) ((c) - 'A' + 1)
 
@@ -44,6 +46,9 @@ static dev_t consdev = NODEV;
 static int cursoff = 0;
 static unsigned int kbd_timeout = INFINITE;
 int serial_console = 0;
+
+// TODO: we need a place for this!
+void init_serial();
 
 void sound(unsigned short freq)  {
   unsigned short freqdiv;
@@ -180,7 +185,7 @@ static int console_read(struct dev *dev, void *buffer, size_t count, blkno_t blk
     }
 
     if (ch < ' ') {
-      struct thread *t = self();
+      struct thread *t = kthread_self();
       if (ch == CTRL('C') && (t->blocked_signals & (1 << SIGINT)) == 0) send_user_signal(t, SIGINT);
       if (ch == CTRL('Z') && (t->blocked_signals & (1 << SIGTSTP)) == 0) send_user_signal(t, SIGTSTP);
       if (ch == CTRL('\\') && (t->blocked_signals & (1 << SIGABRT)) == 0) send_user_signal(t, SIGABRT);

@@ -35,6 +35,9 @@
 #include <os/kbd.h>
 #include <os/trap.h>
 #include <os/dbg.h>
+#include <os/dev.h>
+#include <os/pic.h>
+
 
 //
 // Keyboard Ports

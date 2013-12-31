@@ -32,6 +32,9 @@
 //
 
 #include <os/object.h>
+#include <os/vfs.h>
+#include <net/socket.h>
+#include <os/kmalloc.h>
 
 struct waitable_timer *timer_list = NULL;
 int nexttid = 1;
@@ -180,7 +183,7 @@ int enter_object(struct object *obj) {
     case OBJECT_MUTEX:
       // Set state to nonsignaled and set current thread as owner
       obj->signaled = 0;
-      ((struct mutex *) obj)->owner = self();
+      ((struct mutex *) obj)->owner = kthread_self();
       ((struct mutex *) obj)->recursion = 1;
       break;
 
@@ -227,13 +230,13 @@ int wait_for_object(object_t hobj, unsigned int timeout) {
 
 int wait_for_one_object(object_t hobj, unsigned int timeout, int alertable) {
   struct object *obj = (struct object *) hobj;
-  struct thread *t = self();
+  struct thread *t = kthread_self();
   struct waitblock wb;
 
   // If object is signaled we do not have to wait
   if (obj->signaled) return enter_object(obj);
 
-  if (obj->type == OBJECT_MUTEX && ((struct mutex *) obj)->owner == self()) {
+  if (obj->type == OBJECT_MUTEX && ((struct mutex *) obj)->owner == kthread_self()) {
     // Mutex is already owned by current thread, increase recursion count
     ((struct mutex *) obj)->recursion++;
     return 0;
@@ -308,7 +311,7 @@ int wait_for_one_object(object_t hobj, unsigned int timeout, int alertable) {
 
 int wait_for_all_objects(struct object **objs, int count, unsigned int timeout, int alertable) {
   int n;
-  struct thread *t = self();
+  struct thread *t = kthread_self();
   struct waitblock wb[MAX_WAIT_OBJECTS];
   struct waitblock wbtmo;
   struct waitable_timer timer;
@@ -326,7 +329,7 @@ int wait_for_all_objects(struct object **objs, int count, unsigned int timeout, 
   all = 1;
   for (n = 0; n < count; n++) {
     if (objs[n]->type == OBJECT_MUTEX) {
-      if (!objs[n]->signaled || ((struct mutex *) objs[n])->owner != self()) {
+      if (!objs[n]->signaled || ((struct mutex *) objs[n])->owner != kthread_self()) {
         all = 0;
         break;
       }
@@ -346,7 +349,7 @@ int wait_for_all_objects(struct object **objs, int count, unsigned int timeout, 
     for (n = 0; n < count; n++) {
       if (objs[n]->signaled) {
         rc |= enter_object(objs[n]);
-      } else if (objs[n]->type == OBJECT_MUTEX && ((struct mutex *) objs[n])->owner == self()) {
+      } else if (objs[n]->type == OBJECT_MUTEX && ((struct mutex *) objs[n])->owner == kthread_self()) {
         // Mutex is already owned by current thread, increase recursion count
         ((struct mutex *) objs[n])->recursion++;
       }
@@ -416,7 +419,7 @@ int wait_for_all_objects(struct object **objs, int count, unsigned int timeout, 
 
 int wait_for_any_object(struct object **objs, int count, unsigned int timeout, int alertable) {
   int n;
-  struct thread *t = self();
+  struct thread *t = kthread_self();
   struct waitblock wb[MAX_WAIT_OBJECTS];
   struct waitblock wbtmo;
   struct waitable_timer timer;
@@ -434,7 +437,7 @@ int wait_for_any_object(struct object **objs, int count, unsigned int timeout, i
     if (objs[n]->signaled) {
       int rc = enter_object(objs[n]);
       return rc ? rc : n;
-    } else if (objs[n]->type == OBJECT_MUTEX && ((struct mutex *) objs[n])->owner == self()) {
+    } else if (objs[n]->type == OBJECT_MUTEX && ((struct mutex *) objs[n])->owner == kthread_self()) {
       // Mutex is already owned by current thread, increase recursion count
       ((struct mutex *) objs[n])->recursion++;
       return n;
@@ -596,13 +599,14 @@ void init_thread(struct thread *t, int priority) {
 //
 // Called when a thread exits
 //
+// TODO: this is not the best place for this function!
+void kthread_exit(struct thread *t)
+{
+    // Set signaled state
+    t->object.signaled = 1;
 
-void exit_thread(struct thread *t) {
-  // Set signaled state
-  t->object.signaled = 1;
-
-  // Release all waiting threads
-  release_waiters(&t->object, t->exitcode);
+    // Release all waiting threads
+    release_waiters(&t->object, t->exitcode);
 }
 
 //
@@ -801,7 +805,7 @@ unsigned int set_sem(struct sem *s, unsigned int count) {
 void init_mutex(struct mutex *m, int owned) {
   init_object(&m->object, OBJECT_MUTEX);
   if (owned) {
-    m->owner = self();
+    m->owner = kthread_self();
     m->object.signaled = 0;
     m->recursion = 1;
   } else {
@@ -821,7 +825,7 @@ int release_mutex(struct mutex *m) {
   struct waitblock *wb;
 
   // Check that caller is the owner
-  if (m->owner != self()) return -EPERM;
+  if (m->owner != kthread_self()) return -EPERM;
 
   // Check for recursion
   if (--m->recursion > 0) return 0;

@@ -33,6 +33,7 @@
 
 #include <os/krnl.h>
 #include <os/pdir.h>
+#include <os/kmalloc.h>
 
 int check_iovec(struct iovec *iov, int iovlen, int modify) {
   if (iov) {

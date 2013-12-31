@@ -36,6 +36,7 @@
 #include <os/trap.h>
 #include <os/pci.h>
 #include <os/mbr.h>
+#include <os/pic.h>
 
 
 #define CDSECTORSIZE            2048

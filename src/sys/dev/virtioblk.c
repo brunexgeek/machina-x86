@@ -118,7 +118,7 @@ struct virtioblk_request {
 
 static void virtioblk_setup_request(struct virtioblk_request *req, struct scatterlist *sg, void *buffer, int size) {
   req->status = 0;
-  req->thread = self();
+  req->thread = kthread_self();
   sg[0].data = &req->hdr;
   sg[0].size = sizeof(req->hdr);
   sg[1].data = buffer;

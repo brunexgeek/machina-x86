@@ -557,7 +557,7 @@ int dfs_fstat(struct file *filp, struct stat64 *buffer) {
 }
 
 int dfs_fchmod(struct file *filp, int mode) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   struct inode *inode;
 
   inode = (struct inode *) filp->data;
@@ -569,7 +569,7 @@ int dfs_fchmod(struct file *filp, int mode) {
 }
 
 int dfs_fchown(struct file *filp, int owner, int group) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   struct inode *inode;
 
   inode = (struct inode *) filp->data;

@@ -52,10 +52,14 @@ static unsigned int klog_size;
 static struct klogreq *klog_waiters;
 static struct dpc klog_dpc;
 
+
+// TODO: we need a place for this!
+void console_print(char *buffer, int size);
+
 static int wait_for_klog() {
   struct klogreq req;
 
-  req.thread = self();
+  req.thread = kthread_self();
   req.next = klog_waiters;
   klog_waiters = &req;
 
@@ -69,7 +73,7 @@ static void release_klog_waiters(void *arg)
     struct klogreq *waiter;
 
     // Defer scheduling of kernel log waiter if we are in a interrupt handler
-    if ((eflags() & EFLAG_IF) == 0)
+    if ((kcpu_get_eflags() & EFLAG_IF) == 0)
     {
         queue_irq_dpc(&klog_dpc, release_klog_waiters, NULL);
         return;

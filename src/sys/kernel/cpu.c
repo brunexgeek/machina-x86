@@ -3,7 +3,7 @@
 //
 // CPU information
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -37,258 +37,67 @@
 
 struct cpu global_cpu;
 
-struct cpu_model_info
+struct cpu_vendor_t
 {
+    const char *vendor_id;
 
     int vendor;
-    int family;
-    const char *model_names[16];
+
+    const char *name;
 };
 
 
-static struct cpu_model_info cpu_models[] =
+static const struct cpu_vendor_t CPU_VENDORS[] =
 {
-    {CPU_VENDOR_INTEL,    4, {"486 DX-25/33", "486 DX-50", "486 SX", "486 DX/2", "486 SL", "486 SX/2", NULL, "486 DX/2-WB", "486 DX/4", "486 DX/4-WB", NULL, NULL, NULL, NULL, NULL, NULL}},
-    {CPU_VENDOR_INTEL,    5, {"Pentium 60/66 A-step", "Pentium 60/66", "Pentium 75 - 200", "OverDrive PODP5V83", "Pentium MMX", NULL, NULL, "Mobile Pentium 75 - 200", "Mobile Pentium MMX", NULL, NULL, NULL, NULL, NULL, NULL, NULL}},
-    {CPU_VENDOR_INTEL,    6, {"Pentium Pro A-step", "Pentium Pro", NULL, "Pentium II (Klamath)", NULL, "Pentium II (Deschutes)", "Mobile Pentium II", "Pentium III (Katmai)", "Pentium III (Coppermine)", NULL, "Pentium III (Cascades)", NULL, NULL, NULL, NULL}},
-    {CPU_VENDOR_AMD,      4, {NULL, NULL, NULL, "486 DX/2", NULL, NULL, NULL, "486 DX/2-WB", "486 DX/4", "486 DX/4-WB", NULL, NULL, NULL, NULL, "Am5x86-WT", "Am5x86-WB"}},
-    {CPU_VENDOR_AMD,      5, {"K5/SSA5", "K5", "K5", "K5", NULL, NULL, "K6", "K6", "K6-2", "K6-3", NULL, NULL, NULL, NULL, NULL, NULL}},
-    {CPU_VENDOR_AMD,      6, {"Athlon", "Athlon", "Athlon", NULL, "Athlon", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL}},
-    {CPU_VENDOR_UMC,      4, {NULL, "U5D", "U5S", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL}},
-    {CPU_VENDOR_NEXGEN,   5, {"Nx586", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL}},
-    {CPU_VENDOR_RISE,     5, {"iDragon", NULL, "iDragon", NULL, NULL, NULL, NULL, NULL, "iDragon II", "iDragon II", NULL, NULL, NULL, NULL, NULL, NULL}},
-    {CPU_VENDOR_UNKNOWN,  0, NULL }
+    { "GenuineIntel", CPU_VENDOR_INTEL,     "Intel" },
+    { "AuthenticAMD", CPU_VENDOR_AMD,       "AMD" },
+    { "CyrixInstead", CPU_VENDOR_CYRIX,     "Cyrix" },
+    { "VIA VIA VIA ", CPU_VENDOR_VIA,       "Via" },
+    { "CentaurHauls", CPU_VENDOR_CENTAUR,   "Centaur" },
+    { "KVMKVMKVMKVM", CPU_VENDOR_KVM,       "KVM" },
+    { "Microsoft Hv", CPU_VENDOR_MS,        "MS Hyper-V" },
+    { "VMwareVMware", CPU_VENDOR_VMWARE,    "VMware" },
+    { "NexGenDriven", CPU_VENDOR_NEXGEN,    "NexGen" },
+    { "GenuineTMx86", CPU_VENDOR_TRANSMETA, "Transmeta" },
+    { "TransmetaCPU", CPU_VENDOR_TRANSMETA, "Transmeta" },
+    { NULL,           CPU_VENDOR_UNKNOWN,   "Generic" }
 };
 
 
-static const char *table_lookup_model( const struct cpu *info )
+
+static int cpuid_is_supported()
 {
-    const struct cpu_model_info *current = cpu_models;
-    int i;
-
-    if (info->model >= 16) return NULL;
-
-    for (i = 0; i < sizeof(cpu_models) / sizeof(struct cpu_model_info) != NULL; i++)
-    {
-        if (current->vendor == info->vendor && current->family == info->family)
-            return current->model_names[info->model];
-        current++;
-    }
-
-    return NULL;
-}
-
-
-static int eflag_supported(unsigned long flag)
-{
-    unsigned long f1, f2;
-
     __asm__
     (
-        // Save eflags
+        // return false by default
+        "mov     eax, 0x00;"
+        // get EFLAGS
         "pushfd;"
-
-        // Get eflags into eax
-        "pushfd;"
-        "pop     eax;"
-
-        // Store eflags in f1
-        "mov     %1, eax;"
-
-        // Toggle the flag we are testing
-        "xor     eax, %2;"
-
-        // Load eax into eflags
-        "push    eax;"
+        "pop     ecx;"
+        "mov     ebx, ecx;"
+        // toggle the CPUID bit and store in the EFLAGS
+        "xor     ebx, 0x200000;"
+        "push    ebx;"
         "popfd;"
-
-        // Get eflags into eax
+        // get EFLAGS again and compare
         "pushfd;"
-        "pop     eax;"
-
-        // Save in f2
-        "mov     %0, eax;"
-
-        // Restore eflags
+        "pop     ebx;"
+        "cmp     ebx, ecx;"
+        "jnz     1f;"
+        "jmp     3f;"
+        // return true
+        "1: mov eax, 0x01;"
+        // store the CPUID enable EFLAGS
+        "or ecx, 0x200000;"
+        "push ecx;"
         "popfd;"
-        : "=r" (f2)
-        : "m" (f1), "m" (flag)
+        "3: nop;"
     );
-
-    return ((f1 ^ f2) & flag) != 0;
-}
-
-
-static int cpuid_supported()
-{
-    return eflag_supported(EFLAGS_ID);
-}
-
-
-void init_cpu()
-{
-    unsigned long val[4];
-    char *vendorname;
-
-    // check if CPUID is not supported
-    if (!cpuid_supported())
-    {
-        // it must be either an 386 or 486 processor
-        if (eflag_supported(EFLAGS_AC))
-            global_cpu.family = CPU_FAMILY_486;
-        else
-            global_cpu.family = CPU_FAMILY_386;
-
-        global_cpu.vendor = CPU_VENDOR_UNKNOWN;
-        strcpy(global_cpu.vendorid, "IntelCompatible");
-        vendorname = "Intel Compatible";
-        sprintf(global_cpu.modelid, "%s %d86", vendorname, global_cpu.family);
-
-        // Note: we will refuse older CPU's
-        panic("unsupported CPU (too old)");
-    }
-    else
-    {
-        // get vendor ID
-        kmach_cpuid(0x00000000, val);
-        global_cpu.cpuid_level = val[0];
-        memcpy(global_cpu.vendorid + 0, val + 1, 4);
-        memcpy(global_cpu.vendorid + 4, val + 3, 4);
-        memcpy(global_cpu.vendorid + 8, val + 2, 4);
-
-        if (strcmp(global_cpu.vendorid, "GenuineIntel") == 0)
-        {
-            global_cpu.vendor = CPU_VENDOR_INTEL;
-            vendorname = "Intel";
-        }
-        else if (strcmp(global_cpu.vendorid, "AuthenticAMD") == 0)
-        {
-            global_cpu.vendor = CPU_VENDOR_AMD;
-            vendorname = "AMD";
-        }
-        else
-        if (strcmp(global_cpu.vendorid, "CyrixInstead") == 0)
-        {
-            global_cpu.vendor = CPU_VENDOR_CYRIX;
-            vendorname = "Cyrix";
-        }
-        else
-        if (strcmp(global_cpu.vendorid, "UMC UMC UMC ") == 0)
-        {
-            global_cpu.vendor = CPU_VENDOR_UMC;
-            vendorname = "UMC";
-        }
-        else
-        if (strcmp(global_cpu.vendorid, "CentaurHauls") == 0)
-        {
-            global_cpu.vendor = CPU_VENDOR_CENTAUR;
-            vendorname = "Centaur";
-        }
-        else
-        if (strcmp(global_cpu.vendorid, "NexGenDriven") == 0)
-        {
-            global_cpu.vendor = CPU_VENDOR_NEXGEN;
-            vendorname = "NexGen";
-        }
-        else
-        if (strcmp(global_cpu.vendorid, "GenuineTMx86") == 0 || strcmp(global_cpu.vendorid, "TransmetaCPU") == 0)
-        {
-            global_cpu.vendor = CPU_VENDOR_TRANSMETA;
-            vendorname = "Transmeta";
-        }
-        else
-        {
-            global_cpu.vendor = CPU_VENDOR_UNKNOWN;
-            vendorname = global_cpu.vendorid;
-        }
-
-        // get all other informations
-        if (global_cpu.cpuid_level >= 0x00000001)
-        {
-            kmach_cpuid(0x00000001, val);
-            global_cpu.family = (val[0] >> 8) & 0x0F;
-            global_cpu.model = (val[0] >> 4) & 0x0F;
-            global_cpu.stepping = val[0] & 0x0F;
-            global_cpu.features = val[3];
-        }
-
-        // SEP CPUID bug: Pentium Pro reports SEP but doesn't have it until model 3 stepping 3
-        if (global_cpu.family == 6 && global_cpu.model < 3 && global_cpu.stepping < 3)
-            global_cpu.features &= ~CPU_FEATURE_SEP;
-
-        // get brand string
-        kmach_cpuid(0x80000000, val);
-        if (val[0] >= 0x80000004)
-        {
-            char model[64];
-            char *p, *q;
-            int space;
-
-            memset(model, 0, 64);
-            kmach_cpuid(0x80000002, (unsigned long *) model);
-            kmach_cpuid(0x80000003, (unsigned long *) (model + 16));
-            kmach_cpuid(0x80000004, (unsigned long *) (model + 32));
-
-            // trim brand string
-            p = model;
-            q = global_cpu.modelid;
-            space = 0;
-            while (*p == ' ') p++;
-            while (*p)
-            {
-                if (*p == ' ')
-                {
-                    space = 1;
-                }
-                else
-                {
-                    if (space) *q++ = ' ';
-                    space = 0;
-                    *q++ = *p;
-                }
-                p++;
-            }
-            *q = 0;
-        }
-        else
-        {
-            const char *modelid = table_lookup_model(&global_cpu);
-            if (modelid)
-                sprintf(global_cpu.modelid, "%s %s", vendorname, modelid);
-            else
-                sprintf(global_cpu.modelid, "%s %d86", vendorname, global_cpu.family);
-        }
-    }
-
-    kprintf(KERN_INFO "cpu: %s family %d model %d stepping %d\n", global_cpu.modelid, global_cpu.family, global_cpu.model, global_cpu.stepping);
-}
-
-
-int cpu_proc(struct proc_file *pf, void *arg)
-{
-    pprintf(pf, "%s family %d model %d stepping %d\n", global_cpu.modelid, global_cpu.family, global_cpu.model, global_cpu.stepping);
-    return 0;
-}
-
-
-int cpu_sysinfo(struct cpuinfo *info)
-{
-    info->cpu_vendor = global_cpu.vendor;
-    info->cpu_family = global_cpu.family;
-    info->cpu_model = global_cpu.model;
-    info->cpu_stepping = global_cpu.stepping;
-    info->cpu_mhz = global_cpu.mhz;
-    info->cpu_features = global_cpu.features;
-    info->pagesize = PAGESIZE;
-    strcpy(info->vendorid, global_cpu.vendorid);
-    strcpy(info->modelid, global_cpu.modelid);
-
-    return 0;
 }
 
 
 // TODO: became "naked" function
-unsigned long eflags()
+unsigned long kcpu_get_eflags()
 {
     __asm__
     (
@@ -297,3 +106,116 @@ unsigned long eflags()
     );
 }
 
+
+void init_cpu()
+{
+    unsigned long val[4];
+    char *vendorname;
+    const struct cpu_vendor_t *current;
+
+    // check if CPUID is not supported
+    if (!cpuid_is_supported())
+    {
+        // Note: we can not call 'panic' here because 'stop' try to stop threads!
+        kprintf("panic: CPU too old! This OS needs a CPU with support for CUPID instruction.");
+        kmach_cli();
+        kmach_halt();
+    }
+
+    // get vendor ID
+    kmach_cpuid(0x00000000, val);
+    global_cpu.cpuid_level = val[0];
+    memcpy(global_cpu.vendor_id + 0, val + 1, 4);
+    memcpy(global_cpu.vendor_id + 4, val + 3, 4);
+    memcpy(global_cpu.vendor_id + 8, val + 2, 4);
+    // retrieve the vendor name and code
+    current = CPU_VENDORS;
+    while (1)
+    {
+        if (current->vendor_id != NULL || strcmp(global_cpu.vendor_id, current->vendor_id) == 0)
+        {
+            global_cpu.vendor = current->vendor;
+            memset(global_cpu.vendor_name, 0, CPU_VENDOR_NAME_SIZE);
+            strncpy(global_cpu.vendor_name, current->name, CPU_VENDOR_NAME_SIZE-1);
+        }
+        if (current->vendor_id != NULL) break;
+        current = current + 1;
+    }
+
+    // get family, model, stepping and features
+    if (global_cpu.cpuid_level >= 0x00000001)
+    {
+        kmach_cpuid(0x00000001, val);
+        global_cpu.family = (val[0] >> 8) & 0x0F;
+        global_cpu.model = (val[0] >> 4) & 0x0F;
+        global_cpu.stepping = val[0] & 0x0F;
+        global_cpu.features = val[3];
+    }
+
+    // get brand string
+    kmach_cpuid(0x80000000, val);
+    if (val[0] >= 0x80000004)
+    {
+        char model[64];
+        char *p, *q;
+        int space;
+
+        memset(model, 0, 64);
+        kmach_cpuid(0x80000002, (unsigned long *) model);
+        kmach_cpuid(0x80000003, (unsigned long *) (model + 16));
+        kmach_cpuid(0x80000004, (unsigned long *) (model + 32));
+
+        // trim brand string
+        p = model;
+        q = global_cpu.model_id;
+        space = 0;
+        while (*p == ' ') p++;
+        while (*p)
+        {
+            if (*p == ' ')
+            {
+                space = 1;
+            }
+            else
+            {
+                if (space) *q++ = ' ';
+                space = 0;
+                *q++ = *p;
+            }
+            p++;
+        }
+        *q = 0;
+    }
+    else
+    {
+        // Note: we can not call 'panic' here because 'stop' try to stop threads!
+        kprintf("panic: CPU too old! This OS needs CPUID instruction with support for processor brand.");
+        kmach_cli();
+        kmach_halt();
+    }
+
+    kprintf(KERN_INFO "cpu: %s family %d model %d stepping %d\n", global_cpu.model_id, global_cpu.family, global_cpu.model, global_cpu.stepping);
+}
+
+
+int kcpu_proc(struct proc_file *pf, void *arg)
+{
+    pprintf(pf, "%s family %d model %d stepping %d\n", global_cpu.model_id, global_cpu.family, global_cpu.model, global_cpu.stepping);
+    return 0;
+}
+
+
+int kcpu_get_info(struct cpuinfo *info)
+{
+    info->cpu_vendor = global_cpu.vendor;
+    info->cpu_family = global_cpu.family;
+    info->cpu_model = global_cpu.model;
+    info->cpu_stepping = global_cpu.stepping;
+    info->cpu_mhz = global_cpu.mhz;
+    info->cpu_features = global_cpu.features;
+    info->pagesize = PAGESIZE;
+    strcpy(info->vendorid, global_cpu.vendor_id);
+    strcpy(info->modelid, global_cpu.model_id);
+
+    return 0;
+}

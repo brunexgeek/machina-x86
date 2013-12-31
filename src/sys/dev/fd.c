@@ -34,6 +34,7 @@
 #include <os/krnl.h>
 #include <os/dev.h>
 #include <os/trap.h>
+#include <os/pic.h>
 
 #define NUMDRIVES             4
 

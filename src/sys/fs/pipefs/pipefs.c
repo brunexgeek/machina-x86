@@ -257,7 +257,7 @@ int pipefs_read(struct file *filp, void *data, size_t size, off64_t pos) {
     if (filp->flags & O_NONBLOCK) return -EAGAIN;
 
     req.pipe = pipe;
-    req.thread = self();
+    req.thread = kthread_self();
     req.buffer = p;
     req.size = left;
     req.rc = -EINTR;
@@ -321,7 +321,7 @@ int pipefs_write(struct file *filp, void *data, size_t size, off64_t pos) {
     if (filp->flags & O_NONBLOCK) return size - left;
 
     req.pipe = pipe;
-    req.thread = self();
+    req.thread = kthread_self();
     req.buffer = p;
     req.size = left;
     req.rc = -EINTR;

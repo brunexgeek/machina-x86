@@ -37,6 +37,7 @@
 //
 
 #include <net/net.h>
+#include <os/kmalloc.h>
 
 unsigned long tcp_ticks;
 unsigned long iss;

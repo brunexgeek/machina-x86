@@ -32,6 +32,7 @@
 //
 
 #include <net/net.h>
+#include <os/kmalloc.h>
 #include <os/iovec.h>
 
 extern struct sockops tcpops;
@@ -75,7 +76,7 @@ err_t submit_socket_request(struct socket *s, struct sockreq *req, int type, str
   if (timeout == 0) return -ETIMEOUT;
 
   req->socket = s;
-  req->thread = self();
+  req->thread = kthread_self();
   req->type = type;
   req->msg = msg;
   req->rc = 0;

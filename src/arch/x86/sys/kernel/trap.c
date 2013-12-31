@@ -38,6 +38,9 @@
 #include <os/pdir.h>
 #include <os/cpu.h>
 #include <os/mach.h>
+#include <os/dbg.h>
+#include <os/sched.h>
+#include <os/vmm.h>
 
 #define INTRS MAXIDT
 
@@ -461,7 +464,7 @@ int send_user_signal(struct thread *t, int signum) {
 //
 
 int set_signal_mask(int how, sigset_t *set, sigset_t *oldset) {
-  struct thread *t = self();
+  struct thread *t = kthread_self();
 
   if (oldset) *oldset = t->blocked_signals;
 
@@ -495,13 +498,14 @@ int set_signal_mask(int how, sigset_t *set, sigset_t *oldset) {
 // Examine pending signals
 //
 
-int get_pending_signals(sigset_t *set) {
-  struct thread *t = self();
+int get_pending_signals(sigset_t *set)
+{
+    struct thread *t = kthread_self();
 
-  if (!set) return -EINVAL;
-  *set = t->pending_signals;
+    if (!set) return -EINVAL;
+    *set = t->pending_signals;
 
-  return 0;
+    return 0;
 }
 
 //
@@ -511,7 +515,7 @@ int get_pending_signals(sigset_t *set) {
 //
 
 int deliver_pending_signals(int retcode) {
-  struct thread *t = self();
+  struct thread *t = kthread_self();
   struct context *ctxt;
   int sigmask;
   int signum;
@@ -579,7 +583,7 @@ int deliver_pending_signals(int retcode) {
 //
 
 static int sigexit_handler(struct context *ctxt, void *arg) {
-  struct thread *t = self();
+  struct thread *t = kthread_self();
   struct siginfo *info;
   int debug;
 
@@ -915,7 +919,7 @@ void init_trap()
 static void trap(unsigned long args)
 {
     struct context *ctxt = (struct context *) &args;
-    struct thread *t = self();
+    struct thread *t = kthread_self();
     struct context *prevctxt;
     struct interrupt *intr;
     int rc;

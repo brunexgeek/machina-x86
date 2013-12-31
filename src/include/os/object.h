@@ -266,7 +266,7 @@ void release_thread(struct thread *t);
 void release_waiters(struct object *o, int waitkey);
 
 void init_thread(struct thread *t, int priority);
-void exit_thread(struct thread *t);
+void kthread_exit(struct thread *t);
 
 KERNELAPI void init_event(struct event *e, int manual_reset, int initial_state);
 KERNELAPI void pulse_event(struct event *e);

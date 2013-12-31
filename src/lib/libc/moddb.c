@@ -32,6 +32,8 @@
 //
 
 #include <os.h>
+#include <io.h>
+#include <net/socket.h>
 #include <os/pe.h>
 #include <string.h>
 #include <stdarg.h>

@@ -34,6 +34,7 @@
 #include <os/krnl.h>
 #include <os/dev.h>
 #include <os/trap.h>
+#include <os/pic.h>
 
 #define QUEUE_SIZE      4096
 #define ISR_LIMIT       256

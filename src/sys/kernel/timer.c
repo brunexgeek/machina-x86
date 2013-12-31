@@ -321,7 +321,7 @@ int msleep(unsigned int millisecs)
     }
     else
     {
-        ktimer_init(&timer, tmr_sleep, self());
+        ktimer_init(&timer, tmr_sleep, kthread_self());
         timer.expires = ticks + millisecs / MSECS_PER_TICK;
         ktimer_add(&timer);
         rc = enter_alertable_wait(THREAD_WAIT_SLEEP);

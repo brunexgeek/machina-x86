@@ -9,16 +9,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,11 +28,12 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <net/net.h>
+#include <os/kmalloc.h>
 
 #define MIN(x,y) ((x) < (y) ? (x): (y))
 
@@ -85,21 +86,21 @@ err_t tcp_enqueue(struct tcp_pcb *pcb, void *data, int len, int flags, unsigned 
 
   left = len;
   ptr = data;
-  
+
   if (len > pcb->snd_buf) {
     kprintf(KERN_ERR "tcp_enqueue: too much data %d\n", len);
     return -ENOMEM;
   }
 
   seqno = pcb->snd_lbb;
-  
+
   queue = NULL;
   queuelen = pcb->snd_queuelen;
   if (queuelen >= TCP_SND_QUEUELEN) {
     kprintf(KERN_ERR "tcp_enqueue: too long queue %d (max %d)\n", queuelen, TCP_SND_QUEUELEN);
     goto memerr;
   }
-  
+
   // Fill last pbuf of the last segment on the unsent queue
   if (optlen == 0 && flags == 0) {
     // Go to the last segment on the unsent queue
@@ -152,7 +153,7 @@ err_t tcp_enqueue(struct tcp_pcb *pcb, void *data, int len, int flags, unsigned 
         for (useg = queue; useg->next != NULL; useg = useg->next);
         useg->next = seg;
       }
-    
+
       // If copy is set, memory should be allocated
       // and data copied into pbuf, otherwise data comes from
       // ROM or other static memory, and need not be copied. If
@@ -181,19 +182,19 @@ err_t tcp_enqueue(struct tcp_pcb *pcb, void *data, int len, int flags, unsigned 
 
         if (data != NULL) memcpy(seg->p->payload, ptr, seglen);
         seg->dataptr = seg->p->payload;
-      } 
+      }
 
       if (queuelen > TCP_SND_QUEUELEN) {
         kprintf(KERN_ERR "tcp_enqueue: queue too long %d (%d)\n", queuelen, TCP_SND_QUEUELEN);
         goto memerr;
       }
-    
+
       seg->len = seglen;
-    
+
       // Build TCP header
       if (pbuf_header(seg->p, TCP_HLEN) < 0) {
         kprintf(KERN_ERR "tcp_enqueue: no room for TCP header in pbuf.\n");
-      
+
         stats.tcp.err++;
         goto memerr;
       }
@@ -205,12 +206,12 @@ err_t tcp_enqueue(struct tcp_pcb *pcb, void *data, int len, int flags, unsigned 
       seg->tcphdr->urgp = 0;
       TCPH_FLAGS_SET(seg->tcphdr, flags);
       // Don't fill in tcphdr->ackno and tcphdr->wnd until later
-    
+
       if (optdata == NULL) {
         TCPH_OFFSET_SET(seg->tcphdr, 5 << 4);
       } else {
         TCPH_OFFSET_SET(seg->tcphdr, (5 + optlen / 4) << 4);
-      
+
         // Copy options into segment after fixed TCP header
         memcpy(seg->tcphdr + 1, optdata, optlen);
       }
@@ -233,22 +234,22 @@ err_t tcp_enqueue(struct tcp_pcb *pcb, void *data, int len, int flags, unsigned 
 
     // If there is room in the last segment on the unsent queue
     // chain the first pbuf on the queue together with that
-    if (useg != NULL && 
-        TCP_TCPLEN(useg) != 0 && 
-        !(TCPH_FLAGS(useg->tcphdr) & (TCP_SYN | TCP_FIN)) && 
-        !(flags & (TCP_SYN | TCP_FIN)) && 
+    if (useg != NULL &&
+        TCP_TCPLEN(useg) != 0 &&
+        !(TCPH_FLAGS(useg->tcphdr) & (TCP_SYN | TCP_FIN)) &&
+        !(flags & (TCP_SYN | TCP_FIN)) &&
         useg->len + queue->len <= pcb->mss) {
       // Remove TCP header from first segment
       pbuf_header(queue->p, -TCP_HLEN);
       pbuf_chain(useg->p, queue->p);
       useg->len += queue->len;
       useg->next = queue->next;
-    
+
       //kprintf("tcp_output: chaining, new len %u\n", useg->len);
 
       if (seg == queue) seg = NULL;
       kfree(queue);
-    } else {      
+    } else {
       if (useg == NULL) {
         pcb->unsent = queue;
       } else {
@@ -280,20 +281,20 @@ memerr:
 err_t tcp_output(struct tcp_pcb *pcb) {
   struct tcp_seg *seg, *useg;
   unsigned long wnd;
-    
+
   wnd = MIN(pcb->snd_wnd, pcb->cwnd);
   seg = pcb->unsent;
   //kprintf("tcp_output: wnd %d snd_wnd %d cwnd %d\n", wnd, pcb->snd_wnd, pcb->cwnd);
-  
+
   while (seg != NULL && ntohl(seg->tcphdr->seqno) - pcb->lastack + seg->len <= wnd) {
     pcb->rtime = 0;
     pcb->unsent = seg->next;
-    
+
     if (pcb->state != SYN_SENT) {
       TCPH_FLAGS_SET(seg->tcphdr, TCPH_FLAGS(seg->tcphdr) | TCP_ACK);
       pcb->flags &= ~(TF_ACK_DELAY | TF_ACK_NOW);
     }
-    
+
     pcb->snd_nxt = ntohl(seg->tcphdr->seqno) + TCP_TCPLEN(seg);
     if (TCP_SEQ_LT(pcb->snd_max, pcb->snd_nxt)) pcb->snd_max = pcb->snd_nxt;
 
@@ -314,15 +315,15 @@ err_t tcp_output(struct tcp_pcb *pcb) {
     }
 
     seg = pcb->unsent;
-  } 
-  
+  }
+
   // If no segments are enqueued but we should send an ACK, we
   // construct the ACK and send it
   if (pcb->flags & TF_ACK_NOW) {
     pcb->flags &= ~(TF_ACK_DELAY | TF_ACK_NOW);
     return tcp_send_ack(pcb);
   }
- 
+
   return 0;
 }
 
@@ -343,9 +344,9 @@ static err_t tcp_send_ack(struct tcp_pcb *pcb) {
   p = pbuf_alloc(PBUF_IP, TCP_HLEN, PBUF_RW);
   if (!p) {
     stats.tcp.memerr++;
-    return -ENOMEM; 
+    return -ENOMEM;
   }
-  
+
   tcphdr = p->payload;
   tcphdr->src = htons(pcb->local_port);
   tcphdr->dest = htons(pcb->remote_port);
@@ -355,7 +356,7 @@ static err_t tcp_send_ack(struct tcp_pcb *pcb) {
   tcphdr->wnd = (pcb->rcv_wnd < pcb->mss) ? 0 : htons(pcb->rcv_wnd);
   tcphdr->urgp = 0;
   TCPH_OFFSET_SET(tcphdr, 5 << 4);
-  
+
   tcphdr->chksum = 0;
   if ((netif->flags & NETIF_TCP_TX_CHECKSUM_OFFLOAD) == 0) {
     tcphdr->chksum = inet_chksum_pseudo(p, &pcb->local_ip, &pcb->remote_ip, IP_PROTO_TCP, p->tot_len);
@@ -372,7 +373,7 @@ static err_t tcp_send_ack(struct tcp_pcb *pcb) {
   }
 
   return 0;
-} 
+}
 
 static void tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb) {
   struct netif *netif;
@@ -434,7 +435,7 @@ static void tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb) {
 
   //kprintf("sending TCP segment:\n");
   //tcp_debug_print(seg->tcphdr);
- 
+
   pbuf_ref(seg->p);
   if (ip_output_if(seg->p, &pcb->local_ip, &pcb->remote_ip, TCP_TTL, IP_PROTO_TCP, netif) < 0) pbuf_free(seg->p);
 }
@@ -490,7 +491,7 @@ void tcp_rst(unsigned long seqno, unsigned long ackno, struct ip_addr *local_ip,
   tcphdr->wnd = 0;
   tcphdr->urgp = 0;
   TCPH_OFFSET_SET(tcphdr, 5 << 4);
-  
+
   tcphdr->chksum = 0;
   if ((netif->flags & NETIF_TCP_TX_CHECKSUM_OFFLOAD) == 0) {
     tcphdr->chksum = inet_chksum_pseudo(p, local_ip, remote_ip, IP_PROTO_TCP, p->tot_len);

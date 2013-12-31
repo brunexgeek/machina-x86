@@ -36,6 +36,7 @@
 #include <os/procfs.h>
 #include <os/syspage.h>
 #include <os/pframe.h>
+#include <os/vmm.h>
 
 pte_t *pdir = (pte_t *) PAGEDIR_ADDRESS; // Page directory
 pte_t *ptab = (pte_t *) PTBASE;          // Page tables

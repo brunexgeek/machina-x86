@@ -39,6 +39,21 @@
 #include <os/kmem.h>
 #include <os/mach.h>
 #include <os/dev.h>
+#include <os/kbd.h>
+#include <os/dfs.h>
+#include <os/devfs.h>
+#include <os/pic.h>
+#include <os/trap.h>
+#include <os/pit.h>
+#include <net/stats.h>
+#include <net/arp.h>
+#include <net/tcp.h>
+#include <net/ip.h>
+#include <net/udp.h>
+#include <net/raw.h>
+#include <net/dhcp.h>
+#include <net/socket.h>
+#include <net/net.h>
 
 
 #ifdef BSD
@@ -68,21 +83,6 @@ char *copyright =
 "SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n";
 #endif
 
-#ifdef GPL
-char *copyright =
-"This program is free software; you can redistribute it and/or modify it under\n"
-"the terms of the GNU General Public License as published by the Free Software\n"
-"Foundation; either version 2 of the License, or (at your option) any later\n"
-"version.\n"
-"\n"
-"This program is distributed in the hope that it will be useful, but WITHOUT\n"
-"ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS\n"
-"FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.\n"
-"\n"
-"You should have received a copy of the GNU General Public License along with\n"
-"this program; if not, write to the Free Software Foundation,\n"
-"Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA\n";
-#endif
 
 #define ONPANIC_HALT      EXITOS_HALT
 #define ONPANIC_REBOOT    EXITOS_REBOOT
@@ -97,7 +97,7 @@ void init_syscall();
 
 // cpu.c
 
-int cpu_proc(struct proc_file *pf, void *arg);
+//int cpu_proc(struct proc_file *pf, void *arg);
 
 // smbfs.c
 
@@ -153,13 +153,15 @@ char krnlopts[KRNLOPTS_LEN];
 
 void main(void *arg);
 
-int license() {
-  return LICENSE;
+int license()
+{
+    return LICENSE;
 }
 
 void stop(int mode)
 {
-    suspend_all_user_threads();
+    ksched_destroy();
+
     umount_all();
     tcp_shutdown();
     msleep(200);
@@ -208,6 +210,7 @@ void panic(char *msg)
 
     if (onpanic == ONPANIC_DEBUG)
     {
+
         if (debugging) dbg_output(msg);
         dbg_break();
     }
@@ -217,46 +220,50 @@ void panic(char *msg)
     }
 }
 
-static int load_kernel_config() {
-  struct file *f;
-  int size;
-  int rc;
-  struct stat64 buffer;
-  char config[MAXPATH];
-  char *props;
 
-  get_option(krnlopts, "config", config, sizeof(config), "/boot/krnl.ini");
+static int load_kernel_config()
+{
+    struct file *f;
+    int size;
+    int rc;
+    struct stat64 buffer;
+    char config[MAXPATH];
+    char *props;
 
-  rc = open(config, O_RDONLY | O_BINARY, 0, &f);
-  if (rc < 0) return rc;
+    get_option(krnlopts, "config", config, sizeof(config), "/boot/krnl.ini");
 
-  fstat(f, &buffer);
-  size = (int) buffer.st_size;
+    rc = open(config, O_RDONLY | O_BINARY, 0, &f);
+    if (rc < 0) return rc;
 
-  props = (char *) kmalloc(size + 1);
-  if (!props)  {
+    fstat(f, &buffer);
+    size = (int) buffer.st_size;
+
+    props = (char *) kmalloc(size + 1);
+    if (!props)
+    {
+        close(f);
+        destroy(f);
+        return -ENOMEM;
+        }
+
+    rc = read(f, props, size);
+    if (rc < 0)
+    {
+        free(props);
+        close(f);
+        destroy(f);
+        return rc;
+    }
+
     close(f);
     destroy(f);
-    return -ENOMEM;
-  }
 
-  rc = read(f, props, size);
-  if (rc < 0) {
+    props[size] = 0;
+
+    krnlcfg = parse_properties(props);
     free(props);
-    close(f);
-    destroy(f);
-    return rc;
-  }
 
-  close(f);
-  destroy(f);
-
-  props[size] = 0;
-
-  krnlcfg = parse_properties(props);
-  free(props);
-
-  return 0;
+    return 0;
 }
 
 static void init_filesystem()
@@ -356,26 +363,31 @@ static int version_proc(struct proc_file *pf, void *arg) {
   return 0;
 }
 
-static int copyright_proc(struct proc_file *pf, void *arg) {
-  hmodule_t krnl = (hmodule_t) OSBASE;
-  char copy[128];
-  char legal[128];
 
-  if (get_version_value(krnl, "LegalCopyright", copy, sizeof(copy)) < 0) strcpy(copy, OS_COPYRIGHT);
-  if (get_version_value(krnl, "LegalTrademarks", legal, sizeof(legal)) < 0) strcpy(legal, OS_LEGAL);
+static int copyright_proc(struct proc_file *pf, void *arg)
+{
+    hmodule_t krnl = (hmodule_t) OSBASE;
+    char copy[128];
+    char legal[128];
 
-  version_proc(pf, arg);
-  pprintf(pf, "%s %s\n\n", copy, legal);
-  proc_write(pf, copyright, strlen(copyright));
-  return 0;
+    if (get_version_value(krnl, "LegalCopyright", copy, sizeof(copy)) < 0) strcpy(copy, OS_COPYRIGHT);
+    if (get_version_value(krnl, "LegalTrademarks", legal, sizeof(legal)) < 0) strcpy(legal, OS_LEGAL);
+
+    version_proc(pf, arg);
+    pprintf(pf, "%s %s\n\n", copy, legal);
+    proc_write(pf, copyright, strlen(copyright));
+    return 0;
 }
 
-__attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmod, char *opts, int reserved2)
+__attribute__((section("entryp"))) void __attribute__((stdcall)) start(
+    void *hmod,
+    char *opts,
+    int reserved2 )
 {
-    // Copy kernel options
+    // copy kernel options
     strcpy(krnlopts, opts);
-    if (get_option(opts, "silent", NULL, 0, NULL) != NULL) kprint_enabled = 0;
-    if (get_option(opts, "serialconsole", NULL, 0, NULL) != NULL) serial_console = 1;
+    //if (get_option(opts, "silent", NULL, 0, NULL) != NULL) kprint_enabled = 0;
+    //if (get_option(opts, "serialconsole", NULL, 0, NULL) != NULL) serial_console = 1;
 
     // Initialize console
     init_console();
@@ -419,8 +431,8 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
     register_proc_inode("kmodmem", kmodmem_proc, NULL);
     register_proc_inode("kheap", kheapstat_proc, NULL);
     register_proc_inode("vmem", vmem_proc, NULL);
-console(NULL, NULL);
-    register_proc_inode("cpu", cpu_proc, NULL);
+//console(NULL, NULL);
+    register_proc_inode("cpu", kcpu_proc, NULL);
 
     // Initialize interrupts, floating-point support, and real-time clock
     init_pic();
@@ -430,7 +442,7 @@ console(NULL, NULL);
 
     // Initialize timers, scheduler, and handle manager
     init_timers();
-    init_sched();
+    ksched_init();
     init_handles();
     init_syscall();
 
@@ -464,7 +476,7 @@ void init_net()
 void main(void *arg)
 {
     unsigned long *stacktop;
-    struct thread *t = self();
+    struct thread *t = kthread_self();
 
     void *imgbase;
     void *entrypoint;

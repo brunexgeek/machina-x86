@@ -80,7 +80,7 @@ static int virtiocon_write(struct dev *dev, void *buffer, size_t count, blkno_t 
   // Issue request
   sg[0].data = buffer;
   sg[0].size = count;
-  rc = virtio_enqueue(&vcon->output_queue, sg, 1, 0, self());
+  rc = virtio_enqueue(&vcon->output_queue, sg, 1, 0, kthread_self());
   if (rc < 0) return rc;
   virtio_kick(&vcon->output_queue);
 

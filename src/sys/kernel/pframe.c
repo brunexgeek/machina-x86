@@ -315,7 +315,7 @@ void init_pfdb()
     // Fixup tags for pfdb and syspage and intial tcb
     set_pageframe_tag(pfdb, pfdbpages * PAGESIZE, 0x50464442 /* PFDB */);
     set_pageframe_tag(syspage, PAGESIZE, 0x00535953 /* SYS */);
-    set_pageframe_tag(self(), TCBSIZE, 0x00544342 /* TCB */);
+    set_pageframe_tag(kthread_self(), TCBSIZE, 0x00544342 /* TCB */);
 
     set_pageframe_tag((void *) INITRD_ADDRESS, syspage->ldrparams.initrd_size, 0x424f4f54 /* BOOT */);
 

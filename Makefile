@@ -1,9 +1,9 @@
 #!/bin/make -f
 
 TARGET_MACHINE := x86
-LDFLAGS := -m32 -mtune=i686
-CFLAGS := -O0 -m32 -mtune=i686
 NASM := build/tools/nasm
+LDFLAGS := -m32 -mtune=i686
+override CFLAGS := $(CFLAGS) -Wall -Werror-implicit-function-declaration -O0 -m32 -mtune=i686
 
 help:
 	@echo "   all"

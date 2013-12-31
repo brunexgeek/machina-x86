@@ -33,6 +33,8 @@
 
 #include <os/krnl.h>
 #include <os/vfs.h>
+#include <os/user.h>
+#include <os/kmalloc.h>
 
 struct filesystem *fslist = NULL;
 struct fs *mountlist = NULL;
@@ -59,7 +61,7 @@ int canonicalize(char *path, char *buffer) {
 
   // Add current directory to filename if relative path
   if (*path != PS1 && *path != PS2) {
-    struct thread *t = self();
+    struct thread *t = kthread_self();
 
     // Do not add current directory if it is root directory
     len = strlen(t->curdir);
@@ -229,8 +231,8 @@ static int files_proc(struct proc_file *pf, void *arg) {
 
 int init_vfs() {
   pathsep = PS1;
-  self()->curdir[0] = PS1;
-  self()->curdir[1] = 0;
+  kthread_self()->curdir[0] = PS1;
+  kthread_self()->curdir[1] = 0;
 
   if (!peb) panic("peb not initialized in vfs");
   peb->pathsep = pathsep;
@@ -253,7 +255,7 @@ struct filesystem *register_filesystem(char *name, struct fsops *ops) {
 }
 
 struct file *newfile(struct fs *fs, char *path, int flags, int mode) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   struct file *filp;
   int umaskval = 0;
   int fmodeval = 0;
@@ -1019,7 +1021,7 @@ int access(char *name, int mode) {
   if (rc < 0) return rc;
 
   if (!fs->ops->access) {
-    struct thread *thread = self();
+    struct thread *thread = kthread_self();
     struct stat64 buf;
 
     rc = stat(name, &buf);
@@ -1158,15 +1160,15 @@ int chdir(char *name) {
     if ((buffer.st_mode & S_IFMT) != S_IFDIR) return -ENOTDIR;
   }
 
-  strcpy(self()->curdir, newdir);
+  strcpy(kthread_self()->curdir, newdir);
 
   return 0;
 }
 
 int getcwd(char *buf, size_t size) {
   if (!buf || size == 0) return -EINVAL;
-  if (size <= strlen(self()->curdir)) return -ERANGE;
-  strcpy(buf, self()->curdir);
+  if (size <= strlen(kthread_self()->curdir)) return -ERANGE;
+  strcpy(buf, kthread_self()->curdir);
 
   return 0;
 }

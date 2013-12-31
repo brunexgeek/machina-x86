@@ -33,8 +33,10 @@
 
 #include <os/krnl.h>
 #include <os/dev.h>
+#include <os/devfs.h>
 #include <os/procfs.h>
 #include <os/pci.h>
+#include <os/pnpbios.h>
 
 struct unit *units;
 struct bus *buses;

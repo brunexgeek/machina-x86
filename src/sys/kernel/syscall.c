@@ -38,6 +38,11 @@
 #include <os/syscall.h>
 #include <os/object.h>
 #include <net/socket.h>
+#include <os/iovec.h>
+#include <os/kmalloc.h>
+#include <os/trap.h>
+#include <os/user.h>
+#include <os.h>
 
 
 #define SYSCALL_PROFILE
@@ -756,7 +761,7 @@ static int sys_vmalloc(char *params) {
 
   retval = vmalloc(addr, size, type, protect, tag, &rc);
   if (!retval) {
-    struct tib *tib = self()->tib;
+    struct tib *tib = kthread_self()->tib;
     if (tib) tib->errnum = -rc;
   }
 
@@ -861,7 +866,7 @@ static int sys_vmmap(char *params) {
 
   retval = vmmap(addr, size, protect, f, offset, &rc);
   if (!retval) {
-    struct tib *tib = self()->tib;
+    struct tib *tib = kthread_self()->tib;
     if (tib) tib->errnum = -rc;
   }
 
@@ -1163,14 +1168,15 @@ static int sys_resume(char *params) {
   return rc;
 }
 
-static int sys_endthread(char *params) {
-  int exitcode;
+static int sys_endthread(char *params)
+{
+    int exitcode;
 
-  exitcode = *(int *) params;
+    exitcode = *(int *) params;
 
-  terminate_thread(exitcode);
+    kthread_terminate(exitcode);
 
-  return 0;
+    return 0;
 }
 
 static int sys_setcontext(char *params) {
@@ -1223,48 +1229,50 @@ static int sys_getcontext(char *params) {
   return rc;
 }
 
-static int sys_getprio(char *params) {
-  handle_t h;
-  struct thread *t;
-  int priority;
+static int sys_getprio(char *params)
+{
+    handle_t h;
+    struct thread *t;
+    int priority;
 
-  h = *(handle_t *) params;
+    h = *(handle_t *) params;
 
-  t = (struct thread *) olock(h, OBJECT_THREAD);
-  if (!t) return -EBADF;
+    t = (struct thread *) olock(h, OBJECT_THREAD);
+    if (!t) return -EBADF;
 
-  priority = get_thread_priority(t);
+    priority = kthread_get_priority(t);
 
-  orel(t);
+    orel(t);
 
-  return priority;
+    return priority;
 }
 
-static int sys_setprio(char *params) {
-  handle_t h;
-  struct thread *t;
-  int priority;
-  int rc;
+static int sys_setprio(char *params)
+{
+    handle_t h;
+    struct thread *t;
+    int priority;
+    int rc;
 
-  h = *(handle_t *) params;
-  priority = *(int *) (params + 4);
+    h = *(handle_t *) params;
+    priority = *(int *) (params + 4);
 
-  t = (struct thread *) olock(h, OBJECT_THREAD);
-  if (!t) return -EBADF;
+    t = (struct thread *) olock(h, OBJECT_THREAD);
+    if (!t) return -EBADF;
 
-  if (priority < 1 || priority > 15) {
-    // User mode code can only set priority levels 1-15
-    rc = -EINVAL;
-  } else if (!t->tib) {
-    // User mode code not allowed to set priority for kernel threads
-    rc = -EPERM;
-  } else {
-    // Change thread priority
-    rc = set_thread_priority(t, priority);
-  }
+    if (priority < 1 || priority > 15)
+        // User mode code can only set priority levels 1-15
+        rc = -EINVAL;
+    else
+    if (!t->tib)
+        // User mode code not allowed to set priority for kernel threads
+        rc = -EPERM;
+    else
+        // Change thread priority
+        rc = kthread_set_priority(t, priority);
 
-  orel(t);
-  return rc;
+    orel(t);
+    return rc;
 }
 
 static int sys_msleep(char *params) {
@@ -2064,6 +2072,9 @@ static int sys_select(char *params) {
   return rc;
 }
 
+// TODO: we don't have this prototype in any kernel include?
+int pipe(struct file **readpipe, struct file **writepipe);
+
 static int sys_pipe(char *params) {
   handle_t *fildes;
   int rc;
@@ -2167,7 +2178,7 @@ static int sys_sysinfo(char *params) {
       if (!data || size < sizeof(struct cpuinfo)) {
         rc = -EFAULT;
       } else {
-        rc = cpu_sysinfo((struct cpuinfo *) data);
+        rc = kcpu_get_info((struct cpuinfo *) data);
       }
       break;
 
@@ -2651,7 +2662,7 @@ struct syscall_entry syscalltab[] = {
 
 int syscall(int syscallno, char *params, struct context *ctxt) {
   int rc;
-  struct thread *t = self();
+  struct thread *t = kthread_self();
 
   t->ctxt = ctxt;
   if (syscallno < 0 || syscallno > SYSCALL_MAX) return -ENOSYS;

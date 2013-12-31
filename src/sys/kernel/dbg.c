@@ -204,24 +204,28 @@ static int dbg_recv_packet(struct dbg_hdr *hdr, void *data) {
   return hdr->len;
 }
 
-static void dbg_connect(struct dbg_hdr *hdr, union dbg_body *body) {
-  struct thread *t = self();
+static void dbg_connect(struct dbg_hdr *hdr, union dbg_body *body)
+{
+    struct thread *t = kthread_self();
 
-  if (body->conn.version != DRPC_VERSION) {
-    dbg_send_error(DBGERR_VERSION, hdr->id);
-  } else {
-    body->conn.version = DRPC_VERSION;
-    body->conn.trap = last_trap;
-    body->conn.mod.hmod = (hmodule_t) OSBASE;
-    body->conn.mod.name = &krnlname;
-    body->conn.thr.tid = t->id;
-    body->conn.thr.tib = t->tib;
-    body->conn.thr.tcb = t;
-    body->conn.thr.startaddr = t->entrypoint;
-    body->conn.cpu = global_cpu;
+    if (body->conn.version != DRPC_VERSION)
+    {
+        dbg_send_error(DBGERR_VERSION, hdr->id);
+    }
+    else
+    {
+        body->conn.version = DRPC_VERSION;
+        body->conn.trap = last_trap;
+        body->conn.mod.hmod = (hmodule_t) OSBASE;
+        body->conn.mod.name = &krnlname;
+        body->conn.thr.tid = t->id;
+        body->conn.thr.tib = t->tib;
+        body->conn.thr.tcb = t;
+        body->conn.thr.startaddr = t->entrypoint;
+        body->conn.cpu = global_cpu;
 
-    dbg_send_packet(hdr->cmd + DBGCMD_REPLY, hdr->id, body, sizeof(struct dbg_connect));
-  }
+        dbg_send_packet(hdr->cmd + DBGCMD_REPLY, hdr->id, body, sizeof(struct dbg_connect));
+    }
 }
 
 static void dbg_read_memory(struct dbg_hdr *hdr, union dbg_body *body) {
@@ -251,7 +255,7 @@ static void dbg_suspend_thread(struct dbg_hdr *hdr, union dbg_body *body) {
     t = kthread_get(tid);
     if (t == NULL) {
       body->thr.threadids[n] = -ENOENT;
-    } else if (t != self()) {
+    } else if (t != kthread_self()) {
       body->thr.threadids[n] = kthread_suspend(t);
     }
   }
@@ -269,7 +273,7 @@ static void dbg_resume_thread(struct dbg_hdr *hdr, union dbg_body *body) {
     t = kthread_get(tid);
     if (t == NULL) {
       body->thr.threadids[n] = -ENOENT;
-    } else if (t != self()) {
+    } else if (t != kthread_self()) {
       body->thr.threadids[n] = kthread_resume(t);
     }
   }
@@ -437,7 +441,8 @@ static void dbg_main() {
     switch (hdr.cmd) {
       case DBGCMD_CONNECT:
         dbg_connect(&hdr, body);
-        print_string("dbg: remote debugger connected\n");
+        // TODO: where is this function?
+        //print_string("dbg: remote debugger connected\n");
         break;
 
       case DBGCMD_CONTINUE:
@@ -497,13 +502,14 @@ void dumpregs(struct context *ctxt) {
   kprintf("EIP  = %08X EFLG = %08X TRAP = %08X ERR  = %08X\n", ctxt->eip, ctxt->eflags, ctxt->traptype, ctxt->errcode);
 }
 
-void dbg_enter(struct context *ctxt, void *addr) {
+void dbg_enter(struct context *ctxt, void *addr)
+{
   if (!debugging) {
-    kprintf("dbg: trap %d (%s) thread %d, addr %p\n", ctxt->traptype, trapnames[ctxt->traptype], self()->id, addr);
+    kprintf("dbg: trap %d (%s) thread %d, addr %p\n", ctxt->traptype, trapnames[ctxt->traptype], kthread_self()->id, addr);
     dumpregs(ctxt);
   }
 
-  last_trap.tid = self()->id;
+  last_trap.tid = kthread_self()->id;
   last_trap.traptype = ctxt->traptype;
   last_trap.errcode = ctxt->errcode;
   last_trap.eip = ctxt->eip;
@@ -513,7 +519,7 @@ void dbg_enter(struct context *ctxt, void *addr) {
 
   if (debugging) {
     if (debugger_active) {
-      kprintf("dbg: trap %d thread %d, addr %p while debugger active, system halted.\n", ctxt->traptype, self()->id, addr);
+      kprintf("dbg: trap %d thread %d, addr %p while debugger active, system halted.\n", ctxt->traptype, kthread_self()->id, addr);
       dumpregs(ctxt);
       kmach_cli();
       kmach_halt();
@@ -524,7 +530,7 @@ void dbg_enter(struct context *ctxt, void *addr) {
 
   dbg_main();
 
-  if (self()->suspend_count > 0) dispatch();
+  if (kthread_self()->suspend_count > 0) dispatch();
 }
 
 void dbg_notify_create_thread(struct thread *t, void *startaddr) {

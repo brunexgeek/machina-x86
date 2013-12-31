@@ -395,7 +395,7 @@ class MakefileGenerator:
 #
 
 generator = MakefileGenerator()
-generator.addVariable("CFLAGS", "-O0 -m32 -mtune=i686")
+generator.addVariable("override CFLAGS", "$(CFLAGS) -Wall -Werror-implicit-function-declaration -O0 -m32 -mtune=i686")
 generator.addVariable("LDFLAGS", "-m32 -mtune=i686")
 generator.addVariable("NASM", "build/tools/nasm")
 generator.addVariable("TARGET_MACHINE", "x86")

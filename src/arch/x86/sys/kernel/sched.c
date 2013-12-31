@@ -61,7 +61,7 @@ void mark_thread_running() {
     struct tib *tib;
 
     // Set thread state to running
-    t = self();
+    t = kthread_self();
     t->state = THREAD_STATE_RUNNING;
     t->context_switches++;
 
@@ -96,7 +96,7 @@ void mark_thread_running() {
 
 void user_thread_start(void *arg)
 {
-    struct thread *t = self();
+    struct thread *t = kthread_self();
     unsigned long *stacktop;
     void *entrypoint;
 

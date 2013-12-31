@@ -162,7 +162,7 @@ blkno_t set_inode_block(struct inode *inode, unsigned int iblock, blkno_t block)
 }
 
 struct inode *alloc_inode(struct inode *parent, unsigned short mode) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   ino_t ino;
   struct inode *inode;
   unsigned int group;

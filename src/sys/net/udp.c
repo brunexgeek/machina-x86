@@ -9,16 +9,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,11 +28,12 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <net/net.h>
+#include <os/kmalloc.h>
 
 static struct udp_pcb *udp_pcbs = NULL;
 
@@ -69,10 +70,10 @@ void udp_init() {
 static unsigned short udp_new_port() {
   struct udp_pcb *pcb;
   static unsigned short port = 4096;
-  
+
 again:
   if(++port > 0x7FFF) port = 4096;
-  
+
   for (pcb = udp_pcbs; pcb != NULL; pcb = pcb->next) {
     if (pcb->local_port == port) goto again;
   }
@@ -81,13 +82,13 @@ again:
 }
 
 err_t udp_input(struct pbuf *p, struct netif *inp) {
-  struct udp_hdr *udphdr;  
+  struct udp_hdr *udphdr;
   struct udp_pcb *pcb;
   struct ip_hdr *iphdr;
   unsigned short src, dest;
 
   stats.udp.recv++;
-  
+
   iphdr = p->payload;
   if (pbuf_header(p, -(IPH_HL(iphdr) * 4)) < 0 || p->tot_len < sizeof(struct udp_hdr)) {
     kprintf(KERN_WARNING "udp_input: short packet (%u bytes) discarded\n", p->tot_len);
@@ -134,7 +135,7 @@ err_t udp_input(struct pbuf *p, struct netif *inp) {
           (ip_addr_isany(&pcb->remote_ip) || ip_addr_cmp(&pcb->remote_ip, &iphdr->src)) &&
           (ip_addr_isany(&pcb->local_ip) || ip_addr_cmp(&pcb->local_ip, &iphdr->dest))) {
         break;
-      }      
+      }
     }
   }
 
@@ -196,9 +197,9 @@ err_t udp_send(struct udp_pcb *pcb, struct pbuf *p, struct ip_addr *dst_ip, unsi
   }
 
   //kprintf("udp_send: sending datagram of length %d\n", p->tot_len);
-  
+
   udphdr->len = htons((unsigned short) p->tot_len);
-  
+
   // Calculate checksum
   if ((netif->flags & NETIF_UDP_TX_CHECKSUM_OFFLOAD) == 0) {
     if ((pcb->flags & UDP_FLAGS_NOCHKSUM) == 0) {
@@ -209,7 +210,7 @@ err_t udp_send(struct udp_pcb *pcb, struct pbuf *p, struct ip_addr *dst_ip, unsi
 
   //udp_debug_print(udphdr);
   err = ip_output_if(p, src_ip, dst_ip, UDP_TTL, IP_PROTO_UDP, netif);
-  
+
   stats.udp.xmit++;
 
   return err;
@@ -244,7 +245,7 @@ err_t udp_bind(struct udp_pcb *pcb, struct ip_addr *ipaddr, unsigned short port)
 
 err_t udp_connect(struct udp_pcb *pcb, struct ip_addr *ipaddr, unsigned short port) {
   struct udp_pcb *ipcb;
-  
+
   ip_addr_set(&pcb->remote_ip, ipaddr);
   pcb->remote_port = port;
   pcb->flags |= UDP_FLAGS_CONNECTED;
@@ -259,12 +260,12 @@ err_t udp_connect(struct udp_pcb *pcb, struct ip_addr *ipaddr, unsigned short po
   // We need to place the PCB on the list
   pcb->next = udp_pcbs;
   udp_pcbs = pcb;
-  
+
   return 0;
 }
 
-void udp_recv(struct udp_pcb *pcb, 
-              err_t (*recv)(void *arg, struct udp_pcb *upcb, struct pbuf *p, struct ip_addr *addr, unsigned short port), 
+void udp_recv(struct udp_pcb *pcb,
+              err_t (*recv)(void *arg, struct udp_pcb *upcb, struct pbuf *p, struct ip_addr *addr, unsigned short port),
               void *recv_arg) {
   pcb->recv = recv;
   pcb->recv_arg = recv_arg;
@@ -272,7 +273,7 @@ void udp_recv(struct udp_pcb *pcb,
 
 void udp_remove(struct udp_pcb *pcb) {
   struct udp_pcb *pcb2;
-  
+
   if (udp_pcbs == pcb) {
     udp_pcbs = udp_pcbs->next;
   } else {

@@ -33,6 +33,8 @@
 
 #include <os/krnl.h>
 #include <os/queue.h>
+#include <os/kmalloc.h>
+
 
 struct queue *alloc_queue(int size) {
   struct queue *q = (struct queue *) kmalloc(sizeof(struct queue));

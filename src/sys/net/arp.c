@@ -33,6 +33,7 @@
 //
 
 #include <net/net.h>
+#include <os/dev.h>
 
 #define HWTYPE_ETHERNET    1
 

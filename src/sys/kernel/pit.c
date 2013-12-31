@@ -37,6 +37,8 @@
 #include <os/cpu.h>
 #include <os/procfs.h>
 #include <os/trap.h>
+#include <os/pic.h>
+
 
 #define TMR_CTRL        0x43    // I/O for control
 #define TMR_CNT0        0x40    // I/O for counter 0
@@ -118,7 +120,7 @@ int timer_handler(struct context *ctxt, void *arg) {
   }
 
   // Update thread times and load average
-  t = self();
+  t = kthread_self();
   if (in_dpc) {
     dpc_time++;
     *loadptr = LOADTYPE_DPC;

@@ -143,7 +143,7 @@ int dfs_stat(struct fs *fs, char *name, struct stat64 *buffer) {
 }
 
 int dfs_access(struct fs *fs, char *name, int mode) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   struct inode *inode;
   int rc;
 
@@ -411,7 +411,7 @@ int dfs_unlink(struct fs *fs, char *name) {
 }
 
 int dfs_chmod(struct fs *fs, char *name, int mode) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   struct inode *inode;
   int rc;
 
@@ -432,7 +432,7 @@ int dfs_chmod(struct fs *fs, char *name, int mode) {
 }
 
 int dfs_chown(struct fs *fs, char *name, int owner, int group) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   struct inode *inode;
   int rc;
 

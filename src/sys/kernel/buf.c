@@ -142,7 +142,7 @@ static int wait_for_buffer(struct buf *buf)
 
     t->next_waiter = buf->waiters;
     buf->waiters = t;
-    enter_wait(THREAD_WAIT_BUFFER);
+    kthread_wait(THREAD_WAIT_BUFFER);
     return t->waitkey;
 }
 
@@ -160,7 +160,7 @@ static void release_buffer_waiters(struct buf *buf, int waitkey) {
     thread->next_waiter = NULL;
     thread->waitkey = waitkey;
 
-    mark_thread_ready(thread, 1, BUFWAIT_BOOST);
+    kthread_ready(thread, 1, BUFWAIT_BOOST);
     thread = next;
   }
   buf->waiters = NULL;
@@ -391,7 +391,7 @@ static struct buf *get_new_buffer(struct bufpool *pool) {
     }
 
     // Allocation from neither the free, clean or dirty list succeeded, yield and try again
-    yield();
+    kthread_yield();
   }
 }
 

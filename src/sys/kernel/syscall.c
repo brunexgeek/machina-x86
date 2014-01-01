@@ -2733,8 +2733,8 @@ int syscall(int syscallno, char *params, struct context *ctxt) {
   }
 #endif
 
-  check_dpc_queue();
-  check_preempt();
+  kdpc_check_queue();
+  ksched_check_preempt();
   if (signals_ready(t)) deliver_pending_signals(rc);
 
   t->ctxt = NULL;

@@ -68,14 +68,14 @@ static void init_debug_port() {
 }
 
 static void dbg_send(void *buffer, int count) {
-  unsigned char *p = buffer;
+    unsigned char *p = buffer;
 
-  while (count-- > 0) {
+    while (count-- > 0) {
     while ((inp(DEBUGPORT + 5) & 0x20) == 0) {
-      if (!debug_nointr) check_dpc_queue();
+    if (!debug_nointr) kdpc_check_queue();
     }
     outp(DEBUGPORT, *p++);
-  }
+    }
 }
 
 static void dbg_recv(void *buffer, int count) {
@@ -83,7 +83,7 @@ static void dbg_recv(void *buffer, int count) {
 
   while (count-- > 0) {
     while ((inp(DEBUGPORT + 5) & 0x01) == 0) {
-      if (!debug_nointr) check_dpc_queue();
+      if (!debug_nointr) kdpc_check_queue();
     }
     *p++ = inp(DEBUGPORT) & 0xFF;
   }
@@ -401,7 +401,7 @@ static void dbg_get_modules(struct dbg_hdr *hdr, union dbg_body *body) {
 
 static void dbg_get_threads(struct dbg_hdr *hdr, union dbg_body *body) {
   int n = 0;
-  struct thread *t = threadlist;
+  struct thread *t = kthread_self();//threadlist;
 
   while (1) {
     body->thl.threads[n].tid = t->id;
@@ -411,7 +411,7 @@ static void dbg_get_threads(struct dbg_hdr *hdr, union dbg_body *body) {
     n++;
 
     t = t->next;
-    if (t == threadlist) break;
+    if (t == kthread_self()/*threadlist*/) break;
   }
   body->thl.count = n;
   dbg_send_packet(hdr->cmd | DBGCMD_REPLY, hdr->id, body, sizeof(struct dbg_threadlist) + n * sizeof(struct dbg_threadinfo));
@@ -530,7 +530,7 @@ void dbg_enter(struct context *ctxt, void *addr)
 
   dbg_main();
 
-  if (kthread_self()->suspend_count > 0) dispatch();
+  if (kthread_self()->suspend_count > 0) ksched_dispatch();
 }
 
 void dbg_notify_create_thread(struct thread *t, void *startaddr) {

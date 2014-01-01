@@ -197,7 +197,7 @@ static int fd_command(unsigned char cmd) {
     }
 
     if (time_before(tmo, ticks)) break;
-    yield(); // delay
+    kthread_yield(); // delay
   }
 
   if (!fd_init) kprintf(KERN_WARNING "fd: command timeout\n");
@@ -217,7 +217,7 @@ static int fd_data() {
     msr = inp(FDC_MSR);
     if ((msr & 0xd0) == 0xd0) return inp(FDC_DATA) & 0xFF;
     if (time_before(tmo, ticks)) break;
-    yield(); // delay
+    kthread_yield(); // delay
   }
 
   if (!fd_init) kprintf(KERN_WARNING "fd: data timeout\n");
@@ -558,10 +558,11 @@ static void fd_dpc(void *arg) {
 // fd_handler
 //
 
-static int fd_handler(struct context *ctxt, void *arg) {
-  queue_irq_dpc(&fdc.dpc, fd_dpc, arg);
-  eoi(IRQ_FD);
-  return 0;
+static int fd_handler(struct context *ctxt, void *arg)
+{
+    kdpc_queue_irq(&fdc.dpc, fd_dpc, "fd_dpc", arg);
+    eoi(IRQ_FD);
+    return 0;
 }
 
 struct driver floppy_driver = {
@@ -639,7 +640,7 @@ void init_fd()
   //fdc.type = version;
   //fdc.name = name;
 
-  init_dpc(&fdc.dpc);
+  kdpc_create(&fdc.dpc);
   init_mutex(&fdc.lock, 0);
   init_event(&fdc.done, 0, 0);
   fdc.dor = 0x0C; // TODO: select drive in DOR on transfer

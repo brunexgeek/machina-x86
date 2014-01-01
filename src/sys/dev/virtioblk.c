@@ -171,7 +171,7 @@ static int virtioblk_read(struct dev *dev, void *buffer, size_t count, blkno_t b
   virtio_kick(&vblk->vq);
 
   // Wait for request to complete
-  enter_wait(THREAD_WAIT_DEVIO);
+  kthread_wait(THREAD_WAIT_DEVIO);
 
   // Check status code
   switch (req.status) {
@@ -202,7 +202,7 @@ static int virtioblk_write(struct dev *dev, void *buffer, size_t count, blkno_t 
   virtio_kick(&vblk->vq);
 
   // Wait for request to complete
-  enter_wait(THREAD_WAIT_DEVIO);
+  kthread_wait(THREAD_WAIT_DEVIO);
 
   // Check status code
   switch (req.status) {
@@ -221,7 +221,7 @@ static int virtioblk_callback(struct virtio_queue *vq) {
 
   while ((req = virtio_dequeue(vq, &len)) != NULL) {
     req->size = len;
-    mark_thread_ready(req->thread, 1, 2);
+    kthread_ready(req->thread, 1, 2);
   }
 
   return 0;

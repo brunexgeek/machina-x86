@@ -116,6 +116,7 @@ void init_cdfs();
 
 extern int serial_console;
 void init_console();
+int console(struct unit *unit, char *opts);
 void console_print(char *buffer, int size);
 
 // serial.c
@@ -379,6 +380,16 @@ static int copyright_proc(struct proc_file *pf, void *arg)
     return 0;
 }
 
+
+int dummy_func( void *arg)
+{
+    while (1)
+    {
+        kthread_wait(0);
+    }
+}
+
+
 __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     void *hmod,
     char *opts,
@@ -388,6 +399,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     strcpy(krnlopts, opts);
     //if (get_option(opts, "silent", NULL, 0, NULL) != NULL) kprint_enabled = 0;
     //if (get_option(opts, "serialconsole", NULL, 0, NULL) != NULL) serial_console = 1;
+    serial_console = 1;
 
     // Initialize console
     init_console();
@@ -431,7 +443,6 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     register_proc_inode("kmodmem", kmodmem_proc, NULL);
     register_proc_inode("kheap", kheapstat_proc, NULL);
     register_proc_inode("vmem", vmem_proc, NULL);
-//console(NULL, NULL);
     register_proc_inode("cpu", kcpu_proc, NULL);
 
     // Initialize interrupts, floating-point support, and real-time clock
@@ -452,8 +463,11 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
 
     // Start main task and dispatch to idle task
     mainthread = kthread_create_kland(main, 0, PRIORITY_NORMAL, "init");
-    idle_task();
+    kthread_create_kland(dummy_func, 0, PRIORITY_NORMAL, "dummy");
+    kthread_create_kland(dummy_func, 0, PRIORITY_NORMAL, "dumbass");
+    ksched_idle();
 }
+
 
 void init_net()
 {
@@ -487,7 +501,7 @@ void main(void *arg)
     int rc;
     char *str;
     struct file *cons;
-    char *console;
+    char *sconsole;
 
     // Allocate and initialize PEB
     peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 0x00504542 /* PEB */, NULL);
@@ -539,7 +553,8 @@ void main(void *arg)
     peb->pathsep = pathsep;
 
     // Initialize module loader
-    // >>> init_kernel_modules();
+    //init_kernel_modules();
+console(NULL, NULL);
 
     // Get os version info from kernel version resource
     /*get_version_value((hmodule_t) OSBASE, "ProductName", peb->osname, sizeof peb->osname);
@@ -569,14 +584,21 @@ void main(void *arg)
     register_proc_inode("copyright", copyright_proc, NULL);
 
     // Allocate handles for stdin, stdout and stderr
-    console = get_property(krnlcfg, "kernel", "console", serial_console ? "/dev/com1" : "/dev/console");
-    rc = open(console, O_RDWR, S_IREAD | S_IWRITE, &cons);
+    sconsole = get_property(krnlcfg, "kernel", "console", serial_console ? "/dev/com1" : "/dev/console");
+    rc = open(sconsole, O_RDWR, S_IREAD | S_IWRITE, &cons);
     if (rc < 0) panic("no console");
     cons->flags |= F_TTY;
     if (halloc(&cons->iob.object) != 0) panic("unexpected stdin handle");
     if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
+
+    while (1)
+    {
+        kprintf("%s is waiting\n", kthread_self()->name);
+        kthread_wait(0);
+    }
+/*
     // Load kernel32.so in user address space
     imgbase = load_image_file(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
     if (!imgbase) panic("unable to load kernel32.so");
@@ -622,5 +644,5 @@ void main(void *arg)
         :
         : "i" (SEL_UDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3), "m" (stacktop), "m" (entrypoint)
     );
-kprintf("## %s %d\n", __FILE__, __LINE__);
+kprintf("## %s %d\n", __FILE__, __LINE__);*/
 }

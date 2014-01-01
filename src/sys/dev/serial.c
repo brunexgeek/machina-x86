@@ -624,7 +624,7 @@ static int serial_handler(struct context *ctxt, void *arg) {
   // Set OUT2 to enable interrupts
   outp(sp->iobase + UART_MCR, sp->mcr);
 
-  queue_irq_dpc(&sp->dpc, serial_dpc, sp);
+  kdpc_queue_irq(&sp->dpc, serial_dpc, "serial_dpc", sp);
   eoi(sp->irq);
 
   return 0;
@@ -655,7 +655,7 @@ static void init_serial_port(char *devname, int iobase, int irq, struct unit *un
   sp->cfg.rx_timeout = INFINITE;
   sp->cfg.tx_timeout = INFINITE;
 
-  init_dpc(&sp->dpc);
+  kdpc_create(&sp->dpc);
   sp->dpc.flags |= DPC_NORAND;
 
   init_event(&sp->event, 0, 0);

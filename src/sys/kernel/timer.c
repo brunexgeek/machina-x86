@@ -300,7 +300,7 @@ void run_timer_list()
 static void tmr_sleep(void *arg)
 {
     struct thread *t = arg;
-    mark_thread_ready(t, 1, 0);
+    kthread_ready(t, 1, 0);
 }
 
 //
@@ -316,7 +316,7 @@ int msleep(unsigned int millisecs)
 
     if (millisecs == 0)
     {
-        yield();
+        kthread_yield();
         rc = 0;
     }
     else
@@ -324,7 +324,7 @@ int msleep(unsigned int millisecs)
         ktimer_init(&timer, tmr_sleep, kthread_self());
         timer.expires = ticks + millisecs / MSECS_PER_TICK;
         ktimer_add(&timer);
-        rc = enter_alertable_wait(THREAD_WAIT_SLEEP);
+        rc = kthread_alertable_wait(THREAD_WAIT_SLEEP);
         if (rc == -EINTR)
         {
             rc = (timer.expires - ticks) * MSECS_PER_TICK;

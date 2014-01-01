@@ -89,17 +89,18 @@ void beep()  {
   nosound();
 }
 
-void init_serial_console() {
-  // Turn off interrupts
-  outp(SERIAL_CONSOLE_PORT + 1, 0);
+void init_serial_console()
+{
+    // Turn off interrupts
+    outp(SERIAL_CONSOLE_PORT + 1, 0);
 
-  // Set 115200 baud, 8 bits, no parity, one stopbit
-  outp(SERIAL_CONSOLE_PORT + 3, 0x80);
-  outp(SERIAL_CONSOLE_PORT + 0, 0x01); // 0x0C = 9600, 0x01 = 115200
-  outp(SERIAL_CONSOLE_PORT + 1, 0x00);
-  outp(SERIAL_CONSOLE_PORT + 3, 0x03);
-  outp(SERIAL_CONSOLE_PORT + 2, 0xC7);
-  outp(SERIAL_CONSOLE_PORT + 4, 0x0B);
+    // Set 115200 baud, 8 bits, no parity, one stopbit
+    outp(SERIAL_CONSOLE_PORT + 3, 0x80);
+    outp(SERIAL_CONSOLE_PORT + 0, 0x01); // 0x0C = 9600, 0x01 = 115200
+    outp(SERIAL_CONSOLE_PORT + 1, 0x00);
+    outp(SERIAL_CONSOLE_PORT + 3, 0x03);
+    outp(SERIAL_CONSOLE_PORT + 2, 0xC7);
+    outp(SERIAL_CONSOLE_PORT + 4, 0x0B);
 }
 
 static void serial_console_write(void *buffer, int count) {

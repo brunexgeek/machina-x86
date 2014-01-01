@@ -145,7 +145,7 @@ int timer_handler(struct context *ctxt, void *arg) {
   if (t->quantum <= 0) preempt = 1;
 
   // Queue timer DPC
-  queue_irq_dpc(&timerdpc, timer_dpc, NULL);
+  kdpc_queue_irq(&timerdpc, timer_dpc, "timer_dpc", NULL);
 
   eoi(IRQ_TMR);
   return 0;
@@ -372,7 +372,7 @@ void init_pit() {
   systemclock.tv_sec = mktime(&tm);
   upsince = systemclock.tv_sec;
 
-  init_dpc(&timerdpc);
+  kdpc_create(&timerdpc);
   timerdpc.flags |= DPC_NORAND; // Timer tick is a bad source for randomness
   register_interrupt(&timerintr, INTR_TMR, timer_handler, NULL);
   enable_irq(IRQ_TMR);

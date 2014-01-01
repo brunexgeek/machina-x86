@@ -59,7 +59,7 @@ int virtio_handler(struct context *ctxt, void *arg) {
   if (!isr) return 0;
 
   // Queue DPC to read the queues for the device
-  queue_irq_dpc(&vd->dpc, virtio_dpc, vd);
+  kdpc_queue_irq(&vd->dpc, virtio_dpc, "virtio_dpc", vd);
   eoi(vd->irq);
   return 1;
 }

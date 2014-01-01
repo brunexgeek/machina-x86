@@ -435,7 +435,7 @@ static int hd_wait(struct hdc *hdc, unsigned char mask, unsigned int timeout) {
     if (!(status & HDCS_BSY) && ((status & mask) == mask)) return 0;
     if (time_before(start + timeout, clocks)) return -ETIMEOUT;
 
-    yield();
+    kthread_yield();
   }
 }
 
@@ -1274,13 +1274,14 @@ void hd_dpc(void *arg) {
   }
 }
 
-int hdc_handler(struct context *ctxt, void *arg) {
-  struct hdc *hdc = (struct hdc *) arg;
+int hdc_handler(struct context *ctxt, void *arg)
+{
+    struct hdc *hdc = (struct hdc *) arg;
 
-  if (hdc->xfer_dpc.flags & DPC_QUEUED) kprintf("hd: intr lost\n");
-  queue_irq_dpc(&hdc->xfer_dpc, hd_dpc, hdc);
-  eoi(hdc->irq);
-  return 0;
+    if (hdc->xfer_dpc.flags & DPC_QUEUED) kprintf("hd: intr lost\n");
+    kdpc_queue_irq(&hdc->xfer_dpc, hd_dpc, "hd_dpc", hdc);
+    eoi(hdc->irq);
+    return 0;
 }
 
 static int part_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
@@ -1459,7 +1460,7 @@ static int setup_hdc(struct hdc *hdc, int iobase, int irq, int bmregbase, int *m
     hdc->prds_phys = virt2phys(hdc->prds);
   }
 
-  init_dpc(&hdc->xfer_dpc);
+  kdpc_create(&hdc->xfer_dpc);
   init_mutex(&hdc->lock, 0);
   init_event(&hdc->ready, 0, 0);
 

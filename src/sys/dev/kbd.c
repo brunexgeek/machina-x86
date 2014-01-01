@@ -415,10 +415,10 @@ static void keyb_dpc(void *arg) {
 // Keyboard interrupt handler
 //
 
-int keyboard_handler(struct context *ctxt, void *arg) {
-  queue_irq_dpc(&kbddpc, keyb_dpc, NULL);
-
-  return 0;
+int keyboard_handler(struct context *ctxt, void *arg)
+{
+    kdpc_queue_irq(&kbddpc, keyb_dpc, "keyb_dpc", NULL);
+    return 0;
 }
 
 //
@@ -593,7 +593,7 @@ void init_keyboard(dev_t devno, int reset) {
   if (reset) reset_keyboard();
 
   // Setup keyboard interrupt handler
-  init_dpc(&kbddpc);
+  kdpc_create(&kbddpc);
   init_sem(&kbdsem, 0);
   register_interrupt(&kbdintr, INTR_KBD, keyboard_handler, NULL);
   enable_irq(IRQ_KBD);

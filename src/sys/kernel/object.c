@@ -127,12 +127,13 @@ void cancel_wait(struct thread *t) {
 // Release thread and mark it as ready to run
 //
 
-void release_thread(struct thread *t) {
-  // Remove thread from wait lists
-  cancel_wait(t);
+void release_thread(struct thread *t)
+{
+    // Remove thread from wait lists
+    cancel_wait(t);
 
-  // Mark thread as ready
-  mark_thread_ready(t, 1, 1);
+    // Mark thread as ready
+    kthread_ready(t, 1, 1);
 }
 
 //
@@ -257,13 +258,13 @@ int wait_for_one_object(object_t hobj, unsigned int timeout, int alertable) {
   if (timeout == INFINITE) {
     // Wait for object to become signaled
     if (alertable) {
-      int rc = enter_alertable_wait(THREAD_WAIT_OBJECT);
+      int rc = kthread_alertable_wait(THREAD_WAIT_OBJECT);
       if (rc < 0) {
         cancel_wait(t);
         t->waitkey = rc;
       }
     } else {
-      enter_wait(THREAD_WAIT_OBJECT);
+      kthread_wait(THREAD_WAIT_OBJECT);
     }
 
     // Return waitkey
@@ -286,13 +287,13 @@ int wait_for_one_object(object_t hobj, unsigned int timeout, int alertable) {
 
     // Wait for object to become signaled or time out
     if (alertable) {
-      int rc = enter_alertable_wait(THREAD_WAIT_OBJECT);
+      int rc = kthread_alertable_wait(THREAD_WAIT_OBJECT);
       if (rc < 0) {
         cancel_wait(t);
         t->waitkey = rc;
       }
     } else {
-      enter_wait(THREAD_WAIT_OBJECT);
+      kthread_wait(THREAD_WAIT_OBJECT);
     }
 
     // Stop timer
@@ -395,13 +396,13 @@ int wait_for_all_objects(struct object **objs, int count, unsigned int timeout, 
 
   // Wait for all objects to become signaled or time out
   if (alertable) {
-    int rc = enter_alertable_wait(THREAD_WAIT_OBJECT);
+    int rc = kthread_alertable_wait(THREAD_WAIT_OBJECT);
     if (rc < 0) {
       cancel_wait(t);
       t->waitkey = rc;
     }
   } else {
-    enter_wait(THREAD_WAIT_OBJECT);
+    kthread_wait(THREAD_WAIT_OBJECT);
   }
 
   // Stop timer
@@ -481,13 +482,13 @@ int wait_for_any_object(struct object **objs, int count, unsigned int timeout, i
 
   // Wait for any object to become signaled or time out
   if (alertable) {
-    int rc = enter_alertable_wait(THREAD_WAIT_OBJECT);
+    int rc = kthread_alertable_wait(THREAD_WAIT_OBJECT);
     if (rc < 0) {
       cancel_wait(t);
       t->waitkey = rc;
     }
   } else {
-    enter_wait(THREAD_WAIT_OBJECT);
+    kthread_wait(THREAD_WAIT_OBJECT);
   }
 
   // Stop timer

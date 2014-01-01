@@ -115,7 +115,7 @@ static void release_all_waiters(struct pipe *pipe, int retcode) {
   while (req) {
     next = req->next;
     req->rc = retcode;
-    mark_thread_ready(req->thread, 1, 2);
+    kthread_ready(req->thread, 1, 2);
     req = next;
   }
 
@@ -243,7 +243,7 @@ int pipefs_read(struct file *filp, void *data, size_t size, off64_t pos) {
       pipe->peer->waithead = req->next;
       if (pipe->peer->waithead == NULL) pipe->peer->waittail = NULL;
       req->rc = 0;
-      mark_thread_ready(req->thread, 1, 2);
+      kthread_ready(req->thread, 1, 2);
     }
   }
 
@@ -271,7 +271,7 @@ int pipefs_read(struct file *filp, void *data, size_t size, off64_t pos) {
 
     if (!pipe->waithead) pipe->waithead = &req;
 
-    rc = enter_alertable_wait(THREAD_WAIT_PIPE);
+    rc = kthread_alertable_wait(THREAD_WAIT_PIPE);
     if (rc < 0) {
       cancel_request(pipe, &req);
       req.rc = rc;
@@ -308,7 +308,7 @@ int pipefs_write(struct file *filp, void *data, size_t size, off64_t pos) {
 
     pipe->peer->waithead = req->next;
     if (pipe->peer->waithead == NULL) pipe->peer->waittail = NULL;
-    mark_thread_ready(req->thread, 1, 2);
+    kthread_ready(req->thread, 1, 2);
   }
 
   if (pipe->peer->waithead == NULL) clear_io_event(&filp->iob, IOEVT_WRITE);
@@ -335,7 +335,7 @@ int pipefs_write(struct file *filp, void *data, size_t size, off64_t pos) {
 
     if (!pipe->waithead) pipe->waithead = &req;
 
-    rc = enter_alertable_wait(THREAD_WAIT_PIPE);
+    rc = kthread_alertable_wait(THREAD_WAIT_PIPE);
     if (rc < 0) {
       cancel_request(pipe, &req);
       req.rc = rc;

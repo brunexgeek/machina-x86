@@ -3,6 +3,7 @@
 //
 // Task scheduler
 //
+// Copyright (C) 2014 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,8 +32,8 @@
 // SUCH DAMAGE.
 //
 
-#ifndef SCHED_H
-#define SCHED_H
+#ifndef MACHINA_SCHED_H
+#define MACHINA_SCHED_H
 
 
 #include <os/krnl.h>
@@ -40,9 +41,19 @@
 #include <stdint.h>
 #include <os/asmutil.h>
 
-
+/**
+ * Prototype for thread functions.
+ */
 typedef void (*threadproc_t)(void *arg);
+
+/**
+ * Prototype for DPC functions.
+ */
 typedef void (*dpcproc_t)(void *arg);
+
+/**
+ * Prototype for
+ */
 typedef void (*taskproc_t)(void *arg);
 
 //#define NOPREEMPTION
@@ -75,6 +86,7 @@ typedef void (*taskproc_t)(void *arg);
 #define TASK_QUEUED       1
 #define TASK_EXECUTING    2
 
+
 /**
  * Thread Control Block (TCB) structure.
  */
@@ -85,20 +97,25 @@ struct tcb
     uint32_t *esp;
 };
 
+
 /**
- * Deferred Procedure Call (DPC) structure.
+ * Delayed Procedure Call (DPC) structure.
  *
  * @remark This is based on Microsoft Windows DPC.
  */
 struct dpc
 {
     dpcproc_t proc;
+    const char *proc_name;
     void *arg;
     struct dpc *next;
     int flags;
 };
 
 
+/**
+ * Task structure.
+ */
 struct task
 {
     taskproc_t proc;
@@ -108,6 +125,9 @@ struct task
 };
 
 
+/**
+ * Task queue structure.
+ */
 struct task_queue
 {
     struct task *head;
@@ -118,6 +138,7 @@ struct task_queue
     int flags;
 };
 
+
 struct kernel_context
 {
     unsigned long esi, edi;
@@ -126,8 +147,9 @@ struct kernel_context
     char stack[0];
 };
 
-extern struct thread *idlethread;
-extern struct thread *threadlist;
+
+//extern struct thread *idlethread;
+//extern struct thread *threadlist;
 extern struct task_queue sys_task_queue;
 
 extern struct dpc *dpc_queue_head;
@@ -137,48 +159,52 @@ extern int in_dpc;
 extern int preempt;
 extern unsigned long dpc_time;
 
-#if 0
-static __inline __declspec(naked) struct thread *self() {
-  __asm {
-    mov eax, esp;
-    and eax, TCBMASK
-    ret
-  }
-}
-#endif
 
-#if 0
-static __inline struct thread *self() {
-  unsigned long stkvar;
-  return (struct thread *) (((unsigned long) &stkvar) & TCBMASK);
-}
-#endif
+//
+// Thread sybsystem
+//
 
+/**
+ * @brief Returns the current running thread.
+ */
 struct thread *kthread_self(void) __asm__("___kthread_self");
 
-__asm__
-(
-    "___kthread_self: "
-    "mov eax, esp;"
-    "and eax, " TO_STRING(TCBMASK) ";"
-    "ret;"
-);
+/**
+ * @brief Mark a thread as ready to run.
+ */
+KERNELAPI void kthread_ready(struct thread *t, int charge, int boost);
 
-void mark_thread_running();
+/**
+ * @brief Block a thread until it is marked as ready to run.
+ */
+KERNELAPI void kthread_wait(int reason);
 
-KERNELAPI void mark_thread_ready(struct thread *t, int charge, int boost);
-KERNELAPI void enter_wait(int reason);
-KERNELAPI int enter_alertable_wait(int reason);
+/**
+ * @brief Block a thread until it is marked as ready to run.
+ */
+KERNELAPI int kthread_alertable_wait(int reason);
+
+/**
+ * @brief Interrupt the execution of the given thread.
+ */
 KERNELAPI int kthread_interrupt(struct thread *t);
 
+/**
+ * @brief Create a new thread in kernel mode.
+ */
 KERNELAPI struct thread *kthread_create_kland(threadproc_t startaddr, void *arg, int priority, char *name);
 
+/**
+ * @brief Create a new thread in user mode.
+ */
 int kthread_create_uland(void *entrypoint, unsigned long stacksize, char *name, struct thread **retval);
-int init_user_thread(struct thread *t, void *entrypoint);
-int allocate_user_stack(struct thread *t, unsigned long stack_reserve, unsigned long stack_commit);
-int kthread_destroy(struct thread *t);
 
-struct thread *get_thread(tid_t tid);
+/**
+ * @brief Destroy the given thread.
+ *
+ * The memory allocated for the thread structure will not be released.
+ */
+int kthread_destroy(struct thread *t);
 
 /**
  * @brief Increase the 'suspended' counter of the given thread.
@@ -191,53 +217,111 @@ int kthread_suspend(struct thread *t);
 /**
  * @brief Decrease the 'suspended' counter of the given thread.
  *
- * If the 'suspended' count reach zero, the thread is marked as ready to run again.
+ * If the 'suspended' counter reach zero, the thread is marked as ready to run again.
  */
 int kthread_resume(struct thread *t);
 
-struct thread *kthread_get(tid_t tid);
-
+/**
+ * Terminate the current running thread.
+ */
 void kthread_terminate(int exitcode);
-void ksched_suspend_user_threads();
+
+/**
+ * @brief Preempt the current running thread.
+ *
+ * A new quantum will be assigned to the thread and the next ready thread will be marked
+ * as running.
+ *
+ * @remark This function enable interrupts.
+ */
+void kthread_preempt();
+
 int schedule_alarm(unsigned int seconds);
 
-int kthread_get_priority(struct thread *t);
-int kthread_set_priority(struct thread *t, int priority);
+/**
+ * Get the priority of the given thread.
+ */
+int kthread_get_priority( struct thread *t );
+
+/**
+ * Set the priority of the given thread.
+ */
+int kthread_set_priority( struct thread *t, int priority );
+
+/**
+ * @brief Makes the current thread relinquish the CPU.
+ *
+ * The thread will give up your quantum and the next ready thread will be marked
+ * as running.
+ */
+KERNELAPI void kthread_yield();
+
+struct thread *kthread_get(tid_t tid);
+
+//
+// DPC subsystem
+//
+
+KERNELAPI void kdpc_create(struct dpc *dpc);
+KERNELAPI void kdpc_queue(struct dpc *dpc, dpcproc_t proc, void *arg);
+KERNELAPI void kdpc_queue_irq(struct dpc *dpc, dpcproc_t proc, const char *proc_name, void *arg);
+void kdpc_dispatch_queue();
+void kdpc_check_queue();
+
+//
+// Task scheduler subsystem
+//
+
+void ksched_init();
+void ksched_destroy();
+
+/**
+ * @brief Start the task scheduler idle loop.
+ *
+ * @remark This is a endless function. From this point only threads is executed.
+ */
+void ksched_idle();
+
+/**
+ * @brief Change the current running thread to the next ready one.
+ */
+KERNELAPI void ksched_dispatch();
+
+/**
+ * @brief Returns a non-zero integer indicating if the system is in idle state.
+ */
+KERNELAPI int ksched_is_system_idle();
+
+/**
+ * @brief Add a task in the idle queue.
+ *
+ * All tasks in the idle queue will be executed only when the ksched_is_system_idle()
+ * returns a non-zero value.
+ */
+KERNELAPI void ksched_add_idle_task(struct task *task, taskproc_t proc, void *arg);
+
+static __inline void ksched_check_preempt()
+{
+#ifndef NOPREEMPTION
+    if (preempt) kthread_preempt();
+#endif
+}
+
+static __inline int signals_ready(struct thread *t)
+{
+    return t->pending_signals & ~t->blocked_signals;
+}
+
+
+//
+// Task subsystem
+//
+
 
 KERNELAPI int init_task_queue(struct task_queue *tq, int priority, int maxsize, char *name);
 KERNELAPI void init_task(struct task *task);
 KERNELAPI int queue_task(struct task_queue *tq, struct task *task, taskproc_t proc, void *arg);
 
-KERNELAPI void init_dpc(struct dpc *dpc);
-KERNELAPI void queue_dpc(struct dpc *dpc, dpcproc_t proc, void *arg);
-KERNELAPI void queue_irq_dpc(struct dpc *dpc, dpcproc_t proc, void *arg);
 
-KERNELAPI void add_idle_task(struct task *task, taskproc_t proc, void *arg);
 
-void idle_task();
-KERNELAPI void yield();
-void dispatch_dpc_queue();
-void kthread_preempt();
-KERNELAPI void dispatch();
-KERNELAPI int system_idle();
-
-void ksched_init();
-void ksched_destroy();
-
-static __inline void check_dpc_queue()
-{
-    // TODO: fix this feature
-    if (dpc_queue_head) dispatch_dpc_queue();
-}
-
-static __inline void check_preempt() {
-#ifndef NOPREEMPTION
-  if (preempt) kthread_preempt();
-#endif
-}
-
-static __inline int signals_ready(struct thread *t) {
-  return t->pending_signals & ~t->blocked_signals;
-}
-
-#endif
+#endif  // MACHINA_SCHED_H

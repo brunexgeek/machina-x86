@@ -85,7 +85,7 @@ static int virtiocon_write(struct dev *dev, void *buffer, size_t count, blkno_t 
   virtio_kick(&vcon->output_queue);
 
   // Wait for request to complete
-  enter_wait(THREAD_WAIT_DEVIO);
+  kthread_wait(THREAD_WAIT_DEVIO);
 
   return count;
 }
@@ -111,7 +111,7 @@ static int virtiocon_output_callback(struct virtio_queue *vq) {
 
   kprintf("[VCO]");
   while ((thread = virtio_dequeue(vq, &len)) != NULL) {
-    mark_thread_ready(thread, 1, 2);
+    kthread_ready(thread, 1, 2);
   }
 
   return 0;

@@ -63,7 +63,7 @@ static int wait_for_klog() {
   req.next = klog_waiters;
   klog_waiters = &req;
 
-  enter_wait(THREAD_WAIT_DEVIO);
+  kthread_wait(THREAD_WAIT_DEVIO);
 
   return req.rc;
 }
@@ -75,7 +75,7 @@ static void release_klog_waiters(void *arg)
     // Defer scheduling of kernel log waiter if we are in a interrupt handler
     if ((kcpu_get_eflags() & EFLAG_IF) == 0)
     {
-        queue_irq_dpc(&klog_dpc, release_klog_waiters, NULL);
+        kdpc_queue_irq(&klog_dpc, release_klog_waiters, "release_klog_waiters", NULL);
         return;
     }
 
@@ -83,7 +83,7 @@ static void release_klog_waiters(void *arg)
     while (waiter)
     {
         waiter->rc = 0;
-        mark_thread_ready(waiter->thread, 1, 2);
+        kthread_ready(waiter->thread, 1, 2);
         waiter = waiter->next;
     }
 

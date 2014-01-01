@@ -56,10 +56,11 @@ void cancel_socket_request(struct sockreq *req) {
   }
 }
 
-void release_socket_request(struct sockreq *req, int rc) {
-  cancel_socket_request(req);
-  req->rc = rc;
-  mark_thread_ready(req->thread, 1, 2);
+void release_socket_request(struct sockreq *req, int rc)
+{
+    cancel_socket_request(req);
+    req->rc = rc;
+    kthread_ready(req->thread, 1, 2);
 }
 
 static void socket_timeout(void *arg) {
@@ -93,7 +94,7 @@ err_t submit_socket_request(struct socket *s, struct sockreq *req, int type, str
     ktimer_add(&timer);
   }
 
-  rc = enter_alertable_wait(THREAD_WAIT_SOCKET);
+  rc = kthread_alertable_wait(THREAD_WAIT_SOCKET);
   if (rc < 0) {
     cancel_socket_request(req);
     req->rc = rc;

@@ -289,7 +289,7 @@ static int batch_entropy_init(int size) {
   batch_head = batch_tail = 0;
   batch_max = size;
 
-  add_idle_task(&batch_task, batch_entropy_process, NULL);
+  ksched_add_idle_task(&batch_task, batch_entropy_process, NULL);
 
   return 0;
 }
@@ -328,7 +328,7 @@ static void batch_entropy_process(void *arg) {
 
   max_entropy = r->poolinfo.poolwords * 32;
   while (batch_head != batch_tail) {
-    if (!system_idle()) break;
+    if (!ksched_is_system_idle()) break;
     add_entropy_words(r, batch_entropy_pool + 2 * batch_tail, 2);
     p = r;
     if (r->entropy_count > max_entropy && (num & 1)) r = sec_random_state;

@@ -447,7 +447,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
 
     // Initialize interrupts, floating-point support, and real-time clock
     init_pic();
-    init_trap();
+    ktrap_init();
     init_fpu();
     init_pit();
 

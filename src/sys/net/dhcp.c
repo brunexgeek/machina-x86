@@ -275,10 +275,11 @@ static void dhcp_timeout_handler(struct dhcp_state *state) {
 // dhcp_timeout
 //
 
-static void dhcp_timeout(void *arg) {
-  struct dhcp_state *state = arg;
+static void dhcp_timeout(void *arg)
+{
+    struct dhcp_state *state = arg;
 
-  queue_task(&sys_task_queue, &state->request_timeout_task, (taskproc_t) dhcp_timeout_handler, state);
+    queue_task(&sys_task_queue, &state->request_timeout_task, (taskproc_t) dhcp_timeout_handler, state);
 }
 
 //

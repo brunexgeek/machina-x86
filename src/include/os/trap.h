@@ -110,14 +110,14 @@ struct interrupt {
 
 #ifdef KERNEL
 
-void init_trap();
+void ktrap_init();
 KERNELAPI void register_interrupt(struct interrupt *intr, int intrno, intrproc_t f, void *arg);
 KERNELAPI void unregister_interrupt(struct interrupt *intr, int intrno);
 
 KERNELAPI int send_user_signal(struct thread *t, int signum);
 int deliver_pending_signals(int retcode);
-int set_signal_mask(int how, sigset_t *set, sigset_t *oldset);
-int get_pending_signals(sigset_t *set);
+int kthread_set_signal_mask(int how, sigset_t *set, sigset_t *oldset);
+int kthread_get_pending_signals(sigset_t *set);
 
 int get_context(struct thread *t, struct context *ctxt);
 int set_context(struct thread *t, struct context *ctxt);

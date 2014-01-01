@@ -2512,7 +2512,7 @@ static int sys_sigprocmask(char *params) {
     return -EFAULT;
   }
 
-  rc = set_signal_mask(how, set, oldset);
+  rc = kthread_set_signal_mask(how, set, oldset);
 
   unlock_buffer(set, sizeof(sigset_t));
   unlock_buffer(oldset, sizeof(sigset_t));
@@ -2528,7 +2528,7 @@ static int sys_sigpending(char *params) {
 
   if (lock_buffer(set, sizeof(sigset_t), 1) < 0) return -EFAULT;
 
-  rc = get_pending_signals(set);
+  rc = kthread_get_pending_signals(set);
 
   unlock_buffer(set, sizeof(sigset_t));
 
@@ -2735,7 +2735,7 @@ int syscall(int syscallno, char *params, struct context *ctxt) {
 
   kdpc_check_queue();
   ksched_check_preempt();
-  if (signals_ready(t)) deliver_pending_signals(rc);
+  if (kthread_signals_ready(t)) deliver_pending_signals(rc);
 
   t->ctxt = NULL;
 

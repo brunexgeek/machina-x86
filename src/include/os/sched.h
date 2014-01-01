@@ -39,7 +39,7 @@
 #include <os/krnl.h>
 #include <os/syspage.h>
 #include <stdint.h>
-#include <os/asmutil.h>
+
 
 /**
  * Prototype for thread functions.
@@ -150,10 +150,11 @@ struct kernel_context
 
 //extern struct thread *idlethread;
 //extern struct thread *threadlist;
+// TODO: improve 'ktask' interface to hide this variable
 extern struct task_queue sys_task_queue;
 
-extern struct dpc *dpc_queue_head;
-extern struct dpc *dpc_queue_tail;
+//extern struct dpc *dpc_queue_head;
+//extern struct dpc *dpc_queue_tail;
 
 extern int in_dpc;
 extern int preempt;
@@ -256,17 +257,55 @@ int kthread_set_priority( struct thread *t, int priority );
  */
 KERNELAPI void kthread_yield();
 
+/**
+ * @brief Returns the thread which have the given ID.
+ */
 struct thread *kthread_get(tid_t tid);
+
+static __inline int kthread_signals_ready(struct thread *t)
+{
+    return t->pending_signals & ~t->blocked_signals;
+}
+
 
 //
 // DPC subsystem
 //
 
+/**
+ * @brief Initialize a DPC object.
+ */
 KERNELAPI void kdpc_create(struct dpc *dpc);
+
+/**
+ * @brief Add the given DPC object into the scheduler queue.
+ *
+ * This function try to enable interrupts before exit, thus dont should be used
+ * inside an interrupt handler.
+ */
 KERNELAPI void kdpc_queue(struct dpc *dpc, dpcproc_t proc, void *arg);
+
+/**
+ * @brief Add the given DPC object into the scheduler queue.
+ *
+ * This function is safe to be used inside an interrupt handler.
+ */
 KERNELAPI void kdpc_queue_irq(struct dpc *dpc, dpcproc_t proc, const char *proc_name, void *arg);
+
+/**
+ * @brief Start to execute all registred DPCs.
+ *
+ * This function will block until exist some DPC to be executed.
+ */
 void kdpc_dispatch_queue();
+
+/**
+ * @brief Check if have pending DPC in the scheduler queue and, if any, execute them.
+ *
+ * This function will block until exist some DPC to be executed.
+ */
 void kdpc_check_queue();
+
 
 //
 // Task scheduler subsystem
@@ -305,11 +344,6 @@ static __inline void ksched_check_preempt()
 #ifndef NOPREEMPTION
     if (preempt) kthread_preempt();
 #endif
-}
-
-static __inline int signals_ready(struct thread *t)
-{
-    return t->pending_signals & ~t->blocked_signals;
 }
 
 

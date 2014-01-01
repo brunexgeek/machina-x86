@@ -56,30 +56,27 @@ void init_thread_stack(struct thread *t, void *startaddr, void *arg)
 }
 
 
-void mark_thread_running() {
+void kthread_mark_running()
+{
     struct thread *t;
     struct tib *tib;
 
-    // Set thread state to running
+    // set thread state to running
     t = kthread_self();
     t->state = THREAD_STATE_RUNNING;
     t->context_switches++;
 
-    // Set FS register to point to current TIB
+    // set FS register to point to current TIB
     tib = t->tib;
     if (tib)
     {
         // Update TIB descriptor
-#ifdef VMACH
-        kmach_set_gdt_entry(GDT_TIB, (unsigned long) tib, PAGESIZE, D_DATA | D_DPL3 | D_WRITE | D_PRESENT, 0);
-#else
         struct segment *seg;
 
         seg = &syspage->gdt[GDT_TIB];
         seg->base_low = (unsigned short)((unsigned long) tib & 0xFFFF);
         seg->base_med = (unsigned char)(((unsigned long) tib >> 16) & 0xFF);
         seg->base_high = (unsigned char)(((unsigned long) tib >> 24) & 0xFF);
-#endif
 
         // Reload FS register
         __asm__
@@ -101,7 +98,7 @@ void user_thread_start(void *arg)
     void *entrypoint;
 
     // Mark thread as running to reload fs register
-    mark_thread_running();
+    kthread_mark_running();
 
     // Setup arguments on user stack
     stacktop = (unsigned long *) t->tib->stacktop;

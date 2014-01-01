@@ -3,7 +3,7 @@
 //
 // Interrupt and trap handling
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -61,73 +61,74 @@ static struct interrupt alignintr;
 
 static struct interrupt sigexitintr;
 
-char *trapnames[INTRS] =  {
-  "Divide error",
-  "Debug exception",
-  "Non-maskable interrupt",
-  "Breakpoint",
-  "Overflow",
-  "Bounds check",
-  "Invalid opcode",
-  "FPU not available",
-  "Double fault",
-  "FPU segment overrun",
-  "Invalid task state segment",
-  "Segment not present",
-  "Stack fault",
-  "General protection fault",
-  "Page fault",
-  "(reserved)",
-  "FPU error",
-  "Alignment check",
-  "Machine check",
-  "SIMD FP exception",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
-  "(reserved)",
+char *trapnames[INTRS] =
+{
+    "Divide error",
+    "Debug exception",
+    "Non-maskable interrupt",
+    "Breakpoint",
+    "Overflow",
+    "Bounds check",
+    "Invalid opcode",
+    "FPU not available",
+    "Double fault",
+    "FPU segment overrun",
+    "Invalid task state segment",
+    "Segment not present",
+    "Stack fault",
+    "General protection fault",
+    "Page fault",
+    "(reserved)",
+    "FPU error",
+    "Alignment check",
+    "Machine check",
+    "SIMD FP exception",
+    "(reserved)",
+    "(reserved)",
+    "(reserved)",
+    "(reserved)",
+    "(reserved)",
+    "(reserved)",
+    "(reserved)",
+    "(reserved)",
+    "(reserved)",
+    "(reserved)",
+    "(reserved)",
+    "(reserved)",
 
-  "IRQ0 (timer)",
-  "IRQ1 (keyboard)",
-  "IRQ2",
-  "IRQ3 (com2)",
-  "IRQ4 (com1)",
-  "IRQ5",
-  "IRQ6 (fdc)",
-  "IRQ7 (par)",
-  "IRQ8 (rtc)",
-  "IRQ9",
-  "IRQ10",
-  "IRQ11",
-  "IRQ12",
-  "IRQ13",
-  "IRQ14 (hdc1)",
-  "IRQ15 (hdc2)",
+    "IRQ0 (timer)",
+    "IRQ1 (keyboard)",
+    "IRQ2",
+    "IRQ3 (com2)",
+    "IRQ4 (com1)",
+    "IRQ5",
+    "IRQ6 (fdc)",
+    "IRQ7 (par)",
+    "IRQ8 (rtc)",
+    "IRQ9",
+    "IRQ10",
+    "IRQ11",
+    "IRQ12",
+    "IRQ13",
+    "IRQ14 (hdc1)",
+    "IRQ15 (hdc2)",
 
-  "System call",
-  "Signal exit",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)",
-  "(unused)"
+    "System call",
+    "Signal exit",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)",
+    "(unused)"
 };
 
 //
@@ -154,9 +155,6 @@ __asm__
     "push    ds;"
     "push    es;"
     "mov     ax, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment (SEL_KDATA)
-    #ifdef VMACH
-    "or      eax, cs:global_kring;"
-    #endif
     "mov     ds, ax;"
     "mov     es, ax;"
     "call    trap;"                    // Call trap handler
@@ -201,9 +199,6 @@ __asm__
     "push    es;"
 
     "mov     bx, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment  (SEL_KDATA)
-    #ifdef VMACH
-    "or      ebx, cs:global_kring;"
-    #endif
     "mov     ds, bx;"
     "mov     es, bx;"
 
@@ -264,9 +259,6 @@ __asm__
     "push    " TO_STRING(SEL_UTEXT) "+" TO_STRING(SEL_RPL3) ";"    // Push es (fixed)
 
     "mov     bx, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment
-    #ifdef VMACH
-    "or      ebx, cs:global_kring;"
-    #endif
     "mov     ds, bx;"
     "mov     es, bx;"
 
@@ -299,8 +291,6 @@ __asm__
 //
 // Generate interrupt service routines
 //
-
-
 
 #define ISR(n)          \
     void isr##n() __asm__("___isr" #n); \
@@ -342,34 +332,32 @@ __inline int usermode(struct context *ctxt) {
   return USERSPACE(ctxt->eip);
 }
 
-//
-// setup_signal_frame
-//
-// Setup a call frame for invoking the global signal handler
-//
+/**
+ * @brief Setup a call frame for invoking the global signal handler
+ */
+static struct siginfo *setup_signal_frame(unsigned long *esp)
+{
+    struct context *ctxt;
+    struct siginfo *info;
 
-static struct siginfo *setup_signal_frame(unsigned long *esp) {
-  struct context *ctxt;
-  struct siginfo *info;
+    // Push context onto stack
+    *esp -= sizeof(struct context);
+    ctxt = (struct context *) *esp;
 
-  // Push context onto stack
-  *esp -= sizeof(struct context);
-  ctxt = (struct context *) *esp;
+    // Push siginfo onto stack
+    *esp -= sizeof(struct siginfo);
+    info = (struct siginfo *) *esp;
+    info->si_ctxt = ctxt;
 
-  // Push siginfo onto stack
-  *esp -= sizeof(struct siginfo);
-  info = (struct siginfo *) *esp;
-  info->si_ctxt = ctxt;
+    // Push pointer to signal info to stack
+    *esp -= sizeof(struct siginfo *);
+    *((struct siginfo **) *esp) = info;
 
-  // Push pointer to signal info to stack
-  *esp -= sizeof(struct siginfo *);
-  *((struct siginfo **) *esp) = info;
+    // Push dummy return address to stack
+    *esp -= sizeof(void *);
+    *((void **) *esp) = NULL;
 
-  // Push dummy return address to stack
-  *esp -= sizeof(void *);
-  *((void **) *esp) = NULL;
-
-  return info;
+    return info;
 }
 
 //
@@ -438,67 +426,67 @@ void send_signal(struct context *ctxt, int signum, void *addr) {
 //   Signals are never sent in this intermediate state.
 //
 
-int send_user_signal(struct thread *t, int signum) {
-  // Signal can only be sent to user threads
-  if (!t->tib) return -EPERM;
+int send_user_signal(struct thread *t, int signum)
+{
+    // signal can only be sent to user threads
+    if (!t->tib) return -EPERM;
 
-  // Add signal to the pending signal mask for thread
-  t->pending_signals |= (1 << signum);
+    // add signal to the pending signal mask for thread
+    t->pending_signals |= (1 << signum);
 
-  // Resume thread if signal is SIGCONT
-  if (signum == SIGCONT) kthread_resume(t);
+    // resume thread if signal is SIGCONT
+    if (signum == SIGCONT) kthread_resume(t);
 
-  // If not signals are ready for delivery just return
-  if (!signals_ready(t)) return 0;
+    // if not signals are ready for delivery just return
+    if (!kthread_signals_ready(t)) return 0;
 
-  // Interrupt thread if it is in an alertable wait
-  if (t->state == THREAD_STATE_WAITING) kthread_interrupt(t);
+    // interrupt thread if it is in an alertable wait
+    if (t->state == THREAD_STATE_WAITING) kthread_interrupt(t);
 
-  return 0;
+    return 0;
 }
 
-//
-// set_signal_mask
-//
-// Examine and change blocked signals
-//
 
-int set_signal_mask(int how, sigset_t *set, sigset_t *oldset) {
-  struct thread *t = kthread_self();
+/**
+ * @brief Examine and change blocked signals.
+ */
+int kthread_set_signal_mask(int how, sigset_t *set, sigset_t *oldset)
+{
+    struct thread *t = kthread_self();
 
-  if (oldset) *oldset = t->blocked_signals;
+    if (oldset) *oldset = t->blocked_signals;
 
-  if (set) {
-    switch (how) {
-      case SIG_BLOCK:
-        t->blocked_signals |= *set;
-        break;
+    if (set)
+    {
+        switch (how)
+        {
+            case SIG_BLOCK:
+                t->blocked_signals |= *set;
+                break;
 
-      case SIG_UNBLOCK:
-        t->blocked_signals &= ~*set;
-        break;
+            case SIG_UNBLOCK:
+                t->blocked_signals &= ~*set;
+                break;
 
-      case SIG_SETMASK:
-        t->blocked_signals = *set;
-        break;
+            case SIG_SETMASK:
+                t->blocked_signals = *set;
+                break;
 
-      default:
-        return -EINVAL;
+            default:
+                return -EINVAL;
+        }
+
+        if (kthread_signals_ready(t) && t->state == THREAD_STATE_WAITING) kthread_interrupt(t);
     }
 
-    if (signals_ready(t) && t->state == THREAD_STATE_WAITING) kthread_interrupt(t);
-  }
-
-  return 0;
+    return 0;
 }
 
-//
-// get_pending_signals
-//
-// Examine pending signals
-//
 
-int get_pending_signals(sigset_t *set)
+/**
+ * @brief Examine pending signals.
+ */
+int kthread_get_pending_signals( sigset_t *set )
 {
     struct thread *t = kthread_self();
 
@@ -523,7 +511,7 @@ int deliver_pending_signals(int retcode) {
   unsigned long esp;
 
   // Find highest priority unblocked pending signal
-  sigmask = signals_ready(t);
+  sigmask = kthread_signals_ready(t);
   if (sigmask == 0) return 0;
   signum = find_lowest_bit(sigmask);
   t->pending_signals &= ~(1 << signum);
@@ -613,45 +601,57 @@ static int sigexit_handler(struct context *ctxt, void *arg) {
 // div_handler
 //
 
-static int div_handler(struct context *ctxt, void *arg) {
-  if (usermode(ctxt)) {
-    send_signal(ctxt, SIGFPE, (void *) ctxt->eip);
-  } else {
-    kprintf(KERN_CRIT "trap: division by zero in kernel mode\n");
-    dbg_enter(ctxt, 0);
-  }
+static int div_handler(struct context *ctxt, void *arg)
+{
+    if (usermode(ctxt))
+    {
+        send_signal(ctxt, SIGFPE, (void *) ctxt->eip);
+    }
+    else
+    {
+        kprintf(KERN_CRIT "trap: division by zero in kernel mode\n");
+        dbg_enter(ctxt, 0);
+    }
 
-  return 0;
+    return 0;
 }
 
 //
 // brkpt_handler
 //
 
-static int breakpoint_handler(struct context *ctxt, void *arg) {
-  if (usermode(ctxt)) {
-    send_signal(ctxt, SIGTRAP, (void *) ctxt->eip);
-  } else {
-    kprintf(KERN_CRIT "trap: breakpoint in kernel mode\n");
-    dbg_enter(ctxt, 0);
-  }
+static int breakpoint_handler(struct context *ctxt, void *arg)
+{
+    if (usermode(ctxt))
+    {
+        send_signal(ctxt, SIGTRAP, (void *) ctxt->eip);
+    }
+    else
+    {
+        kprintf(KERN_CRIT "trap: breakpoint in kernel mode\n");
+        dbg_enter(ctxt, 0);
+    }
 
-  return 0;
+    return 0;
 }
 
 //
 // overflow_handler
 //
 
-static int overflow_handler(struct context *ctxt, void *arg) {
-  if (usermode(ctxt)) {
-    send_signal(ctxt, SIGSEGV, NULL);
-  } else {
-    kprintf(KERN_CRIT "trap: overflow exception in kernel mode\n");
-    dbg_enter(ctxt, 0);
-  }
+static int overflow_handler(struct context *ctxt, void *arg)
+{
+    if (usermode(ctxt))
+    {
+        send_signal(ctxt, SIGSEGV, NULL);
+    }
+    else
+    {
+        kprintf(KERN_CRIT "trap: overflow exception in kernel mode\n");
+        dbg_enter(ctxt, 0);
+    }
 
-  return 0;
+    return 0;
 }
 
 //
@@ -660,29 +660,36 @@ static int overflow_handler(struct context *ctxt, void *arg) {
 
 static int bounds_handler(struct context *ctxt, void *arg)
 {
-  if (usermode(ctxt)) {
-    send_signal(ctxt, SIGSEGV, NULL);
-  } else {
-    kprintf(KERN_CRIT "trap: bounds exception in kernel mode\n");
-    dbg_enter(ctxt, 0);
-  }
+    if (usermode(ctxt))
+    {
+        send_signal(ctxt, SIGSEGV, NULL);
+    }
+    else
+    {
+        kprintf(KERN_CRIT "trap: bounds exception in kernel mode\n");
+        dbg_enter(ctxt, 0);
+    }
 
-  return 0;
+    return 0;
 }
 
 //
 // illop_handler
 //
 
-static int illop_handler(struct context *ctxt, void *arg) {
-  if (usermode(ctxt)) {
-    send_signal(ctxt, SIGILL, (void *) ctxt->eip);
-  } else {
-    kprintf(KERN_CRIT "trap: illegal instruction exception in kernel mode\n");
-    dbg_enter(ctxt, 0);
-  }
+static int illop_handler(struct context *ctxt, void *arg)
+{
+    if (usermode(ctxt))
+    {
+        send_signal(ctxt, SIGILL, (void *) ctxt->eip);
+    }
+    else
+    {
+        kprintf(KERN_CRIT "trap: illegal instruction exception in kernel mode\n");
+        dbg_enter(ctxt, 0);
+    }
 
-  return 0;
+    return 0;
 }
 
 //
@@ -691,79 +698,103 @@ static int illop_handler(struct context *ctxt, void *arg) {
 
 static int seg_handler(struct context *ctxt, void *arg)
 {
-  if (usermode(ctxt)) {
-    send_signal(ctxt, SIGBUS, NULL);
-  } else {
-    kprintf(KERN_CRIT "trap: sement not present exception in kernel mode\n");
-    dbg_enter(ctxt, 0);
-  }
+    if (usermode(ctxt))
+    {
+        send_signal(ctxt, SIGBUS, NULL);
+    }
+    else
+    {
+        kprintf(KERN_CRIT "trap: sement not present exception in kernel mode\n");
+        dbg_enter(ctxt, 0);
+    }
 
-  return 0;
+    return 0;
 }
 
 //
 // stack_handler
 //
 
-static int stack_handler(struct context *ctxt, void *arg) {
-  if (usermode(ctxt)) {
-    send_signal(ctxt, SIGBUS, NULL);
-  } else {
-    kprintf(KERN_CRIT "trap: stack segment exception in kernel mode\n");
-    dbg_enter(ctxt, 0);
-  }
+static int stack_handler(struct context *ctxt, void *arg)
+{
+    if (usermode(ctxt))
+    {
+        send_signal(ctxt, SIGBUS, NULL);
+    }
+    else
+    {
+        kprintf(KERN_CRIT "trap: stack segment exception in kernel mode\n");
+        dbg_enter(ctxt, 0);
+    }
 
-  return 0;
+    return 0;
 }
 
 //
 // genpro_handler
 //
 
-static int genpro_handler(struct context *ctxt, void *arg) {
-  if (usermode(ctxt)) {
-    send_signal(ctxt, SIGSEGV, NULL);
-  } else {
-    kprintf(KERN_CRIT "trap: general protection exception in kernel mode\n");
-    dbg_enter(ctxt, 0);
-  }
+static int genpro_handler(struct context *ctxt, void *arg)
+{
+    if (usermode(ctxt))
+    {
+        send_signal(ctxt, SIGSEGV, NULL);
+    }
+    else
+    {
+        kprintf(KERN_CRIT "trap: general protection exception in kernel mode\n");
+        dbg_enter(ctxt, 0);
+    }
 
-  return 0;
+    return 0;
 }
 
-//
-// pagefault_handler
-//
 
-static int pagefault_handler(struct context *ctxt, void *arg) {
-  void *addr;
-  void *pageaddr;
+/**
+ * @brief Handle the page fault.
+ */
+static int pagefault_handler(struct context *ctxt, void *arg)
+{
+    void *addr;
+    void *pageaddr;
 
-  addr = (void *) kmach_get_cr2();
-  pageaddr = (void *) PAGEADDR(addr);
+    addr = (void *) kmach_get_cr2();
+    pageaddr = (void *) PAGEADDR(addr);
 
-  if (usermode(ctxt)) {
-    int signal = SIGSEGV;
-    if (kpage_is_directory_mapped(pageaddr)) {
-      pte_t flags = kpage_get_flags(pageaddr);
-      if (flags & PT_GUARD) {
-        kpage_unguard(pageaddr);
-        signal = SIGSTKFLT;
-        if (guard_page_handler(pageaddr) == 0) signal = 0;
-      } else if (flags & PT_FILE) {
-        if ((flags & PT_PRESENT) == 0) {
-          kmach_sti();
-          if (fetch_page(pageaddr) == 0) signal = 0;
+    if (usermode(ctxt))
+    {
+        int signal = SIGSEGV;
+        // check if the address is mapped on page directory
+        if (kpage_is_directory_mapped(pageaddr))
+        {
+            pte_t flags = kpage_get_flags(pageaddr);
+            // check if the page is a guard
+            if (flags & PT_GUARD)
+            {
+                kpage_unguard(pageaddr);
+                signal = SIGSTKFLT;
+                if (guard_page_handler(pageaddr) == 0) signal = 0;
+            }
+            else
+            // chech if the page is in swap file (?)
+            if (flags & PT_FILE)
+            {
+                if ((flags & PT_PRESENT) == 0)
+                {
+                    kmach_sti();
+                    if (fetch_page(pageaddr) == 0) signal = 0;
+                }
+            }
         }
-      }
+        if (signal != 0) send_signal(ctxt, signal, addr);
     }
-    if (signal != 0) send_signal(ctxt, signal, addr);
-  } else {
-    kprintf(KERN_CRIT "trap: page fault in kernel mode\n");
-    dbg_enter(ctxt, addr);
-  }
+    else
+    {
+        kprintf(KERN_CRIT "trap: page fault in kernel mode\n");
+        dbg_enter(ctxt, addr);
+    }
 
-  return 0;
+    return 0;
 }
 
 //
@@ -802,13 +833,10 @@ static int traps_proc(struct proc_file *pf, void *arg) {
   return 0;
 }
 
-//
-// init_trap
-//
-// Initialize traps and interrupts
-//
-
-void init_trap()
+/**
+ * @brief Initialize traps and interrupts.
+ */
+void ktrap_init()
 {
     int i;
 
@@ -819,7 +847,7 @@ void init_trap()
         intrcount[i] = 0;
     }
 
-    // Setup idt
+    // setup the x86 interrupt table
     kmach_set_idt_gate(0, isr0);
     kmach_set_idt_gate(1, isr1);
     kmach_set_idt_gate(2, isr2);
@@ -885,7 +913,7 @@ void init_trap()
     kmach_set_idt_gate(62, isr62);
     kmach_set_idt_gate(63, isr63);
 
-    // Set system trap handlers
+    // define OS interrupt handlers
     register_interrupt(&divintr, INTR_DIV, div_handler, NULL);
     register_interrupt(&brkptintr, INTR_BPT, breakpoint_handler, NULL);
     register_interrupt(&overflowintr, INTR_OVFL, overflow_handler, NULL);
@@ -954,7 +982,7 @@ static void trap(unsigned long args)
     {
         kdpc_check_queue();
         ksched_check_preempt();
-        if (signals_ready(t)) deliver_pending_signals(0);
+        if (kthread_signals_ready(t)) deliver_pending_signals(0);
     }
 
     // Restore context
@@ -967,12 +995,13 @@ static void trap(unsigned long args)
 // Register interrupt handler for interrupt
 //
 
-void register_interrupt(struct interrupt *intr, int intrno, intrproc_t f, void *arg) {
-  intr->handler = f;
-  intr->arg = arg;
-  intr->flags = 0;
-  intr->next = intrhndlr[intrno];
-  intrhndlr[intrno] = intr;
+void register_interrupt( struct interrupt *intr, int intrno, intrproc_t func, void *arg )
+{
+    intr->handler = func;
+    intr->arg = arg;
+    intr->flags = 0;
+    intr->next = intrhndlr[intrno];
+    intrhndlr[intrno] = intr;
 }
 
 //

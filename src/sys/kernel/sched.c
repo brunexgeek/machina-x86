@@ -3,7 +3,7 @@
 //
 // Task scheduler
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
+// Copyright (C) 2014 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,7 @@
 #include <os/dbg.h>
 #include <os/trap.h>
 #include <os/rnd.h>
+#include <os/asmutil.h>
 
 
 #define DEFAULT_STACK_SIZE           (1 * 1024 * 1024)
@@ -57,23 +58,23 @@ static struct thread *idle_thread = NULL;
 /**
  * Head of the queue for ready thread's.
  */
-struct thread *ready_queue_head[THREAD_PRIORITY_LEVELS] = { NULL };
+static struct thread *ready_queue_head[THREAD_PRIORITY_LEVELS] = { NULL };
 
 /**
  * Tail of the queue for ready thread's.
  */
-struct thread *ready_queue_tail[THREAD_PRIORITY_LEVELS] = { NULL };
+static struct thread *ready_queue_tail[THREAD_PRIORITY_LEVELS] = { NULL };
 
 /**
  * List containing all threads.
  */
-struct thread *threadlist = NULL;
+static struct thread *threadlist = NULL;
 
-struct dpc *dpc_queue_head = NULL;
-struct dpc *dpc_queue_tail = NULL;
+static struct dpc *dpc_queue_head = NULL;
+static struct dpc *dpc_queue_tail = NULL;
 
-struct task *idle_tasks_head = NULL;
-struct task *idle_tasks_tail = NULL;
+static struct task *idle_tasks_head = NULL;
+static struct task *idle_tasks_tail = NULL;
 
 struct task_queue sys_task_queue;
 
@@ -86,7 +87,7 @@ int init_user_thread(struct thread *t, void *entrypoint);
 int allocate_user_stack(struct thread *t, unsigned long stack_reserve, unsigned long stack_commit);
 static struct dpc *kdpc_get_next();
 
-void mark_thread_running();
+void kthread_mark_running();
 
 /**
  * Insert 't2' before 't1'.
@@ -186,7 +187,7 @@ int kthread_alertable_wait(int reason)
 {
     struct thread *t = kthread_self();
 
-    if (signals_ready(t)) return -EINTR;
+    if (kthread_signals_ready(t)) return -EINTR;
 
     t->state = THREAD_STATE_WAITING;
     t->wait_reason = reason;
@@ -303,7 +304,7 @@ void kernel_thread_start(void *arg)
     struct thread *t = kthread_self();
 
     // Mark thread as running
-    mark_thread_running();
+    kthread_mark_running();
 
     // Call entry point
     ((void (*)(void *)) (t->entrypoint))(arg);
@@ -814,13 +815,13 @@ void kdpc_dispatch_queue()
     if (in_dpc) panic("sched: nested execution of dpc queue");
     in_dpc = 1;
 
-    while (1) {
-        // Get next deferred procedure call
-        // As a side effect this will enable interrupts
+    while (1)
+    {
+        // get next DPC (enabling interrupts by side effect)
         dpc = kdpc_get_next();
         if (!dpc) break;
 
-        // Execute DPC
+        // execute the DPC
         proc = dpc->proc;
         arg = dpc->arg;
         clear_bit(&dpc->flags, DPC_QUEUED_BIT);
@@ -904,12 +905,9 @@ void ksched_dispatch()
     //kprintf("[TRACE] switch to '%s'\n", t->name);
     switch_context(t);
     //kprintf("[TRACE] back to '%s'\n", curthread->name);
-    #ifdef VMACH
-    switch_kernel_stack();
-    #endif
 
-    // Mark new thread as running
-    mark_thread_running();
+    // mark the thread as running
+    kthread_mark_running();
 }
 
 void kthread_yield()

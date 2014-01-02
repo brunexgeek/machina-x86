@@ -126,3 +126,29 @@ void user_thread_start(void *arg)
         : "eax"
     );
 }
+
+
+
+int kthread_get_context(struct thread *t, struct context *ctxt)
+{
+    memcpy(ctxt, t->ctxt, sizeof(struct context));
+    return 0;
+}
+
+
+int kthread_set_context(struct thread *t, struct context *ctxt)
+{
+    t->ctxt->esp = ctxt->esp;
+    t->ctxt->eip = ctxt->eip;
+    t->ctxt->eflags = ctxt->eflags;
+    t->ctxt->ebp = ctxt->ebp;
+
+    t->ctxt->eax = ctxt->eax;
+    t->ctxt->ebx = ctxt->ebx;
+    t->ctxt->ecx = ctxt->ecx;
+    t->ctxt->edx = ctxt->edx;
+    t->ctxt->esi = ctxt->esi;
+    t->ctxt->edi = ctxt->edi;
+
+    return 0;
+}

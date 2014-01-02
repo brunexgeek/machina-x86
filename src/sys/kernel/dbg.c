@@ -43,7 +43,7 @@
 
 #define MAX_DBG_PACKETLEN (MAX_DBG_CHUNKSIZE + sizeof(union dbg_body))
 
-extern char *trapnames[]; // Defined in trap.c
+extern char *INTR_NAMES[]; // Defined in trap.c
 extern struct moddb kmods; // Define in ???
 
 int debugging = 0;
@@ -505,7 +505,7 @@ void dumpregs(struct context *ctxt) {
 void dbg_enter(struct context *ctxt, void *addr)
 {
   if (!debugging) {
-    kprintf("dbg: trap %d (%s) thread %d, addr %p\n", ctxt->traptype, trapnames[ctxt->traptype], kthread_self()->id, addr);
+    kprintf("dbg: trap %d (%s) thread %d, addr %p\n", ctxt->traptype, INTR_NAMES[ctxt->traptype], kthread_self()->id, addr);
     dumpregs(ctxt);
   }
 

@@ -1196,7 +1196,7 @@ static int sys_setcontext(char *params) {
     return -EFAULT;
   }
 
-  rc = set_context(t, context);
+  rc = kthread_set_context(t, context);
 
   unlock_buffer(context, sizeof(struct context));
   orel(t);
@@ -1221,7 +1221,7 @@ static int sys_getcontext(char *params) {
     return -EFAULT;
   }
 
-  rc = get_context(t, context);
+  rc = kthread_get_context(t, context);
 
   unlock_buffer(context, sizeof(struct context));
   orel(t);

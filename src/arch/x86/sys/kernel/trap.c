@@ -1,7 +1,7 @@
 //
 // trap.c
 //
-// Interrupt and trap handling
+// Interrupt and trap handling for x86
 //
 // Copyright (C) 2013-2014 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
@@ -34,7 +34,6 @@
 
 #include <os/krnl.h>
 #include <os/trap.h>
-#include <os/asmutil.h>
 #include <os/pdir.h>
 #include <os/cpu.h>
 #include <os/mach.h>
@@ -45,8 +44,16 @@
 #define INTRS MAXIDT
 
 struct syspage *syspage = (struct syspage *) SYSPAGE_ADDRESS;
-struct interrupt *intrhndlr[INTRS];
-int intrcount[INTRS];
+
+/**
+ * @brief Internal interrupt handler array.
+ */
+static struct interrupt *intr_handlers[INTRS];
+
+/**
+ * @brief Interrupt counter array used to keep track how many times each interrupt is handled.
+ */
+static int intr_counter[INTRS];
 
 static struct interrupt divintr;
 static struct interrupt brkptintr;
@@ -58,10 +65,9 @@ static struct interrupt stackintr;
 static struct interrupt genprointr;
 static struct interrupt pgfintr;
 static struct interrupt alignintr;
-
 static struct interrupt sigexitintr;
 
-char *trapnames[INTRS] =
+char *INTR_NAMES[INTRS] =
 {
     "Divide error",
     "Debug exception",
@@ -131,186 +137,112 @@ char *trapnames[INTRS] =
     "(unused)"
 };
 
-//
-// trap
-//
-// Common entry point for all interrupt service routines
-//
 
-static void trap(unsigned long args);
 
+/**
+ * @brief Tests if context is a user mode context.
+ */
+static inline int usermode(struct context *ctxt)
+{
+    return USERSPACE(ctxt->eip);
+}
+
+
+/**
+ * @brief Common entry point for all interrupt service routines
+ */
+void trap(unsigned long args)
+{
+    struct context *ctxt = (struct context *) &args;
+    struct thread *t = kthread_self();
+    struct context *prevctxt;
+    struct interrupt *intr;
+    int rc;
+
+
+    // Save context
+    prevctxt = t->ctxt;
+    t->ctxt = ctxt;
+
+    // Statistics
+    intr_counter[ctxt->traptype]++;
+
+    // Call interrupt handlers
+    intr = intr_handlers[ctxt->traptype];
+    if (!intr)
+    {
+        dbg_enter(ctxt, NULL);
+    }
+    else
+    {
+        while (intr)
+        {
+            rc = intr->handler(ctxt, intr->arg);
+            if (rc > 0) break;
+            intr = intr->next;
+        }
+    }
+
+    // If we interrupted a user mode context, dispatch DPCs,
+    // check for quantum expiry, and deliver signals.
+    if (usermode(ctxt))
+    {
+        kdpc_check_queue();
+        ksched_check_preempt();
+        if (kthread_signals_ready(t)) deliver_pending_signals(0);
+    }
+
+    // Restore context
+    t->ctxt = prevctxt;
+}
+
+
+/**
+ * @brief Generic code that setup the stack and call the commom trap handler.
+ *
+ * This function is called by every interrupt handler registred on IDT.
+ */
 void isr() __asm("___isr");
 
-__asm__
-(
-    "___isr:\n"
-    "cld;"
-    "push    eax;"                     // Save registers
-    "push    ecx;"
-    "push    edx;"
-    "push    ebx;"
-    "push    ebp;"
-    "push    esi;"
-    "push    edi;"
-    "push    ds;"
-    "push    es;"
-    "mov     ax, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment (SEL_KDATA)
-    "mov     ds, ax;"
-    "mov     es, ax;"
-    "call    trap;"                    // Call trap handler
-    "pop     es;"                      // Restore registers
-    "pop     ds;"
-    "pop     edi;"
-    "pop     esi;"
-    "pop     ebp;"
-    "pop     ebx;"
-    "pop     edx;"
-    "pop     ecx;"
-    "pop     eax;"
-    "add     esp, 8;"
-    "iretd;"
-);
-
-
-//
-// syscall
-//
-// Kernel entry point for int 48 syscall
-//
 
 int syscall(int syscallno, char *params, struct context *ctxt);
 
+
+/**
+ * @brief Kernel entry point for int 48 syscall
+ */
 void  systrap(void) __asm__("___systrap");
 
-__asm__
-(
-    "___systrap: "
-    "push    0;"                       // Push dummy errcode
-    "push    " TO_STRING(INTR_SYSCALL) ";"       // Push traptype (INTR_SYSCALL)
 
-    "push    eax;"                     // Save registers
-    "push    ecx;"
-    "push    edx;"
-    "push    ebx;"
-    "push    ebp;"
-    "push    esi;"
-    "push    edi;"
-    "push    ds;"
-    "push    es;"
-
-    "mov     bx, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment  (SEL_KDATA)
-    "mov     ds, bx;"
-    "mov     es, bx;"
-
-    "mov     ebx, esp;"                // ebx = context
-    "push    ebx;"                     // Push context
-    "push    edx;"                     // Push params
-    "push    eax;"                     // Push syscallno
-
-    "call    syscall;"                 // Call syscall
-    "add     esp, 12;"
-
-    "pop     es;"                      // Restore registers
-    "pop     ds;"
-    "pop     edi;"
-    "pop     esi;"
-    "pop     ebp;"
-    "pop     ebx;"
-    "pop     edx;"
-    "pop     ecx;"
-
-    "add     esp, 12;"                 // Skip eax, errcode, and traptype
-
-    "iretd;"                           // Return
-);
-
-
-//
-// sysentry
-//
-// Kernel entry point for sysenter syscall
-//
-
+/**
+ * @brief Kernel entry point for sysenter syscall.
+ */
 void sysentry(void) __asm__("___sysentry");
 
-__asm__
-(
-    "___sysentry: "
-    "mov     esp, ss:[esp];"           // Get kernel stack pointer from TSS
-    "STI;"                             // Sysenter disables interrupts, re-enable now
-
-    "push    " TO_STRING(SEL_UDATA) "+" TO_STRING(SEL_RPL3) ";"    // Push ss (fixed)
-    "push    ebp;"                     // Push esp (ebp set to esp by caller)
-    "pushfd;"                          // Push eflg
-    "push    " TO_STRING(SEL_UTEXT) "+" TO_STRING(SEL_RPL3) ";"    // Push cs (fixed)
-    "push    ecx;"                     // Push eip (return address set by caller)
-    "push    0;"                       // Push errcode
-    "push    " TO_STRING(INTR_SYSENTER) ";"           // Push traptype (always sysenter)
-
-    "push    eax;"                     // Push registers
-    "push    ecx;"
-    "push    edx;"
-    "push    ebx;"
-    "push    ebp;"
-    "push    esi;"
-    "push    edi;"
-
-    "push    " TO_STRING(SEL_UDATA) "+" TO_STRING(SEL_RPL3) ";"    // Push ds (fixed)
-    "push    " TO_STRING(SEL_UTEXT) "+" TO_STRING(SEL_RPL3) ";"    // Push es (fixed)
-
-    "mov     bx, " TO_STRING(SEL_KDATA) ";"           // Setup kernel data segment
-    "mov     ds, bx;"
-    "mov     es, bx;"
-
-    "mov     ebx, esp;"                // ebx = context
-    "push    ebx;"                     // Push context
-    "push    edx;"                     // Push params
-    "push    eax;"                     // Push syscallno
-
-    "call    syscall;"                 // Call syscall
-    "add     esp, 12;"
-
-    "pop     es;"                      // Restore registers
-    "pop     ds;"
-    "pop     edi;"
-    "pop     esi;"
-    "pop     ebp;"
-    "pop     ebx;"
-
-    "add     esp, 20;"                 // Skip edx, ecx, eax, errcode, traptype
-    "pop     edx;"                     // Put eip into edx for sysexit
-    "add     esp, 4;"                  // Skip cs
-    "popfd;"                           // Restore flags
-    "pop     ecx;"                     // Put esp into ecx for sysexit
-    "add     esp, 4;"                  // Skip ss
-
-    "SYSEXIT;"                         // Return
-);
-
 
 //
-// Generate interrupt service routines
+// Macros to generate interrupt service routines.
 //
 
-#define ISR(n)          \
+#define ISR(n) \
     void isr##n() __asm__("___isr" #n); \
-    __asm__             \
-    (                   \
+    __asm__                \
+    (                      \
         "___isr" #n ":"    \
-        "push 0;"       \
-        "push " #n ";"  \
+        "push 0;"          \
+        "push " #n ";"     \
         "jmp ___isr;"      \
-    );                  \
+    );                     \
 
 
-#define ISRE(n)         \
+#define ISRE(n) \
     void isr##n() __asm__("___isr" #n); \
-    __asm__             \
-    (                   \
+    __asm__                \
+    (                      \
         "___isr" #n ":"    \
-        "push " #n ";"  \
+        "push " #n ";"     \
         "jmp ___isr;"      \
-    );                  \
+    );                     \
 
 
 ISR(0)  ISR(1)  ISR(2)   ISR(3)   ISR(4)   ISR(5)   ISR(6)   ISR(7)
@@ -322,18 +254,9 @@ ISR(40) ISR(41) ISR(42)  ISR(43)  ISR(44)  ISR(45)  ISR(46)  ISR(47)
         ISR(49) ISR(50)  ISR(51)  ISR(52)  ISR(53)  ISR(54)  ISR(55)
 ISR(56) ISR(57) ISR(58)  ISR(59)  ISR(60)  ISR(61)  ISR(62)  ISR(63)
 
-//
-// usermode
-//
-// Tests if context is a user mode context
-//
-
-__inline int usermode(struct context *ctxt) {
-  return USERSPACE(ctxt->eip);
-}
 
 /**
- * @brief Setup a call frame for invoking the global signal handler
+ * @brief Setup a call frame for invoking the global signal handler.
  */
 static struct siginfo *setup_signal_frame(unsigned long *esp)
 {
@@ -581,7 +504,7 @@ static int sigexit_handler(struct context *ctxt, void *arg) {
 
   // Restore processor context
   //memcpy(ctxt, info->si_ctxt, sizeof(struct context));
-  set_context(t, info->si_ctxt);
+  kthread_set_context(t, info->si_ctxt);
 
   // Do not allow interrupts to be disabled
   t->ctxt->eflags |= EFLAG_IF;
@@ -597,10 +520,9 @@ static int sigexit_handler(struct context *ctxt, void *arg) {
   return 1;
 }
 
-//
-// div_handler
-//
-
+/**
+ * @brief Handler for "division by zero" exception.
+ */
 static int div_handler(struct context *ctxt, void *arg)
 {
     if (usermode(ctxt))
@@ -616,10 +538,10 @@ static int div_handler(struct context *ctxt, void *arg)
     return 0;
 }
 
-//
-// brkpt_handler
-//
 
+/**
+ * @brief Handler for "breakpoint" interrupt.
+ */
 static int breakpoint_handler(struct context *ctxt, void *arg)
 {
     if (usermode(ctxt))
@@ -635,10 +557,10 @@ static int breakpoint_handler(struct context *ctxt, void *arg)
     return 0;
 }
 
-//
-// overflow_handler
-//
 
+/**
+ * @brief Handler for "overflow" exception.
+ */
 static int overflow_handler(struct context *ctxt, void *arg)
 {
     if (usermode(ctxt))
@@ -654,10 +576,10 @@ static int overflow_handler(struct context *ctxt, void *arg)
     return 0;
 }
 
-//
-// bounds_handler
-//
 
+/**
+ * @brief Handler for "bounds" exception.
+ */
 static int bounds_handler(struct context *ctxt, void *arg)
 {
     if (usermode(ctxt))
@@ -673,10 +595,10 @@ static int bounds_handler(struct context *ctxt, void *arg)
     return 0;
 }
 
-//
-// illop_handler
-//
 
+/**
+ * @brief Handler for "illegal instruction" exception.
+ */
 static int illop_handler(struct context *ctxt, void *arg)
 {
     if (usermode(ctxt))
@@ -692,10 +614,10 @@ static int illop_handler(struct context *ctxt, void *arg)
     return 0;
 }
 
-//
-// seg_handler
-//
 
+/**
+ * @brief Handler for "segment not present" exception.
+ */
 static int seg_handler(struct context *ctxt, void *arg)
 {
     if (usermode(ctxt))
@@ -704,17 +626,17 @@ static int seg_handler(struct context *ctxt, void *arg)
     }
     else
     {
-        kprintf(KERN_CRIT "trap: sement not present exception in kernel mode\n");
+        kprintf(KERN_CRIT "trap: segment not present exception in kernel mode\n");
         dbg_enter(ctxt, 0);
     }
 
     return 0;
 }
 
-//
-// stack_handler
-//
 
+/**
+ * @brief Handler for "stack segment" exception.
+ */
 static int stack_handler(struct context *ctxt, void *arg)
 {
     if (usermode(ctxt))
@@ -730,10 +652,10 @@ static int stack_handler(struct context *ctxt, void *arg)
     return 0;
 }
 
-//
-// genpro_handler
-//
 
+/**
+ * @brief Handler for "general protection" exception.
+ */
 static int genpro_handler(struct context *ctxt, void *arg)
 {
     if (usermode(ctxt))
@@ -751,7 +673,7 @@ static int genpro_handler(struct context *ctxt, void *arg)
 
 
 /**
- * @brief Handle the page fault.
+ * @brief Handler for "page fault" exception.
  */
 static int pagefault_handler(struct context *ctxt, void *arg)
 {
@@ -797,44 +719,85 @@ static int pagefault_handler(struct context *ctxt, void *arg)
     return 0;
 }
 
-//
-// alignment_handler
-//
 
-static int alignment_handler(struct context *ctxt, void *arg) {
-  if (usermode(ctxt)) {
+/**
+ * Handler for "alignment" exception.
+ */
+static int alignment_handler(struct context *ctxt, void *arg)
+{
+    if (usermode(ctxt)) {
     send_signal(ctxt, SIGBUS, (void *) kmach_get_cr2());
-  } else {
+    } else {
     kprintf(KERN_CRIT "trap: alignment exception in kernel mode\n");
     dbg_enter(ctxt, 0);
-  }
-
-  return 0;
-}
-
-//
-// traps_proc
-//
-// Performance counters for traps
-//
-
-static int traps_proc(struct proc_file *pf, void *arg) {
-  int i;
-
-  pprintf(pf, "no trap                                  count\n");
-  pprintf(pf, "-- -------------------------------- ----------\n");
-
-  for (i = 0; i < INTRS; i++) {
-    if (intrcount[i] != 0) {
-      pprintf(pf,"%2d %-32s %10d\n", i, trapnames[i], intrcount[i]);
     }
-  }
 
-  return 0;
+    return 0;
 }
 
 /**
- * @brief Initialize traps and interrupts.
+ * Statistical counters for traps.
+ */
+static int traps_proc(struct proc_file *pf, void *arg)
+{
+    int i;
+
+    pprintf(pf, "no trap                                  count\n");
+    pprintf(pf, "-- -------------------------------- ----------\n");
+
+    for (i = 0; i < INTRS; i++)
+    {
+        if (intr_counter[i] != 0)
+        {
+            pprintf(pf,"%2d %-32s %10d\n", i, INTR_NAMES[i], intr_counter[i]);
+        }
+    }
+
+    return 0;
+}
+
+
+/**
+ * Register interrupt handler for interrupt
+ */
+void register_interrupt( struct interrupt *intr, int intrno, intrproc_t func, void *arg )
+{
+    intr->handler = func;
+    intr->arg = arg;
+    intr->flags = 0;
+    intr->next = intr_handlers[intrno];
+    intr_handlers[intrno] = intr;
+}
+
+
+/**
+ * Remove interrupt handler for interrupt.
+ */
+void unregister_interrupt(struct interrupt *intr, int intrno)
+{
+    struct interrupt *i;
+
+    if (intr_handlers[intrno] == intr)
+    {
+        intr_handlers[intrno] = intr->next;
+    }
+    else
+    {
+        for (i = intr_handlers[intrno]; i != NULL; i = i->next)
+        {
+            if (i->next == intr)
+            {
+                i->next = intr->next;
+                break;
+            }
+        }
+    }
+    intr->next = NULL;
+}
+
+
+/**
+ * Initialize traps and interrupts.
  */
 void ktrap_init()
 {
@@ -843,8 +806,8 @@ void ktrap_init()
     // Initialize interrupt dispatch table
     for (i = 0; i < INTRS; i++)
     {
-        intrhndlr[i] = NULL;
-        intrcount[i] = 0;
+        intr_handlers[i] = NULL;
+        intr_counter[i] = 0;
     }
 
     // setup the x86 interrupt table
@@ -913,7 +876,7 @@ void ktrap_init()
     kmach_set_idt_gate(62, isr62);
     kmach_set_idt_gate(63, isr63);
 
-    // define OS interrupt handlers
+    // define OS handlers
     register_interrupt(&divintr, INTR_DIV, div_handler, NULL);
     register_interrupt(&brkptintr, INTR_BPT, breakpoint_handler, NULL);
     register_interrupt(&overflowintr, INTR_OVFL, overflow_handler, NULL);
@@ -936,125 +899,4 @@ void ktrap_init()
 
     // Register /proc/traps
     register_proc_inode("traps", traps_proc, NULL);
-}
-
-//
-// trap
-//
-// Trap dispatcher
-//
-
-static void trap(unsigned long args)
-{
-    struct context *ctxt = (struct context *) &args;
-    struct thread *t = kthread_self();
-    struct context *prevctxt;
-    struct interrupt *intr;
-    int rc;
-
-
-    // Save context
-    prevctxt = t->ctxt;
-    t->ctxt = ctxt;
-
-    // Statistics
-    intrcount[ctxt->traptype]++;
-
-    // Call interrupt handlers
-    intr = intrhndlr[ctxt->traptype];
-    if (!intr)
-    {
-        dbg_enter(ctxt, NULL);
-    }
-    else
-    {
-        while (intr)
-        {
-            rc = intr->handler(ctxt, intr->arg);
-            if (rc > 0) break;
-            intr = intr->next;
-        }
-    }
-
-    // If we interrupted a user mode context, dispatch DPCs,
-    // check for quantum expiry, and deliver signals.
-    if (usermode(ctxt))
-    {
-        kdpc_check_queue();
-        ksched_check_preempt();
-        if (kthread_signals_ready(t)) deliver_pending_signals(0);
-    }
-
-    // Restore context
-    t->ctxt = prevctxt;
-}
-
-//
-// register_interrupt
-//
-// Register interrupt handler for interrupt
-//
-
-void register_interrupt( struct interrupt *intr, int intrno, intrproc_t func, void *arg )
-{
-    intr->handler = func;
-    intr->arg = arg;
-    intr->flags = 0;
-    intr->next = intrhndlr[intrno];
-    intrhndlr[intrno] = intr;
-}
-
-//
-// unregister_interrupt
-//
-// Remove interrupt handler for interrupt
-//
-
-void unregister_interrupt(struct interrupt *intr, int intrno) {
-  struct interrupt *i;
-
-  if (intrhndlr[intrno] == intr) {
-    intrhndlr[intrno] = intr->next;
-  } else {
-    for (i = intrhndlr[intrno]; i != NULL; i = i->next) {
-      if (i->next == intr) {
-        i->next = intr->next;
-        break;
-      }
-    }
-  }
-  intr->next = NULL;
-}
-
-//
-// get_context
-//
-// Retrieves the processor context for a thread
-//
-
-int get_context(struct thread *t, struct context *ctxt) {
-  memcpy(ctxt, t->ctxt, sizeof(struct context));
-  return 0;
-}
-
-//
-// set_context
-//
-// Sets the processor context for a thread
-//
-
-int set_context(struct thread *t, struct context *ctxt) {
-  t->ctxt->esp = ctxt->esp;
-  t->ctxt->eip = ctxt->eip;
-  t->ctxt->eflags = ctxt->eflags;
-  t->ctxt->ebp = ctxt->ebp;
-
-  t->ctxt->eax = ctxt->eax;
-  t->ctxt->ebx = ctxt->ebx;
-  t->ctxt->ecx = ctxt->ecx;
-  t->ctxt->edx = ctxt->edx;
-  t->ctxt->esi = ctxt->esi;
-  t->ctxt->edi = ctxt->edi;
-
-  return 0;
 }

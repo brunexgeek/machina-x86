@@ -31,8 +31,8 @@
 // SUCH DAMAGE.
 //
 
-#ifndef TRAP_H
-#define TRAP_H
+#ifndef MACHINA_OS_TRAP_H
+#define MACHINA_OS_TRAP_H
 
 #define IRQBASE       0x20
 
@@ -99,6 +99,8 @@
 #define INTR_SIGEXIT            49
 #define INTR_SYSENTER           0xFFFF
 
+#ifndef __ASSEMBLER__
+
 typedef int (*intrproc_t)(struct context *ctxt, void *arg);
 
 struct interrupt {
@@ -119,9 +121,6 @@ int deliver_pending_signals(int retcode);
 int kthread_set_signal_mask(int how, sigset_t *set, sigset_t *oldset);
 int kthread_get_pending_signals(sigset_t *set);
 
-int get_context(struct thread *t, struct context *ctxt);
-int set_context(struct thread *t, struct context *ctxt);
-
-#endif
-
-#endif
+#endif  // KERNEL
+#endif  // __ASSEMBLER__
+#endif  // MACHINA_OS_TRAP_H

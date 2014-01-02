@@ -36,8 +36,6 @@
 #define MACHINA_PDIR_H
 
 
-typedef unsigned long pte_t;
-
 #define PAGESIZE       4096
 #define PAGESHIFT      12
 #define PTES_PER_PAGE  (PAGESIZE / sizeof(pte_t))
@@ -104,6 +102,11 @@ typedef unsigned long pte_t;
  */
 #define GET_PTE(vaddr) (ptab[PTABIDX(vaddr)])
 
+
+#ifndef __ASSEMBLER__
+
+typedef unsigned long pte_t;
+
 struct pdirstat
 {
     int present;
@@ -144,5 +147,5 @@ int virtmem_proc(struct proc_file *pf, void *arg);
 int pdir_stat(void *addr, int len, struct pdirstat *buf);
 
 #endif  // KERNEL
-
+#endif  // __ASSEMBLER__
 #endif  // MACHINA_PDIR_H

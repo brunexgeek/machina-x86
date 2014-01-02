@@ -57,6 +57,7 @@ KERNEL32_SRC_FILES = \
 	sys/kernel/queue.c \
 	sys/kernel/sched.c \
 	arch/x86/sys/kernel/trap.c \
+	arch/x86/sys/kernel/trap.s \
 	arch/x86/sys/kernel/sched.c \
 	arch/x86/sys/kernel/sched.s \
 	arch/x86/sys/kernel/mach.s \

@@ -206,6 +206,7 @@ int kthread_alertable_wait(int reason)
     return 0;
 }
 
+
 int kthread_interrupt(struct thread *t)
 {
     if (t->state != THREAD_STATE_WAITING) return -EBUSY;
@@ -214,6 +215,7 @@ int kthread_interrupt(struct thread *t)
     kthread_ready(t, 1, 1);
     return 0;
 }
+
 
 void kthread_ready(struct thread *t, int charge, int boost)
 {
@@ -800,6 +802,7 @@ static struct dpc *kdpc_get_next()
     return dpc;
 }
 
+
 void kdpc_check_queue()
 {
     if (dpc_queue_head) kdpc_dispatch_queue();
@@ -910,6 +913,7 @@ void ksched_dispatch()
     kthread_mark_running();
 }
 
+
 void kthread_yield()
 {
     struct thread *t = kthread_self();
@@ -924,12 +928,14 @@ void kthread_yield()
     ksched_dispatch();
 }
 
+
 int ksched_is_system_idle()
 {
     if (thread_ready_summary != 0) return 0;
     if (dpc_queue_head != NULL) return 0;
     return 1;
 }
+
 
 void ksched_add_idle_task(struct task *task, taskproc_t proc, void *arg)
 {
@@ -948,6 +954,7 @@ void ksched_add_idle_task(struct task *task, taskproc_t proc, void *arg)
         idle_tasks_head = idle_tasks_tail = task;
     }
 }
+
 
 void ksched_idle()
 {
@@ -980,6 +987,7 @@ void ksched_idle()
         //if ((eflags() & EFLAG_IF) == 0) panic("sched: interrupts disabled in idle loop");
     }
 }
+
 
 static int threads_proc(struct proc_file *pf, void *arg) {
     static char *threadstatename[] = {"init", "ready", "run", "wait", "term", "susp", "trans"};
@@ -1021,6 +1029,7 @@ static int threads_proc(struct proc_file *pf, void *arg) {
 
     return 0;
 }
+
 
 static int dpcs_proc(struct proc_file *pf, void *arg)
 {
@@ -1067,13 +1076,3 @@ void ksched_destroy()
     ksched_suspend_all_threads();
     threadlist = NULL;
 }
-
-
-__asm__
-(
-    ".global ___kthread_self;"
-    "___kthread_self: "
-    "mov eax, esp;"
-    "and eax, " TO_STRING(TCBMASK) ";"
-    "ret;"
-);

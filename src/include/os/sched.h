@@ -35,27 +35,6 @@
 #ifndef MACHINA_SCHED_H
 #define MACHINA_SCHED_H
 
-
-#include <os/krnl.h>
-#include <os/syspage.h>
-#include <stdint.h>
-
-
-/**
- * Prototype for thread functions.
- */
-typedef void (*threadproc_t)(void *arg);
-
-/**
- * Prototype for DPC functions.
- */
-typedef void (*dpcproc_t)(void *arg);
-
-/**
- * Prototype for
- */
-typedef void (*taskproc_t)(void *arg);
-
 //#define NOPREEMPTION
 
 #define DEFAULT_QUANTUM          36
@@ -86,6 +65,29 @@ typedef void (*taskproc_t)(void *arg);
 #define TASK_QUEUED       1
 #define TASK_EXECUTING    2
 
+
+#ifndef __ASSEMBLER__
+
+
+#include <os/krnl.h>
+#include <os/syspage.h>
+#include <stdint.h>
+
+
+/**
+ * Prototype for thread functions.
+ */
+typedef void (*threadproc_t)(void *arg);
+
+/**
+ * Prototype for DPC functions.
+ */
+typedef void (*dpcproc_t)(void *arg);
+
+/**
+ * Prototype for task functions.
+ */
+typedef void (*taskproc_t)(void *arg);
 
 /**
  * Thread Control Block (TCB) structure.
@@ -166,37 +168,37 @@ extern unsigned long dpc_time;
 //
 
 /**
- * @brief Returns the current running thread.
+ * Returns the current running thread.
  */
 struct thread *kthread_self(void) __asm__("___kthread_self");
 
 /**
- * @brief Mark a thread as ready to run.
+ * Mark a thread as ready to run.
  */
 KERNELAPI void kthread_ready(struct thread *t, int charge, int boost);
 
 /**
- * @brief Block a thread until it is marked as ready to run.
+ * Block a thread until it is marked as ready to run.
  */
 KERNELAPI void kthread_wait(int reason);
 
 /**
- * @brief Block a thread until it is marked as ready to run.
+ * Block a thread until it is marked as ready to run.
  */
 KERNELAPI int kthread_alertable_wait(int reason);
 
 /**
- * @brief Interrupt the execution of the given thread.
+ * Interrupt the execution of the given thread.
  */
 KERNELAPI int kthread_interrupt(struct thread *t);
 
 /**
- * @brief Create a new thread in kernel mode.
+ * Create a new thread in kernel mode.
  */
 KERNELAPI struct thread *kthread_create_kland(threadproc_t startaddr, void *arg, int priority, char *name);
 
 /**
- * @brief Create a new thread in user mode.
+ * Create a new thread in user mode.
  */
 int kthread_create_uland(void *entrypoint, unsigned long stacksize, char *name, struct thread **retval);
 
@@ -258,7 +260,7 @@ int kthread_set_priority( struct thread *t, int priority );
 KERNELAPI void kthread_yield();
 
 /**
- * @brief Returns the thread which have the given ID.
+ * Returns the thread which have the given ID.
  */
 struct thread *kthread_get(tid_t tid);
 
@@ -268,12 +270,24 @@ static __inline int kthread_signals_ready(struct thread *t)
 }
 
 
+/**
+ * Retrieves the processor context for a thread
+ */
+int kthread_get_context(struct thread *t, struct context *ctxt);
+
+
+/**
+ * Sets the processor context for a thread
+ */
+int kthread_set_context(struct thread *t, struct context *ctxt);
+
+
 //
 // DPC subsystem
 //
 
 /**
- * @brief Initialize a DPC object.
+ * Initialize a DPC object.
  */
 KERNELAPI void kdpc_create(struct dpc *dpc);
 
@@ -322,12 +336,12 @@ void ksched_destroy();
 void ksched_idle();
 
 /**
- * @brief Change the current running thread to the next ready one.
+ * Change the current running thread to the next ready one.
  */
 KERNELAPI void ksched_dispatch();
 
 /**
- * @brief Returns a non-zero integer indicating if the system is in idle state.
+ * Returns a non-zero integer indicating if the system is in idle state.
  */
 KERNELAPI int ksched_is_system_idle();
 
@@ -357,5 +371,5 @@ KERNELAPI void init_task(struct task *task);
 KERNELAPI int queue_task(struct task_queue *tq, struct task *task, taskproc_t proc, void *arg);
 
 
-
+#endif  // __ASSEMBLER__
 #endif  // MACHINA_SCHED_H

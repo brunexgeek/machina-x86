@@ -188,7 +188,7 @@ static int fd_command(unsigned char cmd) {
   int msr;
   unsigned int tmo;
 
-  tmo = ticks + 1*HZ;
+  tmo = global_ticks + 1*HZ;
   while (1) {
     msr = inp(FDC_MSR);
     if ((msr & 0xc0) == 0x80) {
@@ -196,7 +196,7 @@ static int fd_command(unsigned char cmd) {
       return 0;
     }
 
-    if (time_before(tmo, ticks)) break;
+    if (time_before(tmo, global_ticks)) break;
     kthread_yield(); // delay
   }
 
@@ -212,11 +212,11 @@ static int fd_data() {
   int msr;
   unsigned int tmo;
 
-  tmo = ticks + 5*HZ;
+  tmo = global_ticks + 5*HZ;
   while (1) {
     msr = inp(FDC_MSR);
     if ((msr & 0xd0) == 0xd0) return inp(FDC_DATA) & 0xFF;
-    if (time_before(tmo, ticks)) break;
+    if (time_before(tmo, global_ticks)) break;
     kthread_yield(); // delay
   }
 
@@ -293,7 +293,7 @@ static void fd_motor_on(struct fd *fd) {
 static void fd_motor_off(struct fd *fd) {
   if (fd->motor_status == FD_MOTOR_ON) {
     fd->motor_status = FD_MOTOR_DELAY;
-    ktimer_modify(&fd->motortimer, ticks + FD_MOTOR_TIMEOUT / MSECS_PER_TICK);
+    ktimer_modify(&fd->motortimer, global_ticks + FD_MOTOR_TIMEOUT / MSECS_PER_TICK);
   }
 }
 
@@ -561,7 +561,7 @@ static void fd_dpc(void *arg) {
 static int fd_handler(struct context *ctxt, void *arg)
 {
     kdpc_queue_irq(&fdc.dpc, fd_dpc, "fd_dpc", arg);
-    eoi(IRQ_FD);
+    kpic_eoi(IRQ_FD);
     return 0;
 }
 
@@ -601,7 +601,7 @@ void init_fd()
   //int version;
   //char *name;
 
-  fdtypes = read_cmos_reg(0x10);
+  fdtypes = kpit_read_cmos(0x10);
   first_floppy = (fdtypes >> 4) & 0x0F;
   second_floppy = fdtypes & 0x0F;
   if (!first_floppy && !second_floppy) return;
@@ -654,7 +654,7 @@ void init_fd()
     kpage_map(fdc.dmabuf + i * PAGESIZE, BTOP(DMA_BUFFER_START) + i, PT_WRITABLE | PT_PRESENT);
 
   register_interrupt(&fdc.intr, INTR_FD, fd_handler, &fdc);
-  enable_irq(IRQ_FD);
+  kpic_enable_irq(IRQ_FD);
 
   //kprintf("fdc: %s\n", fdc.name);
 

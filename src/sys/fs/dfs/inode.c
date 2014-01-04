@@ -192,7 +192,7 @@ struct inode *alloc_inode(struct inode *parent, unsigned short mode) {
   inode->desc->linkcount = 1;
   inode->desc->uid = thread->euid;
   inode->desc->gid = thread->egid;
-  inode->desc->ctime = inode->desc->mtime = time(NULL);
+  inode->desc->ctime = inode->desc->mtime = kpit_get_time();
 
   mark_inode_dirty(inode);
 

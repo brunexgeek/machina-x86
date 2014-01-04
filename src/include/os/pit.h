@@ -46,24 +46,50 @@
 #define USECS_PER_TICK  (1000000 / TIMER_FREQ)
 #define MSECS_PER_TICK  (1000 / TIMER_FREQ)
 
-extern struct timeval systemclock;
-extern volatile unsigned int ticks;
-extern volatile unsigned int clocks;
 
-KERNELAPI unsigned int get_ticks();
+extern struct timeval global_time;
+extern volatile unsigned int global_ticks;
+extern volatile unsigned int global_clocks;
 
-KERNELAPI void udelay(unsigned long us);
 
-KERNELAPI unsigned char read_cmos_reg(int reg);
-KERNELAPI void write_cmos_reg(int reg, unsigned char val);
+/**
+ * Suspend the current thread by an amount of microseconds.
+ */
+KERNELAPI void kpit_udelay(unsigned long us);
 
-void init_pit();
-void calibrate_delay();
+/**
+ * Read data from CMOS.
+ */
+KERNELAPI unsigned char kpit_read_cmos(int reg);
 
-KERNELAPI time_t get_time();
+/**
+ * Write data to CMOS.
+ */
+KERNELAPI void kpit_write_cmos(int reg, unsigned char val);
 
-time_t time(time_t *time);
-void set_time(struct timeval *tv);
-int load_sysinfo(struct loadinfo *info);
+/**
+ * Initialize PIT.
+ */
+void kpit_init();
+
+/**
+ * Calibrate
+ */
+void kpit_calibrate_delay();
+
+/**
+ * Returns the current system time.
+ */
+KERNELAPI time_t kpit_get_time();
+
+/**
+ * Set the current system time.
+ */
+void kpit_set_time(struct timeval *tv);
+
+/**
+ * Returns the system load information.
+ */
+int kpit_get_system_load( struct loadinfo *info );
 
 #endif

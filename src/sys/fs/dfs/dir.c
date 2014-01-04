@@ -119,7 +119,7 @@ int add_dir_entry(struct inode *dir, char *name, int len, ino_t ino) {
         mark_buffer_updated(dir->fs->cache, buf);
         release_buffer(dir->fs->cache, buf);
 
-        dir->desc->mtime = time(NULL);
+        dir->desc->mtime = kpit_get_time();
         mark_inode_dirty(dir);
 
         return 0;
@@ -138,7 +138,7 @@ int add_dir_entry(struct inode *dir, char *name, int len, ino_t ino) {
   if (!buf) return -ENOMEM;
 
   dir->desc->size += dir->fs->blocksize;
-  dir->desc->mtime = time(NULL);
+  dir->desc->mtime = kpit_get_time();
   mark_inode_dirty(dir);
 
   newde = (struct dentry *) (buf->data);
@@ -250,7 +250,7 @@ int delete_dir_entry(struct inode *dir, char *name, int len) {
 
         release_buffer(dir->fs->cache, buf);
 
-        dir->desc->mtime = time(NULL);
+        dir->desc->mtime = kpit_get_time();
         mark_inode_dirty(dir);
 
         return 0;

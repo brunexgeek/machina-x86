@@ -1294,7 +1294,7 @@ static int sys_time(char *params) {
 
   if (lock_buffer(timeptr, sizeof(time_t *), 1) < 0) return -EFAULT;
 
-  t = get_time();
+  t = kpit_get_time();
   if (timeptr) *timeptr = t;
 
   unlock_buffer(timeptr, sizeof(time_t *));
@@ -1312,31 +1312,34 @@ static int sys_gettimeofday(char *params) {
   if (!tv) return -EINVAL;
   if (lock_buffer(tv, sizeof(struct timeval), 1) < 0) return -EFAULT;
 
-  tv->tv_sec = systemclock.tv_sec;
-  tv->tv_usec = systemclock.tv_usec;
+  tv->tv_sec = global_time.tv_sec;
+  tv->tv_usec = global_time.tv_usec;
 
   unlock_buffer(tv, sizeof(struct timeval));
 
   return 0;
 }
 
-static int sys_settimeofday(char *params) {
-  struct timeval *tv;
 
-  tv = *(struct timeval **) params;
+static int sys_settimeofday(char *params)
+{
+    struct timeval *tv;
 
-  if (!tv) return -EINVAL;
-  if (lock_buffer(tv, sizeof(struct timeval), 0) < 0) return -EFAULT;
+    tv = *(struct timeval **) params;
 
-  set_time(tv);
+    if (!tv) return -EINVAL;
+    if (lock_buffer(tv, sizeof(struct timeval), 0) < 0) return -EFAULT;
 
-  unlock_buffer(tv, sizeof(struct timeval));
+    kpit_set_time(tv);
 
-  return 0;
+    unlock_buffer(tv, sizeof(struct timeval));
+
+    return 0;
 }
 
-static int sys_clock(char *params) {
-  return clocks;
+static int sys_clock(char *params)
+{
+    return global_clocks;
 }
 
 static int sys_mksem(char *params) {
@@ -2194,7 +2197,7 @@ static int sys_sysinfo(char *params) {
       if (!data || size < sizeof(struct loadinfo)) {
         rc = -EFAULT;
       } else {
-        rc = load_sysinfo((struct loadinfo *) data);
+        rc = kpit_get_system_load((struct loadinfo *) data);
       }
       break;
 

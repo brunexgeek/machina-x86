@@ -90,7 +90,7 @@ err_t submit_socket_request(struct socket *s, struct sockreq *req, int type, str
 
   if (timeout != INFINITE) {
     ktimer_init(&timer, socket_timeout, req);
-    timer.expires = ticks + timeout / MSECS_PER_TICK;
+    timer.expires = global_ticks + timeout / MSECS_PER_TICK;
     ktimer_add(&timer);
   }
 

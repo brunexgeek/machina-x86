@@ -66,7 +66,7 @@ void kthread_mark_running()
     t->state = THREAD_STATE_RUNNING;
     t->context_switches++;
 
-    // set FS register to point to current TIB
+    // if user mode thread, set FS register to point to current TIB
     tib = t->tib;
     if (tib)
     {

@@ -401,7 +401,7 @@ static struct buf *get_new_buffer(struct bufpool *pool) {
 
 static void check_sync() {
   struct bufpool *pool;
-  time_t now = time(NULL);
+  time_t now = kpit_get_time(NULL);
 
   for (pool = bufpools; pool; pool = pool->next) {
     if (now - pool->last_sync >=  SYNC_INTERVAL) {
@@ -470,7 +470,7 @@ struct bufpool *init_buffer_pool(dev_t devno, int poolsize, int bufsize, void (*
   pool->blks_per_buffer = bufsize / blksize;
   pool->sync = sync;
   pool->syncarg = syncarg;
-  pool->last_sync = time(NULL);
+  pool->last_sync = kpit_get_time(NULL);
 
   // Allocate buffer headers
   pool->bufbase = (struct buf *) kmalloc(sizeof(struct buf) * poolsize);
@@ -775,7 +775,7 @@ int sync_buffers(struct bufpool *pool, int interruptable) {
 
   // If there are no updated buffers then there is nothing to do
   if (pool->bufcount[BUF_STATE_UPDATED] == 0) {
-    pool->last_sync = time(NULL);
+    pool->last_sync = kpit_get_time();
     return 0;
   }
 
@@ -808,6 +808,6 @@ int sync_buffers(struct bufpool *pool, int interruptable) {
     buf++;
   }
 
-  pool->last_sync = time(NULL);
+  pool->last_sync = kpit_get_time();
   return 0;
 }

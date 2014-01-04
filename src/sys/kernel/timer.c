@@ -254,7 +254,7 @@ static void cascade_timers(struct timer_vec *tv)
 
 void run_timer_list()
 {
-    while ((long) (ticks - timer_ticks) >= 0)
+    while ((long) (global_ticks - timer_ticks) >= 0)
     {
         struct timer_link *head, *curr;
 
@@ -322,12 +322,12 @@ int msleep(unsigned int millisecs)
     else
     {
         ktimer_init(&timer, tmr_sleep, kthread_self());
-        timer.expires = ticks + millisecs / MSECS_PER_TICK;
+        timer.expires = global_ticks + millisecs / MSECS_PER_TICK;
         ktimer_add(&timer);
         rc = kthread_alertable_wait(THREAD_WAIT_SLEEP);
         if (rc == -EINTR)
         {
-            rc = (timer.expires - ticks) * MSECS_PER_TICK;
+            rc = (timer.expires - global_ticks) * MSECS_PER_TICK;
             if (rc < 0) rc = 0;
         }
         ktimer_remove(&timer);

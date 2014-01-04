@@ -372,7 +372,7 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned long n
   if (global_cpu.features & CPU_FEATURE_TSC) {
     time = (unsigned long) kmach_rdtsc();
   } else {
-    time = ticks;
+    time = global_ticks;
   }
 
   //
@@ -729,13 +729,16 @@ struct driver urandom_driver = {
   random_write
 };
 
-static void init_std_data(struct entropy_store *r) {
-  unsigned long words[2];
 
-  words[0] = systemclock.tv_sec;
-  words[1] = systemclock.tv_usec;
-  add_entropy_words(r, words, 2);
+static void init_std_data(struct entropy_store *r)
+{
+    unsigned long words[2];
+
+    words[0] = global_time.tv_sec;
+    words[1] = global_time.tv_usec;
+    add_entropy_words(r, words, 2);
 }
+
 
 int /*__declspec(dllexport)*/ random() {
   int rc;

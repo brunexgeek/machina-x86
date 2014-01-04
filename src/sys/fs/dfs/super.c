@@ -311,7 +311,7 @@ static struct filsys *create_filesystem(char *devname, struct fsoptions *fsopts)
   // Create root directory
   if (get_inode(fs, DFS_INODE_ROOT, &root) < 0) return NULL;
   root->desc->mode = S_IFDIR | S_IRWXU | S_IRWXG | S_IRWXO;
-  root->desc->ctime = root->desc->mtime = time(NULL);
+  root->desc->ctime = root->desc->mtime = kpit_get_time();
   root->desc->linkcount = 1;
   mark_buffer_updated(fs->cache, root->buf);
   release_inode(root);

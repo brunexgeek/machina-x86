@@ -303,7 +303,7 @@ int smb_connect_tree(struct smb_share *share) {
   if (rc < 0) return rc;
 
   share->tid = smb->tid;
-  share->mounttime = time(0);
+  share->mounttime = kpit_get_time();
 
   return 0;
 }

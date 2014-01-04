@@ -131,7 +131,7 @@ int dfs_stat(struct fs *fs, char *name, struct stat64 *buffer) {
     buffer->st_nlink = inode->desc->linkcount;
     buffer->st_dev = ((struct filsys *) fs->data)->devno;
 
-    buffer->st_atime = time(NULL);
+    buffer->st_atime = kpit_get_time();
     buffer->st_mtime = inode->desc->mtime;
     buffer->st_ctime = inode->desc->ctime;
     buffer->st_size = inode->desc->size;

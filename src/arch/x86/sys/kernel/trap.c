@@ -142,7 +142,7 @@ char *INTR_NAMES[INTRS] =
 /**
  * @brief Tests if context is a user mode context.
  */
-static inline int usermode(struct context *ctxt)
+static inline int is_usermode(struct context *ctxt)
 {
     return USERSPACE(ctxt->eip);
 }
@@ -185,7 +185,7 @@ void trap(unsigned long args)
 
     // If we interrupted a user mode context, dispatch DPCs,
     // check for quantum expiry, and deliver signals.
-    if (usermode(ctxt))
+    if (is_usermode(ctxt))
     {
         kdpc_check_queue();
         ksched_check_preempt();
@@ -525,7 +525,7 @@ static int sigexit_handler(struct context *ctxt, void *arg) {
  */
 static int div_handler(struct context *ctxt, void *arg)
 {
-    if (usermode(ctxt))
+    if (is_usermode(ctxt))
     {
         send_signal(ctxt, SIGFPE, (void *) ctxt->eip);
     }
@@ -544,7 +544,7 @@ static int div_handler(struct context *ctxt, void *arg)
  */
 static int breakpoint_handler(struct context *ctxt, void *arg)
 {
-    if (usermode(ctxt))
+    if (is_usermode(ctxt))
     {
         send_signal(ctxt, SIGTRAP, (void *) ctxt->eip);
     }
@@ -563,7 +563,7 @@ static int breakpoint_handler(struct context *ctxt, void *arg)
  */
 static int overflow_handler(struct context *ctxt, void *arg)
 {
-    if (usermode(ctxt))
+    if (is_usermode(ctxt))
     {
         send_signal(ctxt, SIGSEGV, NULL);
     }
@@ -582,7 +582,7 @@ static int overflow_handler(struct context *ctxt, void *arg)
  */
 static int bounds_handler(struct context *ctxt, void *arg)
 {
-    if (usermode(ctxt))
+    if (is_usermode(ctxt))
     {
         send_signal(ctxt, SIGSEGV, NULL);
     }
@@ -601,7 +601,7 @@ static int bounds_handler(struct context *ctxt, void *arg)
  */
 static int illop_handler(struct context *ctxt, void *arg)
 {
-    if (usermode(ctxt))
+    if (is_usermode(ctxt))
     {
         send_signal(ctxt, SIGILL, (void *) ctxt->eip);
     }
@@ -620,7 +620,7 @@ static int illop_handler(struct context *ctxt, void *arg)
  */
 static int seg_handler(struct context *ctxt, void *arg)
 {
-    if (usermode(ctxt))
+    if (is_usermode(ctxt))
     {
         send_signal(ctxt, SIGBUS, NULL);
     }
@@ -639,7 +639,7 @@ static int seg_handler(struct context *ctxt, void *arg)
  */
 static int stack_handler(struct context *ctxt, void *arg)
 {
-    if (usermode(ctxt))
+    if (is_usermode(ctxt))
     {
         send_signal(ctxt, SIGBUS, NULL);
     }
@@ -658,7 +658,7 @@ static int stack_handler(struct context *ctxt, void *arg)
  */
 static int genpro_handler(struct context *ctxt, void *arg)
 {
-    if (usermode(ctxt))
+    if (is_usermode(ctxt))
     {
         send_signal(ctxt, SIGSEGV, NULL);
     }
@@ -683,7 +683,7 @@ static int pagefault_handler(struct context *ctxt, void *arg)
     addr = (void *) kmach_get_cr2();
     pageaddr = (void *) PAGEADDR(addr);
 
-    if (usermode(ctxt))
+    if (is_usermode(ctxt))
     {
         int signal = SIGSEGV;
         // check if the address is mapped on page directory
@@ -725,7 +725,7 @@ static int pagefault_handler(struct context *ctxt, void *arg)
  */
 static int alignment_handler(struct context *ctxt, void *arg)
 {
-    if (usermode(ctxt)) {
+    if (is_usermode(ctxt)) {
     send_signal(ctxt, SIGBUS, (void *) kmach_get_cr2());
     } else {
     kprintf(KERN_CRIT "trap: alignment exception in kernel mode\n");
@@ -876,7 +876,7 @@ void ktrap_init()
     kmach_set_idt_gate(62, isr62);
     kmach_set_idt_gate(63, isr63);
 
-    // define OS handlers
+    // define OS interrupt handlers
     register_interrupt(&divintr, INTR_DIV, div_handler, NULL);
     register_interrupt(&brkptintr, INTR_BPT, breakpoint_handler, NULL);
     register_interrupt(&overflowintr, INTR_OVFL, overflow_handler, NULL);

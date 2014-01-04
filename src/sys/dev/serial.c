@@ -625,7 +625,7 @@ static int serial_handler(struct context *ctxt, void *arg) {
   outp(sp->iobase + UART_MCR, sp->mcr);
 
   kdpc_queue_irq(&sp->dpc, serial_dpc, "serial_dpc", sp);
-  eoi(sp->irq);
+  kpic_eoi(sp->irq);
 
   return 0;
 }
@@ -689,7 +689,7 @@ static void init_serial_port(char *devname, int iobase, int irq, struct unit *un
 
   // Enable interrupts
   register_interrupt(&sp->intr, IRQ2INTR(sp->irq), serial_handler, sp);
-  enable_irq(sp->irq);
+  kpic_enable_irq(sp->irq);
   outp((unsigned short) (sp->iobase + UART_IER), IER_ERXRDY | IER_ETXRDY | IER_ERLS | IER_EMSC);
 
   kprintf(KERN_INFO "%s: %s iobase 0x%x irq %d\n", kdev_get(devno)->name, uart_name[sp->type], sp->iobase, sp->irq);

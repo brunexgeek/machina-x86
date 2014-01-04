@@ -69,7 +69,7 @@ void fpu_enable(struct fpu *state)
 
 void fpu_disable(struct fpu *state)
 {
-    // Save FPU state
+    // save FPU state
     if (state)
         __asm__
         (
@@ -79,7 +79,7 @@ void fpu_disable(struct fpu *state)
             : "m" (state)
         );
 
-    // Disable acces to FPU
+    // disable acces to FPU
     kmach_set_cr0(kmach_get_cr0() | CR0_EM);
 }
 

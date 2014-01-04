@@ -275,7 +275,7 @@ int wait_for_one_object(object_t hobj, unsigned int timeout, int alertable) {
 
     // Initialize timer
     if (timeout < MSECS_PER_TICK) timeout = MSECS_PER_TICK;
-    init_waitable_timer(&timer, ticks + timeout / MSECS_PER_TICK);
+    init_waitable_timer(&timer, global_ticks + timeout / MSECS_PER_TICK);
     wb.next = &wbtmo;
     wbtmo.thread = t;
     wbtmo.object = &timer.object;
@@ -383,7 +383,7 @@ int wait_for_all_objects(struct object **objs, int count, unsigned int timeout, 
   // Add waitable timer for timeout
   if (timeout != INFINITE) {
     if (timeout < MSECS_PER_TICK) timeout = MSECS_PER_TICK;
-    init_waitable_timer(&timer, ticks + timeout / MSECS_PER_TICK);
+    init_waitable_timer(&timer, global_ticks + timeout / MSECS_PER_TICK);
     wb[count - 1].next = &wbtmo;
     wbtmo.thread = t;
     wbtmo.object = &timer.object;
@@ -469,7 +469,7 @@ int wait_for_any_object(struct object **objs, int count, unsigned int timeout, i
   // Add waitable timer for timeout
   if (timeout != INFINITE) {
     if (timeout < MSECS_PER_TICK) timeout = MSECS_PER_TICK;
-    init_waitable_timer(&timer, ticks + timeout / MSECS_PER_TICK);
+    init_waitable_timer(&timer, global_ticks + timeout / MSECS_PER_TICK);
     wb[count - 1].next = &wbtmo;
     wbtmo.thread = t;
     wbtmo.object = &timer.object;
@@ -912,7 +912,7 @@ void init_waitable_timer(struct waitable_timer *t, unsigned int expires) {
   ktimer_init(&t->timer, expire_waitable_timer, t);
   t->timer.expires = expires;
 
-  if (time_before_eq(expires, ticks)) {
+  if (time_before_eq(expires, global_ticks)) {
     // Set timer to signaled state immediately
     t->object.signaled = 1;
   } else {

@@ -171,7 +171,7 @@ static void kbd_wait() {
       return;
     }
 
-    udelay(1);
+    kpit_udelay(1);
   }
 }
 
@@ -212,7 +212,7 @@ static int kbd_wait_for_data() {
       return -ETIMEOUT;
     }
 
-    udelay(1);
+    kpit_udelay(1);
   }
 }
 
@@ -408,7 +408,7 @@ static void keyb_dpc(void *arg) {
     process_scancode(scancode);
   }
 
-  eoi(IRQ_KBD);
+  kpic_eoi(IRQ_KBD);
 }
 
 //
@@ -596,5 +596,5 @@ void init_keyboard(dev_t devno, int reset) {
   kdpc_create(&kbddpc);
   init_sem(&kbdsem, 0);
   register_interrupt(&kbdintr, INTR_KBD, keyboard_handler, NULL);
-  enable_irq(IRQ_KBD);
+  kpic_enable_irq(IRQ_KBD);
 }

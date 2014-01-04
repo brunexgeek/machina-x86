@@ -44,26 +44,26 @@
 
 
 ___switch_context:
-    // Save registers on current kernel stack
+    // save registers on current kernel stack
     push    ebp
     push    ebx
     push    edi
     push    esi
 
-    // Store kernel stack pointer in tcb
+    // store kernel stack pointer in tcb
     mov     eax, esp
     and     eax, TCBMASK
     add     eax, TCBESP
     mov     [eax], esp
 
-    // Get stack pointer for new thread and store in esp0
+    // get stack pointer for new thread and store in esp0
     mov     eax, 20[esp]
     add     eax, TCBESP
     mov     esp, [eax]
     mov     ebp, TSS_ESP0
     mov     [ebp], eax
 
-    // Restore registers from new kernel stack
+    // restore registers from new kernel stack
     pop     esi
     pop     edi
     pop     ebx

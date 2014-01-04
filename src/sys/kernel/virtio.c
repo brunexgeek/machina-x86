@@ -60,7 +60,7 @@ int virtio_handler(struct context *ctxt, void *arg) {
 
   // Queue DPC to read the queues for the device
   kdpc_queue_irq(&vd->dpc, virtio_dpc, "virtio_dpc", vd);
-  eoi(vd->irq);
+  kpic_eoi(vd->irq);
   return 1;
 }
 
@@ -91,7 +91,7 @@ int virtio_device_init(struct virtio_device *vd, struct unit *unit, int features
 
   // Enable interrupts
   register_interrupt(&vd->intr, IRQ2INTR(vd->irq), virtio_handler, vd);
-  enable_irq(vd->irq);
+  kpic_enable_irq(vd->irq);
 
   return 0;
 }

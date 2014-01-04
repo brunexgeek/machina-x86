@@ -85,131 +85,171 @@
 #define LOADTYPE_KERNEL     2
 #define LOADTYPE_DPC        3
 
-volatile unsigned int ticks = 0;
-volatile unsigned int clocks = 0;
-struct timeval systemclock = { 0, 0 };
-time_t upsince;
-unsigned long cycles_per_tick;
-unsigned long loops_per_tick;
+#define PIT_CMOS_SECOND       0x00
+#define PIT_CMOS_MINUTE       0x02
+#define PIT_CMOS_HOUR         0x04
+#define PIT_CMOS_WEEKDAY      0x06
+#define PIT_CMOS_DAY          0x07
+#define PIT_CMOS_MONTH        0x08
+#define PIT_CMOS_YEAR         0x09
+#define PIT_CMOS_CENTURY      0x32
 
-unsigned char loadtab[LOADTAB_SIZE];
-unsigned char *loadptr;
-unsigned char *loadend;
 
-struct interrupt timerintr;
-struct dpc timerdpc;
+volatile unsigned int global_ticks = 0;
+volatile unsigned int global_clocks = 0;
+struct timeval global_time = { 0, 0 };
 
-void timer_dpc(void *arg) {
-  run_timer_list();
+static time_t upsince;
+static unsigned long cycles_per_tick;
+static unsigned long loops_per_tick;
+
+static unsigned char loadtab[LOADTAB_SIZE];
+static unsigned char *loadptr;
+static unsigned char *loadend;
+
+static struct interrupt timerintr;
+static struct dpc timerdpc;
+
+
+void timer_dpc(void *arg)
+{
+    run_timer_list();
 }
 
-int timer_handler(struct context *ctxt, void *arg) {
-  struct thread *t;
 
-  // Update timer clock
-  clocks += CLOCKS_PER_TICK;
+int timer_handler(struct context *ctxt, void *arg)
+{
+    struct thread *t;
 
-  // Update tick counter
-  ticks++;
+    // update timer clock
+    global_clocks += CLOCKS_PER_TICK;
+    // update tick counter
+    global_ticks++;
 
-  // Update system clock
-  systemclock.tv_usec += USECS_PER_TICK;
-  while (systemclock.tv_usec >= 1000000)  {
-    systemclock.tv_sec++;
-    systemclock.tv_usec -= 1000000;
-  }
-
-  // Update thread times and load average
-  t = kthread_self();
-  if (in_dpc) {
-    dpc_time++;
-    *loadptr = LOADTYPE_DPC;
-  } else {
-    if (USERSPACE(ctxt->eip)) {
-      t->utime++;
-      *loadptr = LOADTYPE_USER;
-    } else {
-      t->stime++;
-      if (t->base_priority == PRIORITY_SYSIDLE) {
-        *loadptr = LOADTYPE_IDLE;
-      } else {
-        *loadptr = LOADTYPE_KERNEL;
-      }
+    // update system clock
+    global_time.tv_usec += USECS_PER_TICK;
+    while (global_time.tv_usec >= 1000000)
+    {
+        global_time.tv_sec++;
+        global_time.tv_usec -= 1000000;
     }
-  }
 
-  if (++loadptr == loadend) loadptr = loadtab;
+    // update thread times and load average
+    t = kthread_self();
+    if (in_dpc)
+    {
+        dpc_time++;
+        *loadptr = LOADTYPE_DPC;
+    }
+    else
+    {
+        if (USERSPACE(ctxt->eip))
+        {
+            t->utime++;
+            *loadptr = LOADTYPE_USER;
+        }
+        else
+        {
+            t->stime++;
+            if (t->base_priority == PRIORITY_SYSIDLE)
+            {
+                *loadptr = LOADTYPE_IDLE;
+            }
+            else
+            {
+                *loadptr = LOADTYPE_KERNEL;
+            }
+        }
+    }
 
-  // Adjust thread quantum
-  t->quantum -= QUANTUM_UNITS_PER_TICK;
-  if (t->quantum <= 0) preempt = 1;
+    if (++loadptr == loadend) loadptr = loadtab;
 
-  // Queue timer DPC
-  kdpc_queue_irq(&timerdpc, timer_dpc, "timer_dpc", NULL);
+    // adjust thread quantum
+    t->quantum -= QUANTUM_UNITS_PER_TICK;
+    if (t->quantum <= 0) preempt = 1;
 
-  eoi(IRQ_TMR);
-  return 0;
+    // queue timer DPC
+    kdpc_queue_irq(&timerdpc, timer_dpc, "timer_dpc", NULL);
+
+    kpic_eoi(IRQ_TMR);
+    return 0;
 }
 
-unsigned char read_cmos_reg(int reg) {
-  unsigned char val;
 
-  outp(0x70, reg);
-  val = inp(0x71) & 0xFF;
+unsigned char kpit_read_cmos(int reg)
+{
+    unsigned char val;
 
-  return val;
+    outp(0x70, reg);
+    val = inp(0x71) & 0xFF;
+
+    return val;
 }
 
-void write_cmos_reg(int reg, unsigned char val) {
-  outp(0x70, reg);
-  outp(0x71, val);
+
+void kpit_write_cmos(int reg, unsigned char val)
+{
+    outp(0x70, reg);
+    outp(0x71, val);
 }
 
-static int read_bcd_cmos_reg(int reg) {
-  int val;
 
-  val = read_cmos_reg(reg);
-  return (val >> 4) * 10 + (val & 0x0F);
+static int read_bcd_cmos_reg(int reg)
+{
+    int val;
+
+    val = kpit_read_cmos(reg);
+    return (val >> 4) * 10 + (val & 0x0F);
 }
 
-static void write_bcd_cmos_reg(int reg, unsigned char val) {
-  write_cmos_reg(reg, (unsigned char) (((val / 10) << 4) + (val % 10)));
+
+static void write_bcd_cmos_reg(int reg, unsigned char val)
+{
+    kpit_write_cmos(reg, (unsigned char) (((val / 10) << 4) + (val % 10)));
 }
 
-static void get_cmos_time(struct tm *tm) {
-  tm->tm_year = read_bcd_cmos_reg(0x09) + (read_bcd_cmos_reg(0x32) * 100) - 1900;
-  tm->tm_mon = read_bcd_cmos_reg(0x08) - 1;
-  tm->tm_mday = read_bcd_cmos_reg(0x07);
-  tm->tm_hour = read_bcd_cmos_reg(0x04);
-  tm->tm_min = read_bcd_cmos_reg(0x02);
-  tm->tm_sec = read_bcd_cmos_reg(0x00);
 
-  tm->tm_wday = 0;
-  tm->tm_yday = 0;
-  tm->tm_isdst = 0;
+static void get_cmos_time(struct tm *tm)
+{
+    tm->tm_year = read_bcd_cmos_reg(0x09) + (read_bcd_cmos_reg(0x32) * 100) - 1900;
+    tm->tm_mon = read_bcd_cmos_reg(0x08) - 1;
+    tm->tm_mday = read_bcd_cmos_reg(0x07);
+    tm->tm_hour = read_bcd_cmos_reg(0x04);
+    tm->tm_min = read_bcd_cmos_reg(0x02);
+    tm->tm_sec = read_bcd_cmos_reg(0x00);
+
+    tm->tm_wday = 0;
+    tm->tm_yday = 0;
+    tm->tm_isdst = 0;
 }
 
-static void set_cmos_time(struct tm *tm) {
-  write_bcd_cmos_reg(0x09, (unsigned char) (tm->tm_year % 100));
-  write_bcd_cmos_reg(0x32, (unsigned char) ((tm->tm_year + 1900) / 100));
-  write_bcd_cmos_reg(0x08, (unsigned char) (tm->tm_mon + 1));
-  write_bcd_cmos_reg(0x07, (unsigned char) (tm->tm_mday));
-  write_bcd_cmos_reg(0x04, (unsigned char) (tm->tm_hour));
-  write_bcd_cmos_reg(0x02, (unsigned char) (tm->tm_min));
-  write_bcd_cmos_reg(0x00, (unsigned char) (tm->tm_sec));
+
+static void set_cmos_time(struct tm *tm)
+{
+    write_bcd_cmos_reg(PIT_CMOS_YEAR,    (unsigned char) (tm->tm_year % 100));
+    write_bcd_cmos_reg(PIT_CMOS_CENTURY, (unsigned char) ((tm->tm_year + 1900) / 100));
+    write_bcd_cmos_reg(PIT_CMOS_MONTH,   (unsigned char) (tm->tm_mon + 1));
+    write_bcd_cmos_reg(PIT_CMOS_DAY,     (unsigned char) (tm->tm_mday));
+    write_bcd_cmos_reg(PIT_CMOS_HOUR,    (unsigned char) (tm->tm_hour));
+    write_bcd_cmos_reg(PIT_CMOS_MINUTE,  (unsigned char) (tm->tm_min));
+    write_bcd_cmos_reg(PIT_CMOS_SECOND,  (unsigned char) (tm->tm_sec));
 }
 
-static void tsc_delay(unsigned long cycles) {
-  long end, now;
 
-  end = (unsigned long) kmach_rdtsc() + cycles;
-  do  {
-    __asm__("nop");
-    now = (unsigned long) kmach_rdtsc();
-  } while (end - now > 0);
+static void tsc_delay(unsigned long cycles)
+{
+    long end, now;
+
+    end = (unsigned long) kmach_rdtsc() + cycles;
+    do {
+        __asm__("nop");
+        now = (unsigned long) kmach_rdtsc();
+    } while (end - now > 0);
 }
 
-static void timed_delay(unsigned long loops) {
+
+static void timed_delay(unsigned long loops)
+{
     __asm__
     (
         "time_delay_loop:"
@@ -220,9 +260,11 @@ static void timed_delay(unsigned long loops) {
     );
 }
 
-void calibrate_delay()
+
+void kpit_calibrate_delay()
 {
-    static int cpu_speeds[] =  {
+    static int cpu_speeds[] =
+    {
         16, 20, 25, 33, 40, 50, 60, 66, 75, 80, 90,
         100, 110, 120, 133, 150, 166, 180, 188,
         200, 233, 250, 266,
@@ -240,52 +282,26 @@ void calibrate_delay()
     unsigned long t, bit;
     int precision;
 
+    // check support for TSC (should be supported by Pentium I or later)
     if (global_cpu.features & CPU_FEATURE_TSC)
     {
 
         unsigned long start;
         unsigned long end;
 
-        t = ticks;
-        while (t == ticks);
+        t = global_ticks;
+        while (t == global_ticks);
         start = (unsigned long) kmach_rdtsc();
 
-        t = ticks;
-        while (t == ticks);
+        t = global_ticks;
+        while (t == global_ticks);
         end = (unsigned long) kmach_rdtsc();
 
         cycles_per_tick = end - start;
     }
     else
     {
-        // Determine magnitude of loops_per_tick
-        loops_per_tick = 1 << 12;
-        while (loops_per_tick <<= 1)
-        {
-            t = ticks;
-            while (t == ticks);
-
-            t = ticks;
-            timed_delay(loops_per_tick);
-            if (t != ticks) break;
-        }
-
-        // Do a binary approximation of cycles_per_tick
-        precision = 8;
-        loops_per_tick >>= 1;
-        bit = loops_per_tick;
-        while (precision-- && (bit >>= 1))
-        {
-            loops_per_tick |= bit;
-            t = ticks;
-            while (t == ticks);
-            t = ticks;
-            timed_delay(loops_per_tick);
-            if (ticks != t) loops_per_tick &= ~bit; // Longer than 1 tick
-        }
-
-        // Each loop takes 10 cycles
-        cycles_per_tick = 10 * loops_per_tick;
+        kprintf("panic: CPU too old! This OS needs a CPU with support for RDTSC instruction.");
     }
 
     mhz = cycles_per_tick * TIMER_FREQ / 1000000;
@@ -320,68 +336,75 @@ void calibrate_delay()
     global_cpu.mhz = mhz;
 }
 
-static int uptime_proc(struct proc_file *pf, void *arg) {
-  int days, hours, mins, secs;
-  int uptime = get_time() - upsince;
 
-  days = uptime / (24 * 60 * 60);
-  uptime -= days * (24 * 60 * 60);
-  hours = uptime / (60 * 60);
-  uptime -= hours * (60 * 60);
-  mins = uptime / 60;
-  secs = uptime % 60;
+static int uptime_proc(struct proc_file *pf, void *arg)
+{
+    int days, hours, mins, secs;
+    int uptime = kpit_get_time() - upsince;
 
-  pprintf(pf, "%d day%s %d hour%s %d minute%s %d second%s\n",
+    days = uptime / (24 * 60 * 60);
+    uptime -= days * (24 * 60 * 60);
+    hours = uptime / (60 * 60);
+    uptime -= hours * (60 * 60);
+    mins = uptime / 60;
+    secs = uptime % 60;
+
+    pprintf(pf, "%d day%s %d hour%s %d minute%s %d second%s\n",
     days, days == 1 ? "" : "s",
     hours, hours == 1 ? "" : "s",
     mins, mins == 1 ? "" : "s",
     secs, secs == 1 ? "" : "s");
 
-  return 0;
+    return 0;
 }
 
-static int loadavg_proc(struct proc_file *pf, void *arg) {
-  int loadavg[4];
-  unsigned char *p;
 
-  memset(loadavg, 0, sizeof loadavg);
-  p = loadtab;
-  while (p < loadend) loadavg[*p++]++;
+static int loadavg_proc(struct proc_file *pf, void *arg)
+{
+    int loadavg[4];
+    unsigned char *p;
 
-  pprintf(pf, "Load kernel: %d%% user: %d%% dpc: %d%% idle: %d%%\n",
-    loadavg[LOADTYPE_KERNEL],
-    loadavg[LOADTYPE_USER],
-    loadavg[LOADTYPE_DPC],
-    loadavg[LOADTYPE_IDLE]);
+    memset(loadavg, 0, sizeof loadavg);
+    p = loadtab;
+    while (p < loadend) loadavg[*p++]++;
 
-  return 0;
+    pprintf(pf, "Load kernel: %d%% user: %d%% dpc: %d%% idle: %d%%\n",
+        loadavg[LOADTYPE_KERNEL],
+        loadavg[LOADTYPE_USER],
+        loadavg[LOADTYPE_DPC],
+        loadavg[LOADTYPE_IDLE]);
+
+    return 0;
 }
 
-void init_pit() {
-  struct tm tm;
 
-  unsigned int cnt = PIT_CLOCK / TIMER_FREQ;
-  outp(TMR_CTRL, TMR_CH0 + TMR_BOTH + TMR_MD3);
-  outp(TMR_CNT0, (unsigned char) (cnt & 0xFF));
-  outp(TMR_CNT0, (unsigned char) (cnt >> 8));
+void kpit_init()
+{
+    struct tm tm;
 
-  loadptr = loadtab;
-  loadend = loadtab + LOADTAB_SIZE;
+    unsigned int cnt = PIT_CLOCK / TIMER_FREQ;
+    outp(TMR_CTRL, TMR_CH0 + TMR_BOTH + TMR_MD3);
+    outp(TMR_CNT0, (unsigned char) (cnt & 0xFF));
+    outp(TMR_CNT0, (unsigned char) (cnt >> 8));
 
-  get_cmos_time(&tm);
-  systemclock.tv_sec = mktime(&tm);
-  upsince = systemclock.tv_sec;
+    loadptr = loadtab;
+    loadend = loadtab + LOADTAB_SIZE;
 
-  kdpc_create(&timerdpc);
-  timerdpc.flags |= DPC_NORAND; // Timer tick is a bad source for randomness
-  register_interrupt(&timerintr, INTR_TMR, timer_handler, NULL);
-  enable_irq(IRQ_TMR);
+    get_cmos_time(&tm);
+    global_time.tv_sec = mktime(&tm);
+    upsince = global_time.tv_sec;
 
-  register_proc_inode("uptime", uptime_proc, NULL);
-  register_proc_inode("loadavg", loadavg_proc, NULL);
+    kdpc_create(&timerdpc);
+    timerdpc.flags |= DPC_NORAND; // Timer tick is a bad source for randomness
+    register_interrupt(&timerintr, INTR_TMR, timer_handler, NULL);
+    kpic_enable_irq(IRQ_TMR);
+
+    register_proc_inode("uptime", uptime_proc, NULL);
+    register_proc_inode("loadavg", loadavg_proc, NULL);
 }
 
-void udelay(unsigned long us)
+
+void kpit_udelay(unsigned long us)
 {
     if (global_cpu.features & CPU_FEATURE_TSC)
         tsc_delay(us * (cycles_per_tick / (1000000 / TIMER_FREQ)));
@@ -389,48 +412,41 @@ void udelay(unsigned long us)
         timed_delay(us * (loops_per_tick / (1000000 / TIMER_FREQ)));
 }
 
-unsigned int get_ticks()
+
+time_t kpit_get_time()
 {
-    return ticks;
+    return global_time.tv_sec;
 }
 
-time_t get_time()
+
+void kpit_set_time(struct timeval *tv)
 {
-    return systemclock.tv_sec;
+    struct tm tm;
+
+    upsince += (tv->tv_sec - global_time.tv_sec);
+    global_time.tv_usec = tv->tv_usec;
+    global_time.tv_sec = tv->tv_sec;
+    gmtime_r(&tv->tv_sec, &tm);
+    set_cmos_time(&tm);
 }
 
-time_t time(time_t *time) {
-  if (time) {
-    *time = get_time();
-    return *time;
-  } else {
-    return get_time();
-  }
-}
 
-void set_time(struct timeval *tv) {
-  struct tm tm;
+int kpit_get_system_load(struct loadinfo *info)
+{
+    int loadavg[4];
+    unsigned char *p;
 
-  upsince += (tv->tv_sec - systemclock.tv_sec);
-  systemclock.tv_usec = tv->tv_usec;
-  systemclock.tv_sec = tv->tv_sec;
-  gmtime_r(&tv->tv_sec, &tm);
-  set_cmos_time(&tm);
-}
+    if (info == NULL) return -EINVAL;
 
-int load_sysinfo(struct loadinfo *info) {
-  int loadavg[4];
-  unsigned char *p;
+    memset(loadavg, 0, sizeof loadavg);
+    p = loadtab;
+    while (p < loadend) loadavg[*p++]++;
 
-  memset(loadavg, 0, sizeof loadavg);
-  p = loadtab;
-  while (p < loadend) loadavg[*p++]++;
+    info->uptime = kpit_get_time() - upsince;
+    info->load_user = loadavg[LOADTYPE_USER];
+    info->load_system = loadavg[LOADTYPE_KERNEL];
+    info->load_intr = loadavg[LOADTYPE_DPC];
+    info->load_idle = loadavg[LOADTYPE_IDLE];
 
-  info->uptime = get_time() - upsince;
-  info->load_user = loadavg[LOADTYPE_USER];
-  info->load_system = loadavg[LOADTYPE_KERNEL];
-  info->load_intr = loadavg[LOADTYPE_DPC];
-  info->load_idle = loadavg[LOADTYPE_IDLE];
-
-  return 0;
+    return 0;
 }

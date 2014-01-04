@@ -58,7 +58,7 @@
 #define HD1_DRVSEL              0x10 // was:0xB0
 #define HD_LBA                  0x40
 
-#define idedelay() udelay(25)
+#define idedelay()              kpit_udelay(25)
 
 //
 // Controller registers
@@ -420,7 +420,7 @@ static int hd_wait(struct hdc *hdc, unsigned char mask, unsigned int timeout) {
   unsigned int start;
   unsigned char status;
 
-  start = clocks;
+  start = global_clocks;
   while (1) {
     status = inp(hdc->iobase + HDC_ALT_STATUS);
     if (status & HDCS_ERR) {
@@ -433,7 +433,7 @@ static int hd_wait(struct hdc *hdc, unsigned char mask, unsigned int timeout) {
     }
 
     if (!(status & HDCS_BSY) && ((status & mask) == mask)) return 0;
-    if (time_before(start + timeout, clocks)) return -ETIMEOUT;
+    if (time_before(start + timeout, global_clocks)) return -ETIMEOUT;
 
     kthread_yield();
   }
@@ -1280,7 +1280,7 @@ int hdc_handler(struct context *ctxt, void *arg)
 
     if (hdc->xfer_dpc.flags & DPC_QUEUED) kprintf("hd: intr lost\n");
     kdpc_queue_irq(&hdc->xfer_dpc, hd_dpc, "hd_dpc", hdc);
-    eoi(hdc->irq);
+    kpic_eoi(hdc->irq);
     return 0;
 }
 
@@ -1417,8 +1417,8 @@ static int wait_reset_done(struct hdc *hdc, int drvsel) {
   outp(hdc->iobase + HDC_DRVHD, drvsel);
   idedelay();
 
-  tmo = ticks + 5*HZ;
-  while (time_after(tmo, ticks)) {
+  tmo = global_ticks + 5*HZ;
+  while (time_after(tmo, global_ticks)) {
     hdc->status = inp(hdc->iobase + HDC_STATUS);
     if ((hdc->status & HDCS_BSY) == 0) return 0;
   }
@@ -1510,7 +1510,7 @@ static int setup_hdc(struct hdc *hdc, int iobase, int irq, int bmregbase, int *m
 
   // Enable interrupts
   register_interrupt(&hdc->intr, IRQ2INTR(irq), hdc_handler, hdc);
-  enable_irq(irq);
+  kpic_enable_irq(irq);
 
   outp(hdc->iobase + HDC_CONTROL, HDDC_HD15);
   idedelay();

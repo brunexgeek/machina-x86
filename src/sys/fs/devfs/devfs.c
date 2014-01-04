@@ -113,9 +113,11 @@ struct fsops devfsops = {
   devfs_readdir
 };
 
-void init_devfs() {
-  register_filesystem("devfs", &devfsops);
-  mounttime = get_time();
+
+void init_devfs()
+{
+    register_filesystem("devfs", &devfsops);
+    mounttime = kpit_get_time();
 }
 
 int devfs_open(struct file *filp, char *name) {

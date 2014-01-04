@@ -39,6 +39,7 @@
 #include <os/kmem.h>
 #include <os/dbg.h>
 #include <os/trap.h>
+#include <os/pit.h>
 #include <os/rnd.h>
 #include <os/asmutil.h>
 
@@ -579,14 +580,14 @@ int schedule_alarm(unsigned int seconds)
     struct thread *t = kthread_self();
     int rc = 0;
 
-    if (t->alarm.active) rc = (t->alarm.expires - ticks) / HZ;
+    if (t->alarm.active) rc = (t->alarm.expires - global_ticks) / HZ;
     if (seconds == 0)
     {
         ktimer_remove(&t->alarm);
     }
     else
     {
-        ktimer_modify(&t->alarm, ticks + seconds * HZ);
+        ktimer_modify(&t->alarm, global_ticks + seconds * HZ);
     }
 
     return rc;
@@ -846,12 +847,12 @@ void kdpc_dispatch_queue()
 }
 
 
-static struct thread *find_ready_thread()
+static struct thread *next_ready_thread()
 {
     int prio;
     struct thread *t;
 
-    // Find highest priority non-empty ready queue
+    // find highest priority non-empty ready queue
     if (thread_ready_summary == 0) return NULL;
     prio = find_highest_bit(thread_ready_summary);
 
@@ -880,35 +881,32 @@ void ksched_dispatch()
     struct thread *curthread = kthread_self();
     struct thread *t;
 
-    // Clear preemption flag
+    // clear preemption flag
     preempt = 0;
 
-    // Execute all queued DPCs
+    // execute all queued DPCs
     if (dpc_queue_head) kdpc_dispatch_queue();
 
-    // Find next thread to run
-    t = find_ready_thread();
+    // find next thread to run
+    t = next_ready_thread();
     if (!t) panic("No thread ready to run");
 
-    // If current thread has been selected to run again then just return
+    // if current thread has been selected to run again then just return
     if (t == curthread)
     {
         t->state = THREAD_STATE_RUNNING;
         return;
     }
 
-    // Save fpu state if fpu has been used
+    // save FPU state if FPU has been used
     if (curthread->flags & THREAD_FPU_ENABLED)
     {
         fpu_disable(&curthread->fpustate);
         t->flags &= ~THREAD_FPU_ENABLED;
     }
 
-    // Switch to new thread
-    //kprintf("[TRACE] switch to '%s'\n", t->name);
+    // switch to new thread (after this call the current thread is "t")
     switch_context(t);
-    //kprintf("[TRACE] back to '%s'\n", curthread->name);
-
     // mark the thread as running
     kthread_mark_running();
 }

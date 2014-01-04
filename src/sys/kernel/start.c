@@ -381,11 +381,13 @@ static int copyright_proc(struct proc_file *pf, void *arg)
 }
 
 
-int dummy_func( void *arg)
+void dummy_func( void *arg)
 {
     while (1)
     {
-        kthread_wait(0);
+        struct thread *t = kthread_self();
+        //kprintf("Thread %s\n", t->name);
+        kthread_yield();
     }
 }
 
@@ -408,28 +410,21 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     // Display banner
     if (*krnlopts) kprintf(KERN_INFO "options: %s\n", krnlopts);
 
-    // Initialize machine
+    // initialize machine
     init_mach();
-
-    // Initialize CPU
+    // initialize CPU
     init_cpu();
-
-    // Initialize page frame database
+    // initialize page frame database
     init_pfdb();
-
-    // Initialize page directory
+    // initialize page directory
     init_pdir();
-
-    // Initialize kernel heap
+    // initialize kernel heap
     init_kmem();
-
-    // Initialize kernel allocator
+    // initialize kernel allocator
     init_malloc();
-
-    // Initialize virtual memory manager
+    // initialize virtual memory manager
     init_vmm();
-
-    // Flush tlb
+    // flush tlb
     kmach_flushtlb();
 
     // Register memory management procs
@@ -446,10 +441,10 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     register_proc_inode("cpu", kcpu_proc, NULL);
 
     // Initialize interrupts, floating-point support, and real-time clock
-    init_pic();
+    kpic_init();
     ktrap_init();
     init_fpu();
-    init_pit();
+    kpit_init();
 
     // Initialize timers, scheduler, and handle manager
     init_timers();
@@ -457,9 +452,9 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     init_handles();
     init_syscall();
 
-    // Enable interrupts and calibrate delay
+    // enable interrupts and calibrate delay
     kmach_sti();
-    calibrate_delay();
+    kpit_calibrate_delay();
 
     // Start main task and dispatch to idle task
     mainthread = kthread_create_kland(main, 0, PRIORITY_NORMAL, "init");

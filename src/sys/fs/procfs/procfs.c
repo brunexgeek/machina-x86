@@ -328,7 +328,7 @@ int procfs_fstat(struct file *filp, struct stat64 *buffer) {
       buffer->st_ino = PROC_ROOT_INODE;
       buffer->st_nlink = 1;
       buffer->st_dev = NODEV;
-      buffer->st_atime = buffer->st_mtime = buffer->st_ctime = get_time();
+      buffer->st_atime = buffer->st_mtime = buffer->st_ctime = kpit_get_time();
       buffer->st_size = 0;
     }
 
@@ -343,7 +343,7 @@ int procfs_fstat(struct file *filp, struct stat64 *buffer) {
     buffer->st_nlink = 1;
     buffer->st_dev = NODEV;
 
-    buffer->st_atime = buffer->st_mtime = buffer->st_ctime = get_time();
+    buffer->st_atime = buffer->st_mtime = buffer->st_ctime = kpit_get_time();
     buffer->st_size = pf->size;
   }
 
@@ -362,7 +362,7 @@ int procfs_stat(struct fs *fs, char *name, struct stat64 *buffer) {
       buffer->st_ino = PROC_ROOT_INODE;
       buffer->st_nlink = 1;
       buffer->st_dev = NODEV;
-      buffer->st_atime = buffer->st_mtime = buffer->st_ctime = get_time();
+      buffer->st_atime = buffer->st_mtime = buffer->st_ctime = kpit_get_time();
       buffer->st_size = 0;
     }
 
@@ -380,7 +380,7 @@ int procfs_stat(struct fs *fs, char *name, struct stat64 *buffer) {
     buffer->st_nlink = 1;
     buffer->st_dev = NODEV;
 
-    buffer->st_atime = buffer->st_mtime = buffer->st_ctime = get_time();
+    buffer->st_atime = buffer->st_mtime = buffer->st_ctime = kpit_get_time();
     buffer->st_size = inode->size;
   }
 

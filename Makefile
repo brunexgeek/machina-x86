@@ -45,7 +45,7 @@ KERNEL32_SRC_FILES = \
 	sys/kernel/iovec.c \
 	sys/kernel/kmalloc.c \
 	sys/kernel/kmem.c \
-	sys/kernel/ldr.c \
+	sys/kernel/loader.c \
 	sys/kernel/mach.c \
 	sys/kernel/object.c \
 	sys/kernel/pci.c \

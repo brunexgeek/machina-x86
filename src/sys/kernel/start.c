@@ -54,6 +54,7 @@
 #include <net/dhcp.h>
 #include <net/socket.h>
 #include <net/net.h>
+#include <os/loader.h>
 
 
 #ifdef BSD
@@ -587,19 +588,12 @@ console(NULL, NULL);
     if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
-
-    while (1)
-    {
-        kprintf("%s is waiting\n", kthread_self()->name);
-        kthread_wait(0);
-    }
-/*
     // Load kernel32.so in user address space
-    imgbase = load_image_file(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
+    imgbase = kloader_load(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
     if (!imgbase) panic("unable to load kernel32.so");
-    imghdr = get_image_header(imgbase);
-    stack_reserve = imghdr->optional.size_of_stack_reserve;
-    stack_commit = imghdr->optional.size_of_stack_commit;
+    /*imghdr = get_image_header(imgbase);
+    stack_reserve = 8 * 1024;//imghdr->optional.size_of_stack_reserve;
+    stack_commit = 4 * 1024;//imghdr->optional.size_of_stack_commit;
     entrypoint = get_entrypoint(imgbase);
 
     // Initialize initial user thread
@@ -640,4 +634,9 @@ console(NULL, NULL);
         : "i" (SEL_UDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3), "m" (stacktop), "m" (entrypoint)
     );
 kprintf("## %s %d\n", __FILE__, __LINE__);*/
+    while (1)
+    {
+        kprintf("%s is waiting\n", kthread_self()->name);
+        kthread_wait(0);
+    }
 }

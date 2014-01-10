@@ -3,7 +3,9 @@
 //
 // Page frame database routines
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro
+// Copyright (C) 2002 Michael Ringgaard
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -36,6 +38,7 @@
 #include <os/object.h>
 #include <os/syspage.h>
 
+
 #define MAX_MEMTAGS           128
 
 unsigned long freemem;        // Number of pages free memory
@@ -46,7 +49,8 @@ struct pageframe *freelist;   // List of free pages
 
 void panic(char *msg);
 
-unsigned long alloc_pageframe(unsigned long tag)
+
+uint32_t kpframe_alloc( uint32_t tag )
 {
     struct pageframe *pf;
 
@@ -62,31 +66,37 @@ unsigned long alloc_pageframe(unsigned long tag)
     return pf - pfdb;
 }
 
-unsigned long alloc_linear_pageframes(int pages, unsigned long tag)
+
+uint32_t kpframe_alloc_linear( uint32_t pages, uint32_t tag )
 {
     struct pageframe *pf;
     struct pageframe *prevpf;
 
-    if (pages == 1) return alloc_pageframe(tag);
+    if (pages == 0) return 0xFFFFFFFF;
+    if (pages == 1) return kpframe_alloc(tag);
 
+    // check if we have enough free memory
     if ((int) freemem < pages) return 0xFFFFFFFF;
 
     prevpf = NULL;
     pf = freelist;
     while (pf)
     {
+        // check if it's possible allocate linear pages from the current frame
         if (pf - pfdb + pages < (int) maxmem)
         {
             int n;
 
+            // ensure that all page frames is free and linear
             for (n = 0; n < pages; n++)
             {
-                if (pf[n].tag != 0x46524545 /* FREE */) break;
+                if (pf[n].tag != PFT_FREE) break;
                 if (n != 0 && pf[n - 1].next != &pf[n]) break;
             }
 
             if (n == pages)
             {
+                // fixup the 'next' pointer of the previosus frame
                 if (prevpf)
                 {
                     prevpf->next = pf[pages - 1].next;
@@ -95,7 +105,7 @@ unsigned long alloc_linear_pageframes(int pages, unsigned long tag)
                 {
                     freelist = pf[pages - 1].next;
                 }
-
+                // fixup the tag for each frame
                 for (n = 0; n < pages; n++)
                 {
                     pf[n].tag = tag;
@@ -103,7 +113,6 @@ unsigned long alloc_linear_pageframes(int pages, unsigned long tag)
                 }
 
                 freemem -= pages;
-
                 return pf - pfdb;
             }
         }
@@ -115,7 +124,8 @@ unsigned long alloc_linear_pageframes(int pages, unsigned long tag)
     return 0xFFFFFFFF;
 }
 
-void free_pageframe(unsigned long pfn)
+
+void kpframe_free( uint32_t pfn )
 {
     struct pageframe *pf;
 
@@ -126,117 +136,142 @@ void free_pageframe(unsigned long pfn)
     freemem++;
 }
 
-void set_pageframe_tag(void *addr, unsigned int len, unsigned long tag) {
-  char *vaddr = (char *) addr;
-  char *vend = vaddr + len;
 
-  while (vaddr < vend) {
-    unsigned long pfn = virt2phys(vaddr) >> PAGESHIFT;
-    pfdb[pfn].tag = tag;
-    vaddr += PAGESIZE;
-  }
-}
+void kpframe_set_tag( void *addr, uint32_t len, uint32_t tag )
+{
+    char *vaddr = (char *) addr;
+    char *vend = vaddr + len;
 
-int memmap_proc(struct proc_file *pf, void *arg) {
-  struct memmap *mm = &syspage->bootparams.memmap;
-  int i;
-
-  for (i = 0; i < mm->count; i++) {
-    char *type;
-
-    switch (mm->entry[i].type) {
-      case MEMTYPE_RAM: type = (uint8_t*)PFT_RAM; break;
-      case MEMTYPE_RESERVED: type = (uint8_t*)PFT_RESERVED; break;
-      case MEMTYPE_ACPI: type = (uint8_t*)PFT_ACPI; break;
-      case MEMTYPE_NVS: type = (uint8_t*)PFT_NVS; break;
-      default: type = (uint8_t*)PFT_MEM; break;
+    while (vaddr < vend)
+    {
+        unsigned long pfn = virt2phys(vaddr) >> PAGESHIFT;
+        pfdb[pfn].tag = tag;
+        vaddr += PAGESIZE;
     }
-
-    pprintf(pf, "0x%08x-0x%08x type %s %8d KB\n",
-      (unsigned long) mm->entry[i].addr,
-      (unsigned long) (mm->entry[i].addr + mm->entry[i].size) - 1,
-      type,
-      (unsigned long) mm->entry[i].size / 1024);
-  }
-
-  return 0;
 }
 
-void tag2str(unsigned long tag, char *str) {
-  if (tag & 0xFF000000) *str++ = (char) ((tag >> 24) & 0xFF);
-  if (tag & 0x00FF0000) *str++ = (char) ((tag >> 16) & 0xFF);
-  if (tag & 0x0000FF00) *str++ = (char) ((tag >> 8) & 0xFF);
-  if (tag & 0x000000FF) *str++ = (char) (tag & 0xFF);
-  *str++ = 0;
-}
 
-int memusage_proc(struct proc_file *pf, void *arg) {
-  unsigned int num_memtypes = 0;
-  struct { unsigned long tag; int pages; } memtype[MAX_MEMTAGS];
-  unsigned long tag;
-  unsigned int n;
-  unsigned int m;
-
-  for (n = 0; n < maxmem; n++) {
-    tag = pfdb[n].tag;
-
-    m = 0;
-    while (m < num_memtypes && tag != memtype[m].tag) m++;
-
-    if (m < num_memtypes) {
-      memtype[m].pages++;
-    } else if (m < MAX_MEMTAGS) {
-      memtype[m].tag = tag;
-      memtype[m].pages = 1;
-      num_memtypes++;
-    }
-  }
-
-  for (n = 0; n < num_memtypes; n++) {
+int memmap_proc(struct proc_file *pf, void *arg)
+{
+    struct memmap *mm = &syspage->bootparams.memmap;
+    int i;
     char tagname[5];
-    tag2str(memtype[n].tag, tagname);
-    pprintf(pf, "%-4s    %8d KB\n", tagname, memtype[n].pages * (PAGESIZE / 1024));
-  }
 
-  return 0;
-}
+    for (i = 0; i < mm->count; i++)
+    {
+        uint32_t type = mm->entry[i].type;
 
-int memstat_proc(struct proc_file *pf, void *arg) {
-  pprintf(pf, "Memory %dMB total, %dKB used, %dKB free, %dKB reserved\n",
-          maxmem * PAGESIZE / (1024 * 1024),
-          (totalmem - freemem) * PAGESIZE / 1024,
-          freemem * PAGESIZE / 1024, (maxmem - totalmem) * PAGESIZE / 1024);
+        if (type == PFT_RAM || type == PFT_RESERVED || type == PFT_ACPI || type == PFT_NVS)
+            kpframe_tag(type, tagname);
+        else
+            kpframe_tag(PFT_MEM, tagname);
 
-  return 0;
-}
-
-int physmem_proc(struct proc_file *pf, void *arg) {
-  unsigned int n;
-
-  for (n = 0; n < maxmem; n++) {
-    if (n % 64 == 0) {
-      if (n > 0) pprintf(pf, "\n");
-      pprintf(pf, "%08X ", PTOB(n));
+        pprintf(pf, "0x%08x-0x%08x type %s %8d KB\n",
+            (unsigned long) mm->entry[i].addr,
+            (unsigned long) (mm->entry[i].addr + mm->entry[i].size) - 1,
+            type,
+            (unsigned long) mm->entry[i].size / 1024);
     }
 
-    if (pfdb[n].tag == 0x46524545 /* FREE */) {
-      pprintf(pf, ".");
-    } else if (pfdb[n].tag == 0x52455356 /* RESV */) {
-      pprintf(pf, "-");
-    } else if (pfdb[n].tag == 0) {
-      pprintf(pf, "?");
-    } else {
-      char tagname[5];
-      tag2str(pfdb[n].tag, tagname);
-      pprintf(pf, "%c", *tagname);
-    }
-  }
-
-  pprintf(pf, "\n");
-  return 0;
+    return 0;
 }
 
-void init_pfdb()
+
+void kpframe_tag( uint32_t tag, char *str )
+{
+    if (tag & 0xFF000000) *str++ = (char) ((tag >> 24) & 0xFF);
+    if (tag & 0x00FF0000) *str++ = (char) ((tag >> 16) & 0xFF);
+    if (tag & 0x0000FF00) *str++ = (char) ((tag >> 8) & 0xFF);
+    if (tag & 0x000000FF) *str++ = (char) (tag & 0xFF);
+    *str++ = 0;
+}
+
+int memusage_proc(struct proc_file *pf, void *arg)
+{
+    unsigned int num_memtypes = 0;
+    struct { unsigned long tag; int pages; } memtype[MAX_MEMTAGS];
+    unsigned long tag;
+    unsigned int n;
+    unsigned int m;
+
+    for (n = 0; n < maxmem; n++)
+    {
+        tag = pfdb[n].tag;
+
+        m = 0;
+        while (m < num_memtypes && tag != memtype[m].tag) m++;
+
+        if (m < num_memtypes)
+        {
+            memtype[m].pages++;
+        }
+        else
+        if (m < MAX_MEMTAGS)
+        {
+            memtype[m].tag = tag;
+            memtype[m].pages = 1;
+            num_memtypes++;
+        }
+    }
+
+    for (n = 0; n < num_memtypes; n++)
+    {
+        char tagname[5];
+        kpframe_tag(memtype[n].tag, tagname);
+        pprintf(pf, "%-4s    %8d KB\n", tagname, memtype[n].pages * (PAGESIZE / 1024));
+    }
+
+    return 0;
+}
+
+
+int memstat_proc(struct proc_file *pf, void *arg)
+{
+    pprintf(pf, "Memory %dMB total, %dKB used, %dKB free, %dKB reserved\n",
+        maxmem * PAGESIZE / (1024 * 1024),
+        (totalmem - freemem) * PAGESIZE / 1024,
+        freemem * PAGESIZE / 1024, (maxmem - totalmem) * PAGESIZE / 1024);
+
+    return 0;
+}
+
+
+int physmem_proc(struct proc_file *pf, void *arg)
+{
+    unsigned int n;
+    char tagname[5];
+
+    for (n = 0; n < maxmem; n++)
+    {
+        if (n % 64 == 0)
+        {
+            if (n > 0) pprintf(pf, "\n");
+            pprintf(pf, "%08X ", PTOB(n));
+        }
+
+        switch (pfdb[n].tag)
+        {
+            case PFT_FREE:
+                pprintf(pf, ".");
+                break;
+            case PFT_RESERVED:
+                pprintf(pf, "-");
+                break;
+            case 0:
+                pprintf(pf, "?");
+                break;
+            default:
+                kpframe_tag(pfdb[n].tag, tagname);
+                pprintf(pf, "%c", *tagname);
+        }
+    }
+
+    pprintf(pf, "\n");
+    return 0;
+}
+
+
+void kpframe_init()
 {
     unsigned long heap;
     unsigned long pfdbpages;
@@ -246,16 +281,17 @@ void init_pfdb()
     struct pageframe *pf;
     struct memmap *memmap;
 
-    // Register page directory
+    // register page directory
     kmach_register_page_dir(virt2pfn(pdir));
 
-    // Calculates number of pages needed for page frame database
+    // calculates number of pages needed for page frame database
     memend = syspage->ldrparams.memend;
     heap = syspage->ldrparams.heapend;
     pfdbpages = PAGES((memend / PAGESIZE) * sizeof(struct pageframe));
     if ((pfdbpages + 2) * PAGESIZE + heap >= memend) panic("not enough memory for page table database");
-
-    // Intialize page tables for mapping the page frame database into kernel space
+    kprintf("[DEBUG] PFDB requires %d pages\n", pfdbpages);
+    // intialize page tables for mapping the largest possible PFDB into kernel space
+    // (for a machine with 4GB of physical RAM we need 2048 pages for PFDB)
     kmach_set_page_dir_entry(&pdir[PDEIDX(PFDBBASE)], heap | PT_PRESENT | PT_WRITABLE);
     kmach_set_page_dir_entry(&pdir[PDEIDX(PFDBBASE) + 1], (heap + PAGESIZE) | PT_PRESENT | PT_WRITABLE);
     pt = (pte_t *) heap;
@@ -263,24 +299,21 @@ void init_pfdb()
     memset(pt, 0, 2 * PAGESIZE);
     kmach_register_page_table(BTOP(pt));
     kmach_register_page_table(BTOP(pt) + 1);
-
-    // Allocate and map pages for page frame database
+    // allocate and map pages for page frame database
     for (i = 0; i < pfdbpages; i++)
     {
         kmach_set_page_table_entry(&pt[i], heap | PT_PRESENT | PT_WRITABLE);
         heap += PAGESIZE;
     }
 
-    // Initialize page frame database
+    // initialize page frame database
     maxmem = syspage->ldrparams.memend / PAGESIZE;
     totalmem = 0;
     freemem = 0;
-
     pfdb = (struct pageframe *) PFDBBASE;
     memset(pfdb, 0, pfdbpages * PAGESIZE);
-    for (i = 0; i < maxmem; i++) pfdb[i].tag = 0x00424144 /* BAD */;
-
-    // Add all memory from memory map to page frame database
+    for (i = 0; i < maxmem; i++) pfdb[i].tag = PFT_BAD;
+    // add all memory from memory map to PFDB
     memmap = &syspage->bootparams.memmap;
     for (i = 0; i < (unsigned long) memmap->count; i++)
     {
@@ -292,42 +325,37 @@ void init_pfdb()
 
         if (memmap->entry[i].type == MEMTYPE_RAM)
         {
-            for (j = first; j < last; j++) pfdb[j].tag = 0x46524545 /* FREE */;
+            for (j = first; j < last; j++) pfdb[j].tag = PFT_FREE;
             totalmem += (last - first);
         }
         else
         if (memmap->entry[i].type == MEMTYPE_RESERVED)
         {
-            for (j = first; j < last; j++) pfdb[j].tag = 0x52455356 /* RESV */;
+            for (j = first; j < last; j++) pfdb[j].tag = PFT_RESERVED;
         }
     }
-
-    // Reserve physical page 0 for BIOS
-    pfdb[0].tag = 0x52455356 /* RESV */;
+    // reserve physical page 0 for BIOS
+    pfdb[0].tag = PFT_RESERVED;
     totalmem--;
-
-    // Add interval [heapstart:heap] to pfdb as page table pages
-    for (i = syspage->ldrparams.heapstart / PAGESIZE; i < heap / PAGESIZE; i++) pfdb[i].tag = 0x50544142 /* PTAB */;
-
-    // Reserve DMA buffers at 0x10000 (used by floppy driver)
-    for (i = DMA_BUFFER_START / PAGESIZE; i < DMA_BUFFER_START / PAGESIZE + DMA_BUFFER_PAGES; i++) pfdb[i].tag = 0x00444d41 /* DMA */;
-
-    // Fixup tags for pfdb and syspage and intial tcb
-    set_pageframe_tag(pfdb, pfdbpages * PAGESIZE, 0x50464442 /* PFDB */);
-    set_pageframe_tag(syspage, PAGESIZE, 0x00535953 /* SYS */);
-    set_pageframe_tag(kthread_self(), TCBSIZE, 0x00544342 /* TCB */);
-
-    set_pageframe_tag((void *) INITRD_ADDRESS, syspage->ldrparams.initrd_size, 0x424f4f54 /* BOOT */);
-
-    // Insert all free pages into free list
+    // add interval [heapstart:heap] to PFDB as page table pages
+    for (i = syspage->ldrparams.heapstart / PAGESIZE; i < heap / PAGESIZE; i++) pfdb[i].tag = PFT_PTAB;
+    // reserve DMA buffers at 0x10000 (used by floppy driver)
+    for (i = DMA_BUFFER_START / PAGESIZE; i < DMA_BUFFER_START / PAGESIZE + DMA_BUFFER_PAGES; i++) pfdb[i].tag = PFT_DMA;
+    // fixup tags for PFDB, syspage and intial TCB
+    kpframe_set_tag(pfdb, pfdbpages * PAGESIZE, PFT_PFDB);
+    kpframe_set_tag(syspage, PAGESIZE, PFT_SYS);
+    kpframe_set_tag(kthread_self(), TCBSIZE, PFT_TCB);
+    kpframe_set_tag((void *) INITRD_ADDRESS, syspage->ldrparams.initrd_size, PFT_BOOT);
+    // insert all free pages into free list
     pf = pfdb + maxmem;
     do {
-    pf--;
+        pf--;
 
-    if (pf->tag == 0x46524545 /* FREE */) {
-    pf->next = freelist;
-    freelist = pf;
-    freemem++;
-    }
+        if (pf->tag == PFT_FREE)
+        {
+            pf->next = freelist;
+            freelist = pf;
+            freemem++;
+        }
     } while (pf > pfdb);
 }

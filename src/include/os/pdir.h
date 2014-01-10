@@ -77,12 +77,12 @@
 #define PTABIDX(vaddr) (((unsigned long) vaddr) >> 12)
 
 /**
- * Return the number of pages it's necessary to store the given amount of bytes.
+ * Returns number of pages it's necessary to store the given amount of bytes.
  */
 #define PAGES(x) (((unsigned long)(x) + (PAGESIZE - 1)) >> PAGESHIFT)
 
 /**
- * Return the page address which the given address is within.
+ * Returns page address which the given address is within.
  */
 #define PAGEADDR(x) ((unsigned long)(x) & ~(PAGESIZE - 1))
 

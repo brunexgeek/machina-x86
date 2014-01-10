@@ -50,7 +50,7 @@ void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags)
         //kprintf("Creating page table for 0x%08x (idx: %d)\n", vaddr, PDEIDX(vaddr));
         unsigned long pdfn;
 
-        pdfn = alloc_pageframe(0x50544142 /* PTAB */);
+        pdfn = kpframe_alloc(0x50544142 /* PTAB */);
         if (USERSPACE(vaddr))
         {
             SET_PDE(vaddr, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE | PT_USER);
@@ -251,7 +251,7 @@ int pdir_proc(struct proc_file *pf, void *arg) {
 
 static print_virtmem(struct proc_file *pf, char *start, char *end, unsigned long tag) {
   char tagname[5];
-  tag2str(tag, tagname);
+  kpframe_tag(tag, tagname);
 
   pprintf(pf, "%08x %08x %8dK %-4s\n", start, end - 1, (end - start) / 1024, tagname);
 }

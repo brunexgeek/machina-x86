@@ -3,7 +3,9 @@
 //
 // Page frame database routines
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro
+// Copyright (C) 2002 Michael Ringgaard
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -42,21 +44,28 @@
 #define DMA_BUFFER_START 0x10000
 #define DMA_BUFFER_PAGES 16
 
-#define PFT_FREE              0x46524545 // FREE
-#define PFT_RAM               (*((const uint32_t*)("RAM ")))
-#define PFT_RESERVED          (*((const uint32_t*)("RESV")))
-#define PFT_MEM               (*((const uint32_t*)("MEM?")))
-#define PFT_NVS               (*((const uint32_t*)("NVS ")))
-#define PFT_ACPI              (*((const uint32_t*)("ACPI")))
+#define PFT_FREE              0x46524545
+#define PFT_RAM               0x0052414d
+#define PFT_RESERVED          0x52455356
+#define PFT_MEM               0x004d454d
+#define PFT_NVS               0x004e5653
+#define PFT_ACPI              0x41435049
+#define PFT_BAD               0x00424144 /* BAD */
+#define PFT_PTAB              0x50544142 /* PTAB */
+#define PFT_DMA               0x00444d41 /* DMA */
+#define PFT_PFDB              0x50464442 /* PFDB */
+#define PFT_SYS               0x00535953 /* SYS */
+#define PFT_TCB               0x00544342 /* TCB */
+#define PFT_BOOT              0x424f4f54 /* BOOT */
 
 
 struct pageframe
 {
-    unsigned long tag;
+    uint32_t tag;
     union
     {
-        unsigned long locks;        // Number of locks
-        unsigned long size;         // Size/buckets for kernel pages
+        uint32_t locks;             // Number of locks
+        uint32_t size;              // Size/buckets for kernel pages
         handle_t owner;             // Reference to owner for file maps
         struct pageframe *next;     // Next free page frame for free pages
     };
@@ -68,18 +77,19 @@ extern unsigned long freemem;
 extern unsigned long totalmem;
 extern unsigned long maxmem;
 
-KERNELAPI unsigned long alloc_pageframe(unsigned long tag);
-KERNELAPI unsigned long alloc_linear_pageframes(int pages, unsigned long tag);
-KERNELAPI void free_pageframe(unsigned long pfn);
-KERNELAPI void set_pageframe_tag(void *addr, unsigned int len, unsigned long tag);
+KERNELAPI uint32_t kpframe_alloc( uint32_t tag );
+KERNELAPI uint32_t kpframe_alloc_linear( uint32_t pages, uint32_t tag );
+KERNELAPI void kpframe_free( uint32_t pfn );
+KERNELAPI void kpframe_set_tag( void *addr, uint32_t len, uint32_t tag );
 
-void tag2str(unsigned long tag, char *str);
+void kpframe_tag( uint32_t tag, char *str );
+
 int memmap_proc(struct proc_file *pf, void *arg);
 int memusage_proc(struct proc_file *pf, void *arg);
 int memstat_proc(struct proc_file *pf, void *arg);
 int physmem_proc(struct proc_file *pf, void *arg);
 
-void init_pfdb();
+void kpframe_init();
 
 
 #endif  // MACHINA_OS_PFRAME_H

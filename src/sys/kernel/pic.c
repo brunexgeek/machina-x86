@@ -34,6 +34,9 @@
 #include <os/krnl.h>
 #include <os/pic.h>
 
+
+// TODO: move machine dependent code for "arch" directory
+
 // All IRQs disabled initially except cascade
 
 static unsigned int irq_mask = 0xFFFB;

@@ -415,7 +415,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     // initialize CPU
     init_cpu();
     // initialize page frame database
-    init_pfdb();
+    kpframe_init();
     // initialize page directory
     init_pdir();
     // initialize kernel heap

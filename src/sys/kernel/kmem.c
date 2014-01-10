@@ -50,7 +50,7 @@ void *alloc_pages(int pages, unsigned long tag) {
   if (tag == 0) tag = PFT_KMEM;
   vaddr = (char *) PTOB(rmap_alloc(osvmap, pages));
   for (i = 0; i < pages; i++) {
-    pfn = alloc_pageframe(tag);
+    pfn = kpframe_alloc(tag);
     kpage_map(vaddr + PTOB(i), pfn, PT_WRITABLE | PT_PRESENT);
   }
 
@@ -67,7 +67,7 @@ void *alloc_pages_align(int pages, int align, unsigned long tag)
   if (tag == 0) tag = PFT_KMEM;
   vaddr = (char *) PTOB(rmap_alloc_align(osvmap, pages, align));
   for (i = 0; i < pages; i++) {
-    pfn = alloc_pageframe(tag);
+    pfn = kpframe_alloc(tag);
     kpage_map(vaddr + PTOB(i), pfn, PT_WRITABLE | PT_PRESENT);
   }
 
@@ -82,7 +82,7 @@ void *alloc_pages_linear(int pages, unsigned long tag)
   unsigned long pfn;
 
   if (tag == 0) tag = PFT_KMEM;
-  pfn = alloc_linear_pageframes(pages, tag);
+  pfn = kpframe_alloc_linear(pages, tag);
   if (pfn == 0xFFFFFFFF) return 0;
   vaddr = (char *) PTOB(rmap_alloc(osvmap, pages));
   for (i = 0; i < pages; i++) {
@@ -104,7 +104,7 @@ void free_pages(void *addr, int pages)
 
   for (i = 0; i < pages; i++) {
     pfn = BTOP(virt2phys((char *) addr + PTOB(i)));
-    free_pageframe(pfn);
+    kpframe_free(pfn);
     kpage_unmap((char *) addr + PTOB(i));
   }
 
@@ -139,7 +139,7 @@ void *alloc_module_mem(int pages) {
 
   vaddr = (char *) PTOB(rmap_alloc(kmodmap, pages));
   for (i = 0; i < pages; i++) {
-    pfn = alloc_pageframe(PFT_KMOD);
+    pfn = kpframe_alloc(PFT_KMOD);
     kpage_map(vaddr + PTOB(i), pfn, PT_WRITABLE | PT_PRESENT);
     memset(vaddr + PTOB(i), 0, PAGESIZE);
   }
@@ -157,7 +157,7 @@ void free_module_mem(void *addr, int pages) {
 
   for (i = 0; i < pages; i++) {
     pfn = BTOP(virt2phys((char *) addr + PTOB(i)));
-    free_pageframe(pfn);
+    kpframe_free(pfn);
     kpage_unmap((char *) addr + PTOB(i));
   }
 
@@ -170,7 +170,7 @@ void init_kmem()
     struct image_header *imghdr;
 
     // Allocate page frame for kernel heap resource map and map into syspages
-    pfn = alloc_pageframe(PFT_SYS);
+    pfn = kpframe_alloc(PFT_SYS);
     kpage_map(osvmap, pfn, PT_WRITABLE | PT_PRESENT);
 
     // Initialize resource map for kernel heap
@@ -180,7 +180,7 @@ void init_kmem()
     rmap_free(osvmap, BTOP(KHEAPBASE), BTOP(KHEAPSIZE));
 
     // Allocate page frame for kernel module map and map into syspages
-    pfn = alloc_pageframe(PFT_SYS);
+    pfn = kpframe_alloc(PFT_SYS);
     kpage_map(kmodmap, pfn, PT_WRITABLE | PT_PRESENT);
 
     // Initialize resource map for kernel module area

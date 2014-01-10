@@ -3,7 +3,9 @@
 //
 // Virtual memory manager
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro
+// Copyright (C) 2002 Michael Ringgaard
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -106,7 +108,7 @@ static int fetch_file_page(struct filemap *fm, void *addr) {
   filp = (struct file *) olock(fm->file, OBJECT_FILE);
   if (!filp) return -EBADF;
 
-  pfn = alloc_pageframe(0x464d4150  /* FMAP */);
+  pfn = kpframe_alloc(0x464d4150  /* FMAP */);
   if (pfn == 0xFFFFFFFF) {
     orel(filp);
     return -ENOMEM;
@@ -119,7 +121,7 @@ static int fetch_file_page(struct filemap *fm, void *addr) {
   if (rc < 0) {
     orel(filp);
     kpage_unmap(addr);
-    free_pageframe(pfn);
+    kpframe_free(pfn);
     return rc;
   }
 
@@ -245,7 +247,7 @@ void *vmalloc(
             else
             {
                 // allocate a new page and map it to the address
-                pfn = alloc_pageframe(tag);
+                pfn = kpframe_alloc(tag);
                 if (pfn == 0xFFFFFFFF)
                 {
                     if (result) *result = -ENOMEM;
@@ -397,10 +399,10 @@ int vmfree(void *addr, unsigned long size, int type) {
           }
           fm->pages--;
           kpage_unmap(vaddr);
-          if (flags & PT_PRESENT) free_pageframe(pfn);
+          if (flags & PT_PRESENT) kpframe_free(pfn);
         } else  if (flags & PT_PRESENT) {
           kpage_unmap(vaddr);
-          free_pageframe(pfn);
+          kpframe_free(pfn);
         }
       }
 
@@ -490,7 +492,7 @@ int guard_page_handler(void *addr) {
   if (addr < t->tib->stacklimit || addr >= t->tib->stacktop) return -EFAULT;
   if (t->tib->stacklimit <= t->tib->stackbase) return -EFAULT;
 
-  pfn = alloc_pageframe(0x0053544b /* STK */);
+  pfn = kpframe_alloc(0x0053544b /* STK */);
   if (pfn == 0xFFFFFFFF) return -ENOMEM;
 
   t->tib->stacklimit = (char *) t->tib->stacklimit - PAGESIZE;

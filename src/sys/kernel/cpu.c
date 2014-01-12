@@ -64,38 +64,6 @@ static const struct cpu_vendor_t CPU_VENDORS[] =
 };
 
 
-
-static int cpuid_is_supported()
-{
-    __asm__
-    (
-        // return false by default
-        "mov     eax, 0x00;"
-        // get EFLAGS
-        "pushfd;"
-        "pop     ecx;"
-        "mov     ebx, ecx;"
-        // toggle the CPUID bit and store in the EFLAGS
-        "xor     ebx, 0x200000;"
-        "push    ebx;"
-        "popfd;"
-        // get EFLAGS again and compare
-        "pushfd;"
-        "pop     ebx;"
-        "cmp     ebx, ecx;"
-        "jnz     1f;"
-        "jmp     3f;"
-        // return true
-        "1: mov eax, 0x01;"
-        // store the CPUID enable EFLAGS
-        "or ecx, 0x200000;"
-        "push ecx;"
-        "popfd;"
-        "3: nop;"
-    );
-}
-
-
 // TODO: became "naked" function
 unsigned long kcpu_get_eflags()
 {

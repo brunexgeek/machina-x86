@@ -41,6 +41,7 @@
 pte_t *pdir = (pte_t *) PAGEDIR_ADDRESS; // Page directory
 pte_t *ptab = (pte_t *) PTBASE;          // Page tables
 
+extern struct page_frame_t *pfdb;
 
 void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags)
 {
@@ -50,7 +51,7 @@ void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags)
         //kprintf("Creating page table for 0x%08x (idx: %d)\n", vaddr, PDEIDX(vaddr));
         unsigned long pdfn;
 
-        pdfn = kpframe_alloc(0x50544142 /* PTAB */);
+        pdfn = kpframe_alloc(PFT_PTAB);
         if (USERSPACE(vaddr))
         {
             SET_PDE(vaddr, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE | PT_USER);
@@ -68,26 +69,31 @@ void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags)
     SET_PTE(vaddr, PTOB(pfn) | flags);
 }
 
+
 void kpage_unmap(void *vaddr)
 {
     SET_PTE(vaddr, 0);
     kmach_invlpage(vaddr);
 }
 
+
 unsigned long virt2phys(void *vaddr)
 {
     return ((GET_PTE(vaddr) & PT_PFNMASK) + PGOFF(vaddr));
 }
+
 
 unsigned long virt2pfn(void *vaddr)
 {
     return BTOP(GET_PTE(vaddr) & PT_PFNMASK);
 }
 
+
 pte_t kpage_get_flags(void *vaddr)
 {
     return GET_PTE(vaddr) & PT_FLAGMASK;
 }
+
 
 void kpage_set_flags(void *vaddr, unsigned long flags)
 {
@@ -137,10 +143,10 @@ int mem_access(void *vaddr, int size, pte_t access)
     if ((GET_PDE(addr) & PT_PRESENT) == 0) return 0;
     pte = GET_PTE(addr);
     if ((pte & access) != access) {
-      if (pte & PT_FILE) {
+      /*if (pte & PT_FILE) {
         if (fetch_page((void *) PAGEADDR(addr)) < 0) return 0;
         if ((GET_PTE(addr) & access) != access) return 0;
-      } else {
+      } else*/ {
         return 0;
       }
     }
@@ -161,10 +167,10 @@ int str_access(char *s, pte_t access) {
     if ((GET_PDE(s) & PT_PRESENT) == 0) return 0;
     pte = GET_PTE(s);
     if ((pte & access) != access) {
-      if (pte & PT_FILE) {
+      /*if (pte & PT_FILE) {
         if (fetch_page((void *) PAGEADDR(s)) < 0) return 0;
         if ((GET_PTE(s) & access) != access) return 0;
-      } else {
+      } else*/ {
         return 0;
       }
     }
@@ -249,11 +255,11 @@ int pdir_proc(struct proc_file *pf, void *arg) {
   return 0;
 }
 
-static print_virtmem(struct proc_file *pf, char *start, char *end, unsigned long tag) {
-  char tagname[5];
-  kpframe_tag(tag, tagname);
-
-  pprintf(pf, "%08x %08x %8dK %-4s\n", start, end - 1, (end - start) / 1024, tagname);
+static print_virtmem(struct proc_file *pf, char *start, char *end, unsigned long tag)
+{
+    const char *name;
+    name = kpframe_tag_name(tag);
+    pprintf(pf, "%08x %08x %8dK %-4s\n", start, end - 1, (end - start) / 1024, name);
 }
 
 int virtmem_proc(struct proc_file *pf, void *arg) {

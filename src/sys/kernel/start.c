@@ -587,6 +587,20 @@ console(NULL, NULL);
     if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
+    struct file *tmp;
+    char buffer[16];
+    if ( open("/proc/memusage", 0, S_IREAD, &tmp) == 0 )
+    {
+        kprintf("Reading /proc/memusage\n");
+        int count = 1;
+        while (count != 0)
+        {
+            count = read(tmp, buffer, 15);
+            buffer[count] = 0;
+            kprintf("%s", buffer);
+        }
+        close(tmp);
+    }
 
     while (1)
     {

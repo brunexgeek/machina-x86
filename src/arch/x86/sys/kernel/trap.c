@@ -697,7 +697,7 @@ static int pagefault_handler(struct context *ctxt, void *arg)
                 signal = SIGSTKFLT;
                 if (guard_page_handler(pageaddr) == 0) signal = 0;
             }
-            else
+            /*else
             // chech if the page is in swap file (?)
             if (flags & PT_FILE)
             {
@@ -706,7 +706,7 @@ static int pagefault_handler(struct context *ctxt, void *arg)
                     kmach_sti();
                     if (fetch_page(pageaddr) == 0) signal = 0;
                 }
-            }
+            }*/
         }
         if (signal != 0) send_signal(ctxt, signal, addr);
     }

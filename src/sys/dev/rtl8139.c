@@ -5,6 +5,7 @@
 //
 // Written 1997-2002 by Donald Becker.
 // Ported to sanos 2002 by Michael Ringgaard.
+// Ported to Machina 2014 by Bruno Ribeiro.
 //
 // This software may be used and distributed according to the terms of
 // the GNU General Public License (GPL), incorporated herein by reference.

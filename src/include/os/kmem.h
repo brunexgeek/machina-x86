@@ -37,7 +37,7 @@
 
 #define PFT_KMEM              (*((const uint32_t*)("KMEM")))
 #define PFT_KMOD              (*((const uint32_t*)("KMOD")))
-#define PFT_SYS               (*((const uint32_t*)("SYS ")))
+//#define PFT_SYS               (*((const uint32_t*)("SYS ")))
 
 
 #include <os/krnl.h>

@@ -44,45 +44,41 @@
 #define DMA_BUFFER_START 0x10000
 #define DMA_BUFFER_PAGES 16
 
-#define PFT_FREE              0x46524545
-#define PFT_RAM               0x0052414d
-#define PFT_RESERVED          0x52455356
-#define PFT_MEM               0x004d454d
-#define PFT_NVS               0x004e5653
-#define PFT_ACPI              0x41435049
-#define PFT_BAD               0x00424144 /* BAD */
-#define PFT_PTAB              0x50544142 /* PTAB */
-#define PFT_DMA               0x00444d41 /* DMA */
-#define PFT_PFDB              0x50464442 /* PFDB */
-#define PFT_SYS               0x00535953 /* SYS */
-#define PFT_TCB               0x00544342 /* TCB */
-#define PFT_BOOT              0x424f4f54 /* BOOT */
+
+#define PFT_FREE              0x01 /* 0x46524545 */
+#define PFT_RAM               0x02 /* 0x0052414d */
+#define PFT_RESERVED          0x03 /* 0x52455356 */
+#define PFT_MEM               0x04 /* 0x004d454d */
+#define PFT_NVS               0x05 /* 0x004e5653 */
+#define PFT_ACPI              0x06 /* 0x41435049 */
+#define PFT_BAD               0x07 /* 0x00424144 */
+#define PFT_PTAB              0x08 /* 0x50544142 */
+#define PFT_DMA               0x09 /* 0x00444d41 */
+#define PFT_PFDB              0x0A /* 0x50464442 */
+#define PFT_SYS               0x0B /* 0x00535953 */
+#define PFT_TCB               0x0C /* 0x00544342 */
+#define PFT_BOOT              0x0D /* 0x424f4f54 */
+#define PFT_FMAP              0x0E
+#define PFT_STACK             0x0F
+
+#define INVALID_PFRAME        ((uint32_t)0xFFFFFFFF)
 
 
-struct pageframe
+struct page_frame_t
 {
-    uint32_t tag;
-    union
-    {
-        uint32_t locks;             // Number of locks
-        uint32_t size;              // Size/buckets for kernel pages
-        handle_t owner;             // Reference to owner for file maps
-        struct pageframe *next;     // Next free page frame for free pages
-    };
+    uint32_t linear : 1;   /// Indicates if frame begin a linear allocation
+    uint32_t tag    : 5;
+    uint32_t __resv : 2;
+    uint32_t next   : 24;  /// Index for next page frame (when in free list).
 };
 
-extern struct pageframe *pfdb;
 
-extern unsigned long freemem;
-extern unsigned long totalmem;
-extern unsigned long maxmem;
-
-KERNELAPI uint32_t kpframe_alloc( uint32_t tag );
-KERNELAPI uint32_t kpframe_alloc_linear( uint32_t pages, uint32_t tag );
+KERNELAPI uint32_t kpframe_alloc( uint8_t tag );
+KERNELAPI uint32_t kpframe_alloc_linear( uint32_t pages, uint8_t tag );
 KERNELAPI void kpframe_free( uint32_t pfn );
-KERNELAPI void kpframe_set_tag( void *addr, uint32_t len, uint32_t tag );
-
-void kpframe_tag( uint32_t tag, char *str );
+KERNELAPI void kpframe_set_tag( void *addr, uint32_t len, uint8_t tag );
+uint8_t kpframe_get_tag( void *vaddr );
+const char *kpframe_tag_name( uint8_t tag );
 
 int memmap_proc(struct proc_file *pf, void *arg);
 int memusage_proc(struct proc_file *pf, void *arg);

@@ -54,7 +54,7 @@ KERNELAPI void *miomap(unsigned long addr, int size, int protect);
 KERNELAPI void miounmap(void *addr, int size);
 
 int guard_page_handler(void *addr);
-int fetch_page(void *addr);
+//int fetch_page(void *addr);
 
 int vmem_proc(struct proc_file *pf, void *arg);
 int mem_sysinfo(struct meminfo *info);

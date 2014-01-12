@@ -35,6 +35,8 @@
 #include <os/kmalloc.h>
 #include <os/kmem.h>
 
+extern struct page_frame_t *pfdb;
+
 unsigned char log2[2048] = {
    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
@@ -117,7 +119,8 @@ void *kmalloc_tag(int size, unsigned long tag) {
     addr = alloc_pages(PAGES(size), tag ? tag : 0x414c4f43 /* ALOC */);
 
     // Set size in pfn entry
-    pfdb[BTOP(virt2phys(addr))].size = PAGES(size) + PAGESHIFT;
+    // TODO: may have data lost (32bits -> 20bits)
+    pfdb[BTOP(virt2phys(addr))].next = PAGES(size) + PAGESHIFT;
 
     return addr;
   }
@@ -135,7 +138,8 @@ void *kmalloc_tag(int size, unsigned long tag) {
     addr = alloc_pages(1, 0x48454150 /* HEAP */);
 
     // Set bucket number in pfn entry
-    pfdb[BTOP(virt2phys(addr))].size = bucket;
+    // TODO: may have data lost (32bits -> 20bits)
+    pfdb[BTOP(virt2phys(addr))].next = bucket;
 
     // Split page into chunks
     p = (char *) addr;
@@ -169,7 +173,8 @@ void kfree(void *addr) {
   if (!addr) return;
 
   // Get page information
-  bucket = pfdb[BTOP(virt2phys(addr))].size;
+  // TODO: may have data lost (20bits -> 32bits)
+  bucket = pfdb[BTOP(virt2phys(addr))].next;
 
   // If a whole page or more, free directly
   if (bucket >= PAGESHIFT) {
@@ -218,15 +223,16 @@ int kheapstat_proc(struct proc_file *pf, void *arg) {
   return 0;
 }
 
-void init_malloc() {
-  int i;
-  struct bucket *b;
+void init_malloc()
+{
+    int i;
+    struct bucket *b;
 
-  // Initialize the buckets
-  for (i = 0; i < PAGESHIFT; i++) {
+    // Initialize the buckets
+    for (i = 0; i < PAGESHIFT; i++) {
     b = &buckets[i];
     b->size = (1 << i);
-  }
+    }
 }
 
 void *kmalloc(int size) {

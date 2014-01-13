@@ -1,10 +1,10 @@
 //
 // pframe.c
 //
-// Page frame database routines
+// Page frame database functions.
+// Based on Michael Ringgaard implementation.
 //
 // Copyright (C) 2013-2014 Bruno Ribeiro
-// Copyright (C) 2002 Michael Ringgaard
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -39,35 +39,66 @@
 #include <os/syspage.h>
 
 
-#define MAX_MEMTAGS              0x10
+#define MAX_PFT                  (1 << 5)
+#define MAX_MEMTYPES             (4)
 
 uint32_t freeCount;              /// Number of free frames
 uint32_t usableCount;            /// Number of usable frames
-uint32_t pfdbSize;               /// Sizeof PFDB (number of frames in memory)
+uint32_t pfdbSize;               /// Number of frames in PFDB/memory
 
 struct page_frame_t *pfdb;       /// Base pointer for PFDB
 struct page_frame_t *freeFrame;  /// Pointer to the next free frame at PFDB
 
 
-static const char *FRAME_TAGS[] =
+static const char *MEMTYPE_NAMES[] =
 {
-    "?",
-    "FREE",
+    "MEM",
     "RAM",
     "RESV",
-    "MEM",
-    "NVS",
     "ACPI",
-    "BAD",
-    "PTAB",
-    "DMA",
-    "PFDB",
-    "SYS",
-    "TCB",
-    "BOOT",
-    "?",
-    "?",
+    "NVS"
 };
+
+
+static struct
+{
+    const char *name;
+    const char *symbol;
+} PFT_NAMES[MAX_PFT] =
+{
+    { NULL,   NULL },
+    { "FREE", "." },
+    { "RAM",  "R" },
+    { "RESV", "-" },
+    { "MEM",  "." },
+    { "NVS",  "N" },
+    { "ACPI", "A" },
+    { "BAD",  "B" },
+    { "PTAB", "P" },
+    { "DMA",  "D" },
+    { "PFDB", "F" },
+    { "SYS",  "Y" },
+    { "TCB",  "T" },
+    { "BOOT", "B" },
+    { "FMAP", "M" },
+    { "STCK", "S" },
+    { "KMEM", "E" },
+    { "KMOD", "K" },
+    { "UMOD", "U" },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL },
+    { NULL,   NULL }
+} ;
 
 
 void panic(char *msg);
@@ -154,10 +185,12 @@ void kpframe_free( uint32_t index )
 {
     struct page_frame_t *frame;
 
-    // TODO: check limits
+    if (index >= pfdbSize) return;
+
     frame = pfdb + index;
     frame->tag = PFT_FREE;
     frame->next = freeFrame - pfdb;
+
     freeFrame = frame;
     freeCount++;
 }
@@ -186,8 +219,8 @@ uint8_t kpframe_get_tag( void *vaddr )
 
 const char *kpframe_tag_name( uint8_t tag )
 {
-    if (tag > sizeof(FRAME_TAGS)) return "?";
-    return FRAME_TAGS[tag];
+    if (tag > sizeof(PFT_NAMES)) return "?";
+    return PFT_NAMES[tag].name;
 }
 
 
@@ -201,12 +234,12 @@ int memmap_proc(struct proc_file *pf, void *arg)
     {
         uint32_t type = mm->entry[i].type;
 
-        if (type == PFT_RAM || type == PFT_RESERVED || type == PFT_ACPI || type == PFT_NVS)
-            name = FRAME_TAGS[type];
+        if (type == MEMTYPE_RAM || type == MEMTYPE_RESERVED || type == MEMTYPE_ACPI || type == MEMTYPE_NVS)
+            name = MEMTYPE_NAMES[type];
         else
-            name = FRAME_TAGS[PFT_MEM];
+            name = MEMTYPE_NAMES[0];
 
-        pprintf(pf, "0x%08x-0x%08x type %s %8d KB\n",
+        pprintf(pf, "0x%08x-0x%08x type %-4s %8d KiB\n",
             (unsigned long) mm->entry[i].addr,
             (unsigned long) (mm->entry[i].addr + mm->entry[i].size) - 1,
             name,
@@ -219,11 +252,8 @@ int memmap_proc(struct proc_file *pf, void *arg)
 
 int memusage_proc(struct proc_file *pf, void *arg)
 {
-    unsigned int num_memtypes = 0;
-    uint32_t counters[MAX_MEMTAGS];
-    unsigned long tag;
+    uint32_t counters[MAX_PFT];
     unsigned int n;
-    unsigned int m;
     const char *name;
 
     memset(counters, 0, sizeof(counters));
@@ -231,15 +261,15 @@ int memusage_proc(struct proc_file *pf, void *arg)
     for (n = 0; n < pfdbSize; n++)
     {
         uint8_t tag = pfdb[n].tag;
-        if (tag < MAX_MEMTAGS)
+        if (tag < MAX_PFT)
             counters[tag]++;
     }
 
-    for (n = 0; n < MAX_MEMTAGS; n++)
+    for (n = 0; n < MAX_PFT; n++)
     {
         if (counters[n] == 0) continue;
-        name = FRAME_TAGS[n];
-        pprintf(pf, "%-4s    %8d KB\n", name, counters[n] * (PAGESIZE / 1024));
+        name = PFT_NAMES[n].name;
+        pprintf(pf, "%-4s    %8d KiB\n", name, counters[n] * (PAGESIZE / 1024));
     }
 
     return 0;
@@ -248,7 +278,7 @@ int memusage_proc(struct proc_file *pf, void *arg)
 
 int memstat_proc(struct proc_file *pf, void *arg)
 {
-    pprintf(pf, "Memory %dMB total, %dKB used, %dKB free, %dKB reserved\n",
+    pprintf(pf, "Total     %8d MiB\nUsed      %8d KiB\nFree      %8d KiB\nReserved  %8d KiB\n",
         pfdbSize * PAGESIZE / (1024 * 1024),
         (usableCount - freeCount) * PAGESIZE / 1024,
         freeCount * PAGESIZE / 1024, (pfdbSize - usableCount) * PAGESIZE / 1024);
@@ -259,32 +289,38 @@ int memstat_proc(struct proc_file *pf, void *arg)
 
 int physmem_proc(struct proc_file *pf, void *arg)
 {
-    unsigned int n;
-    const char *name;
+    uint32_t n;
+    uint8_t tag, keep = 1;
+
+    for (n = 0, tag = 0; n < MAX_PFT; ++n)
+    {
+        if (PFT_NAMES[n].name == NULL) continue;
+        if (tag != 0 && (tag % 6) == 0) pprintf(pf, "\n");
+        pprintf(pf, "%s = %-4s   ", PFT_NAMES[n].symbol, PFT_NAMES[n].name);
+        ++tag;
+    }
+
+    pprintf(pf, "\n\n");
 
     for (n = 0; n < pfdbSize; n++)
     {
         if (n % 64 == 0)
         {
-            if (n > 0) pprintf(pf, "\n");
+            if (n > 0)
+            {
+                pprintf(pf, "\n");
+                if (!keep) break;
+                keep = 0;
+            }
             pprintf(pf, "%08X ", PTOB(n));
         }
 
-        switch (pfdb[n].tag)
-        {
-            case PFT_FREE:
-                pprintf(pf, ".");
-                break;
-            case PFT_RESERVED:
-                pprintf(pf, "-");
-                break;
-            case 0:
-                pprintf(pf, "?");
-                break;
-            default:
-                name = FRAME_TAGS[pfdb[n].tag];
-                pprintf(pf, "%c", *name);
-        }
+        tag = pfdb[n].tag;
+        if (tag != PFT_FREE) keep = 1;
+        if (PFT_NAMES[tag].symbol == NULL)
+            pprintf(pf, "?");
+        else
+            pprintf(pf, "%s", PFT_NAMES[tag].symbol);
     }
 
     pprintf(pf, "\n");

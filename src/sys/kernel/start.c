@@ -588,10 +588,11 @@ console(NULL, NULL);
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
     struct file *tmp;
+    const char *fileName = "/proc/physmem";
     char buffer[16];
-    if ( open("/proc/memusage", 0, S_IREAD, &tmp) == 0 )
+    if ( open(fileName, 0, S_IREAD, &tmp) == 0 )
     {
-        kprintf("Reading /proc/memusage\n");
+        kprintf("Reading %s\n", fileName);
         int count = 1;
         while (count != 0)
         {

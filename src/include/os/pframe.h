@@ -44,22 +44,24 @@
 #define DMA_BUFFER_START 0x10000
 #define DMA_BUFFER_PAGES 16
 
-
-#define PFT_FREE              0x01 /* 0x46524545 */
-#define PFT_RAM               0x02 /* 0x0052414d */
-#define PFT_RESERVED          0x03 /* 0x52455356 */
-#define PFT_MEM               0x04 /* 0x004d454d */
-#define PFT_NVS               0x05 /* 0x004e5653 */
-#define PFT_ACPI              0x06 /* 0x41435049 */
-#define PFT_BAD               0x07 /* 0x00424144 */
-#define PFT_PTAB              0x08 /* 0x50544142 */
-#define PFT_DMA               0x09 /* 0x00444d41 */
-#define PFT_PFDB              0x0A /* 0x50464442 */
-#define PFT_SYS               0x0B /* 0x00535953 */
-#define PFT_TCB               0x0C /* 0x00544342 */
-#define PFT_BOOT              0x0D /* 0x424f4f54 */
+#define PFT_FREE              0x01 /// Available for allocation
+#define PFT_RAM               0x02
+#define PFT_RESERVED          0x03 /// Reserved by system (according BIOS)
+#define PFT_MEM               0x04
+#define PFT_NVS               0x05 /// Non-volatile storage
+#define PFT_ACPI              0x06
+#define PFT_BAD               0x07
+#define PFT_PTAB              0x08
+#define PFT_DMA               0x09 /// DMA buffer
+#define PFT_PFDB              0x0A /// Page frame database
+#define PFT_SYS               0x0B
+#define PFT_TCB               0x0C
+#define PFT_BOOT              0x0D
 #define PFT_FMAP              0x0E
-#define PFT_STACK             0x0F
+#define PFT_STACK             0x0F /// Thread stack
+#define PFT_KMEM              0x10 /// Kernel allocated (heap) memory
+#define PFT_KMOD              0x11
+#define PFT_UMOD              0x12
 
 #define INVALID_PFRAME        ((uint32_t)0xFFFFFFFF)
 

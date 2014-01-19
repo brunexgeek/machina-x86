@@ -515,7 +515,7 @@ target[FIELD_SOURCES] = \
     "sys/kernel/fpu.c", \
     "sys/kernel/hndl.c", \
     "sys/kernel/iomux.c", \
-    #"sys/kernel/iop.c", \
+    "sys/kernel/rmap.c", \
     "sys/kernel/iovec.c", \
     "sys/kernel/kmalloc.c", \
     "sys/kernel/kmem.c", \
@@ -601,7 +601,6 @@ target[FIELD_SOURCES] = \
     "lib/libc/inifile.c", \
     "lib/libc/moddb.c", \
     "lib/libc/opts.c", \
-    "lib/libc/rmap.c", \
     "lib/libc/string.c", \
     "lib/libc/strtol.c", \
     "lib/libc/tcccrt.c", \

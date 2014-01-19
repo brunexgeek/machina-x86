@@ -47,7 +47,7 @@ static int expand_htab() {
   handle_t h;
 
   if (htabsize == HTABSIZE / sizeof(struct object *)) return -ENFILE;
-  pfn = kpframe_alloc(*((unsigned int*)"HTAB"));
+  pfn = kpframe_alloc(PFT_HTAB);
   kpage_map(htab + htabsize, pfn, PT_WRITABLE | PT_PRESENT);
 
   for (h = htabsize + HANDLES_PER_PAGE - 1; h >= htabsize; h--) {

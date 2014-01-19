@@ -45,7 +45,7 @@
 #define DMA_BUFFER_PAGES 16
 
 #define PFT_FREE              0x01 /// Available for allocation
-#define PFT_RAM               0x02
+#define PFT_HTAB              0x02
 #define PFT_RESERVED          0x03 /// Reserved by system (according BIOS)
 #define PFT_MEM               0x04
 #define PFT_NVS               0x05 /// Non-volatile storage
@@ -62,6 +62,10 @@
 #define PFT_KMEM              0x10 /// Kernel allocated (heap) memory
 #define PFT_KMOD              0x11
 #define PFT_UMOD              0x12
+#define PFT_VM                0x13 /// Virtual memory
+#define PFT_HEAP              0x14
+#define PFT_TIB               0x15
+#define PFT_PEB               0x16
 
 #define INVALID_PFRAME        ((uint32_t)0xFFFFFFFF)
 

@@ -3,7 +3,8 @@
 //
 // Routines for working with a resource map
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -31,29 +32,48 @@
 // SUCH DAMAGE.
 //
 
-#ifndef RMAP_H
-#define RMAP_H
+#ifndef MACHINA_OS_RMAP_H
+#define MACHINA_OS_RMAP_H
+
+
+#define RMAP_TOTAL(rmptr)     ( (rmap)->size )
+#define RMAP_MAX_ENTRIES      (1048576)
+
+#include <stdint.h>
 
 void kprintf(const char *fmt, ...);
 
-struct rmap {
-  unsigned int offset;
-  unsigned int size;
+/**
+ * Resource mapping entry.
+ */
+struct rmap_t
+{
+    /// Number of pages (used or free) in the chunk
+    uint32_t size;
+    /// Indicate if the chunck is in use
+    uint16_t next;
+    /**
+     * Indicate if the chunk information is about allocated pages.
+     */
+    uint16_t used;
+
 };
+
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-void rmap_init(struct rmap *r, unsigned int size);
-unsigned int rmap_alloc(struct rmap *rmap, unsigned int size);
-unsigned int rmap_alloc_align(struct rmap *rmap, unsigned int size, unsigned int align);
-void rmap_free(struct rmap *rmap, unsigned int offset, unsigned int size);
-int rmap_reserve(struct rmap *rmap, unsigned int offset, unsigned int size);
-int rmap_status(struct rmap *rmap, unsigned int offset, unsigned int size);
+void krmap_init(struct rmap_t *r, unsigned int size);
+int krmap_alloc(struct rmap_t *rmap, unsigned int size);
+int krmap_alloc_align(struct rmap_t *rmap, unsigned int size, unsigned int align);
+void krmap_free(struct rmap_t *rmap, unsigned int offset, unsigned int size);
+int krmap_reserve(struct rmap_t *rmap, unsigned int offset, unsigned int size);
+int krmap_status(struct rmap_t *rmap, unsigned int offset, unsigned int size);
 
 #ifdef  __cplusplus
 }
 #endif
 
-#endif
+
+#endif  // MACHINA_OS_RMAP_H

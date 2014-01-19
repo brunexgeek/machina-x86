@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 //
 // The first entry in a resource map is interpreted as a header.
@@ -47,17 +47,32 @@
 
 unsigned int lost_elems = 0L;   // Diagnostic for space lost due to fragmentation
 
-//
-// Initialize the named resource map
-//
-// "size" is the total size, including the element we will use
-// as the header.
-//
 
-void rmap_init(struct rmap *rmap, unsigned int size) {
-  // Record # slots available, which is one less (since we use the first as our own header).
-  rmap->offset = 0;
-  rmap->size = size - 1;
+static void dump( struct rmap *rmap )
+{
+    struct rmap *r = rmap;
+    int c;
+
+    for (c = 0; c < rmap->offset + 1; ++c, ++r)
+    {
+        if (r->offset == 0) break;
+        kprintf("rmap[%d] = { offset=%d, size=%d }\n", c, r->offset, r->size);
+    }
+    kprintf("\n");
+}
+
+
+/**
+ * Initialize the given resource map
+ *
+ * "size" is the total size, including the element we will use
+ * as the header.
+ */
+void rmap_init(struct rmap *rmap, unsigned int size)
+{
+    // Record # slots available, which is one less (since we use the first as our own header).
+    rmap->offset = 0;
+    rmap->size = size - 1;
 }
 
 //
@@ -66,20 +81,22 @@ void rmap_init(struct rmap *rmap, unsigned int size) {
 // Returns 1 if there isn't room to insert the element, 0 on success.
 //
 
-static int makespace(struct rmap *rmap, struct rmap *r) {
-  struct rmap *rlim = &rmap[rmap->offset];
+static int makespace(struct rmap *rmap, struct rmap *r)
+{
+    struct rmap *rlim = &rmap[rmap->offset];
 
-  // If no room to insert slot, return failure
-  if (rmap->size == rmap->offset) return 1;
-  rmap->offset += 1;
+    // If no room to insert slot, return failure
+    if (rmap->size == rmap->offset) return 1;
+    rmap->offset += 1;
 
-  // If inserting in middle, slide up entries
-  if (r <= rlim) {
-    memmove(r + 1, r, sizeof(struct rmap) * ((rlim - r) + 1));
+    // If inserting in middle, slide up entries
+    if (r <= rlim)
+    {
+        memmove(r + 1, r, sizeof(struct rmap) * ((rlim - r) + 1));
+        return 0;
+    }
+
     return 0;
-  }
-
-  return 0;
 }
 
 //
@@ -91,6 +108,7 @@ static void collapse(struct rmap *rmap, struct rmap *r) {
 
   rmap->offset -= 1;
   if (r < rlim) memmove(r, r + 1, sizeof(struct rmap) * (rlim - r));
+  kprintf("colapse %d\n", (int)(r - rmap));
 }
 
 //
@@ -103,13 +121,13 @@ unsigned int rmap_alloc(struct rmap *rmap, unsigned int size) {
   struct rmap *r, *rlim;
   unsigned int idx;
 
-  // Find first slot with a fit, return failure if we run off the 
+  // Find first slot with a fit, return failure if we run off the
   // end of the list without finding a fit.
   rlim = &rmap[rmap->offset];
   for (r = &rmap[1]; r <= rlim; r++) {
     if (r->size >= size) break;
   }
-  
+
   if (r > rlim) return 0;
 
   // Trim the resource element if it still has some left,
@@ -121,7 +139,8 @@ unsigned int rmap_alloc(struct rmap *rmap, unsigned int size) {
   } else {
     collapse(rmap, r);
   }
-
+  kprintf("alloc(%d) in rmap[%d]\n", size, (int)(r - rmap));
+  dump(rmap);
   return idx;
 }
 
@@ -136,7 +155,7 @@ unsigned int rmap_alloc_align(struct rmap *rmap, unsigned int size, unsigned int
   unsigned int idx;
   unsigned int gap;
 
-  // Find first slot with a fit, return failure if we run off the 
+  // Find first slot with a fit, return failure if we run off the
   // end of the list without finding a fit.
   rlim = &rmap[rmap->offset];
   for (r = &rmap[1]; r <= rlim; r++) {
@@ -147,14 +166,23 @@ unsigned int rmap_alloc_align(struct rmap *rmap, unsigned int size, unsigned int
     }
     if (r->size >= size + gap) break;
   }
-  
+
   if (r > rlim) return 0;
   idx = r->offset + gap;
-
+    /*kprintf("(aalloc) rmap[0] = { offset=%d, size=%d }   rmap[%d] = { offset=%d, size=%d } %d\n",
+        rmap[0].offset,
+        rmap[0].size,
+        (int)(r - rmap),
+        r->offset,
+        r->size,
+        size);*/
+kprintf("alloc_align(%d) in rmap[%d]\n", size, (int)(r - rmap));
   // Reserve region
   if (rmap_reserve(rmap, idx, size)) {
+      dump(rmap);
     return 0;
   } else {
+      dump(rmap);
     return idx;
   }
 }
@@ -221,7 +249,7 @@ int rmap_reserve(struct rmap *rmap, unsigned int offset, unsigned int size) {
 
   rlim = &rmap[rmap->offset];
   for (r = &rmap[1]; r <= rlim; r++) {
-    // If we've advanced beyond the requested offset, 
+    // If we've advanced beyond the requested offset,
     // we can never match, so end the loop.
     if (r->offset > offset) break;
 
@@ -295,7 +323,7 @@ int rmap_status(struct rmap *rmap, unsigned int offset, unsigned int size) {
 
   rlim = &rmap[rmap->offset];
   for (r = &rmap[1]; r <= rlim; r++) {
-    // If we've advanced beyond the requested offset, 
+    // If we've advanced beyond the requested offset,
     // we can never match, check for partially allocated.
     if (r->offset > offset) {
       if (offset + size > r->offset) {

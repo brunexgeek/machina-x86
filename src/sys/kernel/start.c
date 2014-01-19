@@ -386,7 +386,7 @@ void dummy_func( void *arg)
     while (1)
     {
         struct thread *t = kthread_self();
-        //kprintf("Thread %s\n", t->name);
+        kprintf("Thread %s\n", t->name);
         kthread_yield();
     }
 }
@@ -458,8 +458,8 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
 
     // Start main task and dispatch to idle task
     mainthread = kthread_create_kland(main, 0, PRIORITY_NORMAL, "init");
-    kthread_create_kland(dummy_func, 0, PRIORITY_NORMAL, "dummy");
-    kthread_create_kland(dummy_func, 0, PRIORITY_NORMAL, "dumbass");
+    //kthread_create_kland(dummy_func, 0, PRIORITY_NORMAL, "dummy");
+    //kthread_create_kland(dummy_func, 0, PRIORITY_NORMAL, "dumbass");
     ksched_idle();
 }
 
@@ -499,7 +499,7 @@ void main(void *arg)
     char *sconsole;
 
     // Allocate and initialize PEB
-    peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 0x00504542 /* PEB */, NULL);
+    peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, PFT_PEB, NULL);
     if (!peb) panic("unable to allocate PEB");
     memset(peb, 0, PAGESIZE);
     peb->fast_syscalls_supported = (global_cpu.features & CPU_FEATURE_SEP) != 0;
@@ -588,7 +588,7 @@ console(NULL, NULL);
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
     struct file *tmp;
-    const char *fileName = "/proc/physmem";
+    char *fileName = "/proc/kmem";
     char buffer[16];
     if ( open(fileName, 0, S_IREAD, &tmp) == 0 )
     {

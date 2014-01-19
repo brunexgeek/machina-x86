@@ -2,7 +2,7 @@
 // pframe.c
 //
 // Page frame database functions.
-// Based on Michael Ringgaard implementation.
+// Based on Michael Ringgaard implementation (Sanos).
 //
 // Copyright (C) 2013-2014 Bruno Ribeiro
 // All rights reserved.
@@ -68,12 +68,12 @@ static struct
 {
     { NULL,   NULL },
     { "FREE", "." },
-    { "RAM",  "R" },
+    { "RAM",  "H" },
     { "RESV", "-" },
     { "MEM",  "." },
     { "NVS",  "N" },
     { "ACPI", "A" },
-    { "BAD",  "B" },
+    { "BAD",  "*" },
     { "PTAB", "P" },
     { "DMA",  "D" },
     { "PFDB", "F" },
@@ -85,7 +85,7 @@ static struct
     { "KMEM", "E" },
     { "KMOD", "K" },
     { "UMOD", "U" },
-    { NULL,   NULL },
+    { "VM",   "V" },
     { NULL,   NULL },
     { NULL,   NULL },
     { NULL,   NULL },

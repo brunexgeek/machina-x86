@@ -116,7 +116,7 @@ void *kmalloc_tag(int size, unsigned long tag) {
   // Handle large allocation by allocating pages
   if (size > PAGESIZE / 2) {
     // Allocate pages
-    addr = alloc_pages(PAGES(size), tag ? tag : 0x414c4f43 /* ALOC */);
+    addr = kmem_alloc(PAGES(size), tag ? tag : 0x414c4f43 /* ALOC */);
 
     // Set size in pfn entry
     // TODO: may have data lost (32bits -> 20bits)
@@ -135,7 +135,7 @@ void *kmalloc_tag(int size, unsigned long tag) {
     int i;
 
     // Allocate new page
-    addr = alloc_pages(1, 0x48454150 /* HEAP */);
+    addr = kmem_alloc(1, PFT_HEAP);
 
     // Set bucket number in pfn entry
     // TODO: may have data lost (32bits -> 20bits)
@@ -178,7 +178,7 @@ void kfree(void *addr) {
 
   // If a whole page or more, free directly
   if (bucket >= PAGESHIFT) {
-    free_pages(addr, bucket - PAGESHIFT);
+    kmem_free(addr, bucket - PAGESHIFT);
     return;
   }
 

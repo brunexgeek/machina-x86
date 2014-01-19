@@ -49,7 +49,7 @@ extern unsigned long krnlentry;
 extern int bootpart;
 
 int boot_read(void *buffer, size_t count, blkno_t blkno);
-char *alloc_heap(int numpages);
+char *heap_alloc(int numpages);
 
 char bsect[SECTORSIZE];
 char ssect[SECTORSIZE];

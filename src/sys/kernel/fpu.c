@@ -3,6 +3,7 @@
 //
 // Floating point unit
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -32,6 +33,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/cpu.h>
+#include <os/sched.h>
+#include <os/trap.h>
 
 struct interrupt fpuintr;
 struct interrupt fpuxcpt;
@@ -39,7 +43,7 @@ struct interrupt fpuxcpt;
 void fpu_enable(struct fpu *state)
 {
     // Turn on access to FPU
-    set_cr0(get_cr0() &  ~(CR0_EM | CR0_TS));
+    kmach_set_cr0(kmach_get_cr0() &  ~(CR0_EM | CR0_TS));
 
     if (state)
     {
@@ -65,7 +69,7 @@ void fpu_enable(struct fpu *state)
 
 void fpu_disable(struct fpu *state)
 {
-    // Save FPU state
+    // save FPU state
     if (state)
         __asm__
         (
@@ -75,13 +79,13 @@ void fpu_disable(struct fpu *state)
             : "m" (state)
         );
 
-    // Disable acces to FPU
-    set_cr0(get_cr0() | CR0_EM);
+    // disable acces to FPU
+    kmach_set_cr0(kmach_get_cr0() | CR0_EM);
 }
 
 int fpu_trap_handler(struct context *ctxt, void *arg)
 {
-    struct thread *t = self();
+    struct thread *t = kthread_self();
 
     if (t->flags & THREAD_FPU_USED)
     {
@@ -107,5 +111,5 @@ void init_fpu()
 {
     register_interrupt(&fpuintr, INTR_FPU, fpu_trap_handler, NULL);
     register_interrupt(&fpuxcpt, INTR_NPX, fpu_npx_handler, NULL);
-    set_cr0(get_cr0() | CR0_EM | CR0_NE);
+    kmach_set_cr0(kmach_get_cr0() | CR0_EM | CR0_NE);
 }

@@ -32,6 +32,11 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/video.h>
+#include <os/kbd.h>
+#include <os/trap.h>
+
 
 #define CTRL(c) ((c) - 'A' + 1)
 
@@ -41,6 +46,9 @@ static dev_t consdev = NODEV;
 static int cursoff = 0;
 static unsigned int kbd_timeout = INFINITE;
 int serial_console = 0;
+
+// TODO: we need a place for this!
+void init_serial();
 
 void sound(unsigned short freq)  {
   unsigned short freqdiv;
@@ -81,17 +89,18 @@ void beep()  {
   nosound();
 }
 
-void init_serial_console() {
-  // Turn off interrupts
-  outp(SERIAL_CONSOLE_PORT + 1, 0);
+void init_serial_console()
+{
+    // Turn off interrupts
+    outp(SERIAL_CONSOLE_PORT + 1, 0);
 
-  // Set 115200 baud, 8 bits, no parity, one stopbit
-  outp(SERIAL_CONSOLE_PORT + 3, 0x80);
-  outp(SERIAL_CONSOLE_PORT + 0, 0x01); // 0x0C = 9600, 0x01 = 115200
-  outp(SERIAL_CONSOLE_PORT + 1, 0x00);
-  outp(SERIAL_CONSOLE_PORT + 3, 0x03);
-  outp(SERIAL_CONSOLE_PORT + 2, 0xC7);
-  outp(SERIAL_CONSOLE_PORT + 4, 0x0B);
+    // Set 115200 baud, 8 bits, no parity, one stopbit
+    outp(SERIAL_CONSOLE_PORT + 3, 0x80);
+    outp(SERIAL_CONSOLE_PORT + 0, 0x01); // 0x0C = 9600, 0x01 = 115200
+    outp(SERIAL_CONSOLE_PORT + 1, 0x00);
+    outp(SERIAL_CONSOLE_PORT + 3, 0x03);
+    outp(SERIAL_CONSOLE_PORT + 2, 0xC7);
+    outp(SERIAL_CONSOLE_PORT + 4, 0x0B);
 }
 
 static void serial_console_write(void *buffer, int count) {
@@ -177,7 +186,7 @@ static int console_read(struct dev *dev, void *buffer, size_t count, blkno_t blk
     }
 
     if (ch < ' ') {
-      struct thread *t = self();
+      struct thread *t = kthread_self();
       if (ch == CTRL('C') && (t->blocked_signals & (1 << SIGINT)) == 0) send_user_signal(t, SIGINT);
       if (ch == CTRL('Z') && (t->blocked_signals & (1 << SIGTSTP)) == 0) send_user_signal(t, SIGTSTP);
       if (ch == CTRL('\\') && (t->blocked_signals & (1 << SIGABRT)) == 0) send_user_signal(t, SIGABRT);

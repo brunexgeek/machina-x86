@@ -3,6 +3,7 @@
 //
 // Ethernet network
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 // Portions Copyright (C) 2001, Swedish Institute of Computer Science.
 //
@@ -46,22 +47,25 @@
 
 #pragma pack(push, 1)
 
-struct eth_addr {
-  unsigned char addr[ETHER_ADDR_LEN];
+struct eth_addr
+{
+    unsigned char addr[ETHER_ADDR_LEN];
 };
 
-struct eth_hdr {
-  struct eth_addr dest;
-  struct eth_addr src;
-  unsigned short type;
+struct eth_hdr
+{
+    struct eth_addr dest;
+    struct eth_addr src;
+    unsigned short type;
 };
 
 #pragma pack(pop)
 
-static __inline int eth_addr_isbroadcast(struct eth_addr *addr) {
-  int n;
-  for (n = 0; n < ETHER_ADDR_LEN; n++) if (addr->addr[n] != 0xFF) return 0;
-  return 1;
+static __inline int eth_addr_isbroadcast(struct eth_addr *addr)
+{
+    int n;
+    for (n = 0; n < ETHER_ADDR_LEN; n++) if (addr->addr[n] != 0xFF) return 0;
+    return 1;
 }
 
 KERNELAPI char *ether2str(struct eth_addr *hwaddr, char *s);

@@ -32,6 +32,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/syspage.h>
+#include <os/pdir.h>
+#include <os/pframe.h>
 
 #define HANDLES_PER_PAGE (PAGESIZE / sizeof(handle_t))
 
@@ -44,8 +47,8 @@ static int expand_htab() {
   handle_t h;
 
   if (htabsize == HTABSIZE / sizeof(struct object *)) return -ENFILE;
-  pfn = alloc_pageframe(*((unsigned int*)"HTAB"));
-  map_page(htab + htabsize, pfn, PT_WRITABLE | PT_PRESENT);
+  pfn = kpframe_alloc(PFT_HTAB);
+  kpage_map(htab + htabsize, pfn, PT_WRITABLE | PT_PRESENT);
 
   for (h = htabsize + HANDLES_PER_PAGE - 1; h >= htabsize; h--) {
     htab[h] = hfreelist;

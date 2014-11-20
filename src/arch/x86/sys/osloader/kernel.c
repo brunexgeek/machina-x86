@@ -49,7 +49,7 @@ extern unsigned long krnlentry;
 extern int bootpart;
 
 int boot_read(void *buffer, size_t count, blkno_t blkno);
-char *alloc_heap(int numpages);
+char *heap_alloc(int numpages);
 
 char bsect[SECTORSIZE];
 char ssect[SECTORSIZE];
@@ -154,7 +154,7 @@ void load_kernel(int bootdrv)
     // Calculate kernel size
     kernelsize = (int) inode->size;
     kernelpages = PAGES(kernelsize);
-    kprintf("\nosloader: loaded kernel at 0x%lx (%d KiB)\n", OSBASE, kernelsize / 1024);
+    kprintf("[DEBUG] loaded kernel at 0x%lx (%d KiB)\n", OSBASE, kernelsize / 1024);
 
     // Allocate page table for kernel
     if (kernelpages > PTES_PER_PAGE) panic("kernel too big");

@@ -33,6 +33,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/cpu.h>
 
 #ifdef RANDOMDEV
 
@@ -287,7 +289,7 @@ static int batch_entropy_init(int size) {
   batch_head = batch_tail = 0;
   batch_max = size;
 
-  add_idle_task(&batch_task, batch_entropy_process, NULL);
+  ksched_add_idle_task(&batch_task, batch_entropy_process, NULL);
 
   return 0;
 }
@@ -326,7 +328,7 @@ static void batch_entropy_process(void *arg) {
 
   max_entropy = r->poolinfo.poolwords * 32;
   while (batch_head != batch_tail) {
-    if (!system_idle()) break;
+    if (!ksched_is_system_idle()) break;
     add_entropy_words(r, batch_entropy_pool + 2 * batch_tail, 2);
     p = r;
     if (r->entropy_count > max_entropy && (num & 1)) r = sec_random_state;
@@ -367,10 +369,10 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned long n
   long delta, delta2, delta3;
   int entropy = 0;
 
-  if (cpu.features & CPU_FEATURE_TSC) {
-    time = (unsigned long) rdtsc();
+  if (global_cpu.features & CPU_FEATURE_TSC) {
+    time = (unsigned long) kmach_rdtsc();
   } else {
-    time = ticks;
+    time = global_ticks;
   }
 
   //
@@ -727,13 +729,16 @@ struct driver urandom_driver = {
   random_write
 };
 
-static void init_std_data(struct entropy_store *r) {
-  unsigned long words[2];
 
-  words[0] = systemclock.tv_sec;
-  words[1] = systemclock.tv_usec;
-  add_entropy_words(r, words, 2);
+static void init_std_data(struct entropy_store *r)
+{
+    unsigned long words[2];
+
+    words[0] = global_time.tv_sec;
+    words[1] = global_time.tv_usec;
+    add_entropy_words(r, words, 2);
 }
+
 
 int /*__declspec(dllexport)*/ random() {
   int rc;

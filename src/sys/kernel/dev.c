@@ -32,6 +32,11 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/devfs.h>
+#include <os/procfs.h>
+#include <os/pci.h>
+#include <os/pnpbios.h>
 
 struct unit *units;
 struct bus *buses;
@@ -393,62 +398,72 @@ static struct binding *find_binding(struct unit *unit) {
   return NULL;
 }
 
-static int initialize_driver(struct unit *unit, char *driverstr) {
-  char *buf;
-  char *p;
-  char *modname;
-  char *entryname;
-  char *opts;
-  hmodule_t hmod;
-  int rc;
-  int (*entry)(struct unit *unit, char *opts);
+static int initialize_driver(struct unit *unit, char *driverstr)
+{
+    char *buf;
+    char *p;
+    char *modname;
+    char *entryname;
+    char *opts;
+    hmodule_t hmod;
+    int rc;
+    int (*entry)(struct unit *unit, char *opts);
 
-  p = buf = kmalloc(strlen(driverstr) + 1);
-  if (!buf) return -ENOMEM;
-  memcpy(buf, driverstr, strlen(driverstr) + 1);
+    p = buf = kmalloc(strlen(driverstr) + 1);
+    if (!buf) return -ENOMEM;
+    memcpy(buf, driverstr, strlen(driverstr) + 1);
 
-  modname = p;
-  entryname = strchr(p, '!');
-  if (entryname) {
-    *entryname++ = 0;
-    p = entryname;
-  } else {
-    entryname = "install";
-  }
+    modname = p;
+    entryname = strchr(p, '!');
+    if (entryname)
+    {
+        *entryname++ = 0;
+        p = entryname;
+    }
+    else
+    {
+        entryname = "install";
+    }
 
-  opts = strchr(p, ':');
-  if (opts) {
-    *opts++ = 0;
-  } else {
-    opts = NULL;
-  }
+    opts = strchr(p, ':');
+    if (opts)
+    {
+        *opts++ = 0;
+    }
+    else
+    {
+        opts = NULL;
+    }
 
-  hmod = load(modname, 0);
-  if (!hmod) {
-    kprintf(KERN_ERR "dev: unable to load module %s\n", modname);
+    hmod = load(modname, 0);
+    if (!hmod)
+    {
+        kprintf(KERN_ERR "dev: unable to load module %s\n", modname);
+        kfree(buf);
+        return -ENOEXEC;
+    }
+
+    entry = resolve(hmod, entryname);
+    if (!entry)
+    {
+        kprintf(KERN_ERR "dev: unable to find entry %s in module %s\n", entryname, modname);
+        unload(hmod);
+        kfree(buf);
+        return -ENOEXEC;
+    }
+
+    rc = entry(unit, opts);
+    if (rc < 0)
+    {
+        kprintf(KERN_ERR "dev: initialization of %s!%s failed with error %d\n", modname, entryname, rc);
+        // NB: it is not always safe to unload the driver module after failure
+        //unload(hmod);
+        kfree(buf);
+        return rc;
+    }
+
     kfree(buf);
-    return -ENOEXEC;
-  }
-
-  entry = resolve(hmod, entryname);
-  if (!entry) {
-    kprintf(KERN_ERR "dev: unable to find entry %s in module %s\n", entryname, modname);
-    unload(hmod);
-    kfree(buf);
-    return -ENOEXEC;
-  }
-
-  rc = entry(unit, opts);
-  if (rc < 0) {
-    kprintf(KERN_ERR "dev: initialization of %s!%s failed with error %d\n", modname, entryname, rc);
-    // NB: it is not always safe to unload the driver module after failure
-    //unload(hmod);
-    kfree(buf);
-    return rc;
-  }
-
-  kfree(buf);
-  return 0;
+    return 0;
 }
 
 static void install_driver(struct unit *unit, struct binding *bind) {
@@ -508,30 +523,34 @@ static void install_legacy_drivers() {
   }
 }
 
-void install_drivers() {
-  dev_t console;
+void install_drivers()
+{
+    dev_t console;
 
-  // Register /proc/units
-  register_proc_inode("units", units_proc, NULL);
-  register_proc_inode("devices", devices_proc, NULL);
-  register_proc_inode("devstat", devstat_proc, NULL);
+    // Register /proc/units
+    register_proc_inode("units", units_proc, NULL);
+    register_proc_inode("devices", devices_proc, NULL);
+    register_proc_inode("devstat", devstat_proc, NULL);
 
-  // Parse driver binding database
-  parse_bindings();
+    // Parse driver binding database
+    parse_bindings();
 
-  // Match bindings to units
-  bind_units();
+    // Match bindings to units
+    bind_units();
 
-  // Install legacy drivers
-  install_legacy_drivers();
+    // Install legacy drivers
+    install_legacy_drivers();
 
-  // Make sure we have a console device
-  console = kdev_open("console");
-  if (console == NODEV) {
-    initialize_driver(NULL, "krnl.dll!console");
-  } else {
-    kdev_close(console);
-  }
+    // Make sure we have a console device
+    console = kdev_open("console");
+    if (console == NODEV)
+    {
+        initialize_driver(NULL, "krnl.dll!console");
+    }
+    else
+    {
+        kdev_close(console);
+    }
 }
 
 struct dev *kdev_get(dev_t devno) {

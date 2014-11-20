@@ -34,6 +34,8 @@
 #ifndef DFS_H
 #define DFS_H
 
+#include <os/user.h>
+
 #define DFS_SIGNATURE              0x00534644
 #define DFS_VERSION                2
 

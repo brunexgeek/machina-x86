@@ -3,7 +3,7 @@
 //
 // Task scheduler "naked" functions for x86
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -31,41 +31,39 @@
 // SUCH DAMAGE.
 //
 
-// TODO: use the C header definitions
-#define SYSBASE     0x90400000
-#define SYSPAGE_ADDRESS (SYSBASE + 0 * 4096)
-#define TSS_ESP0 (SYSPAGE_ADDRESS + 4)
-#define TCBSIZE           (2 * 4096)
-#define TCBMASK           (~(TCBSIZE - 1))
-#define TCBESP            (TCBSIZE - 4)
+
+#include <os/syspage.h>
+#include <os/pdir.h>
+#include <os/sched.h>
 
 
     .intel_syntax noprefix
     .text
     .global ___switch_context
+    .global ___kthread_self
 
 
 ___switch_context:
-    // Save registers on current kernel stack
+    // save registers on current kernel stack
     push    ebp
     push    ebx
     push    edi
     push    esi
 
-    // Store kernel stack pointer in tcb
+    // store kernel stack pointer in tcb
     mov     eax, esp
     and     eax, TCBMASK
     add     eax, TCBESP
     mov     [eax], esp
 
-    // Get stack pointer for new thread and store in esp0
+    // get stack pointer for new thread and store in esp0
     mov     eax, 20[esp]
     add     eax, TCBESP
     mov     esp, [eax]
     mov     ebp, TSS_ESP0
     mov     [ebp], eax
 
-    // Restore registers from new kernel stack
+    // restore registers from new kernel stack
     pop     esi
     pop     edi
     pop     ebx
@@ -73,3 +71,9 @@ ___switch_context:
 
     ret
     nop
+
+
+___kthread_self:
+    mov eax, esp
+    and eax, TCBMASK
+    ret

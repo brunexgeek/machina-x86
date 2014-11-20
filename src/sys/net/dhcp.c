@@ -34,6 +34,8 @@
 //
 
 #include <net/net.h>
+#include <os/kmalloc.h>
+#include <os/dev.h>
 
 static struct dhcp_state *dhcp_client_list = NULL;
 int dhcp_arp_check = 0;
@@ -99,7 +101,7 @@ static int dhcpstat_proc(struct proc_file *pf, void *arg) {
 
   state = dhcp_client_list;
   while (state) {
-    time_t lease_age = time(NULL) - state->bind_time;
+    time_t lease_age = kpit_get_time() - state->bind_time;
 
     pprintf(pf, "DHCP configuration for %s:\n", state->netif->name);
     pprintf(pf, "  State .................. : %s\n", statename[state->state]);
@@ -131,7 +133,7 @@ static int dhcpstat_proc(struct proc_file *pf, void *arg) {
 
 static void dhcp_handle_nak(struct dhcp_state *state) {
   int msecs = 10 * 1000;
-  ktimer_modify(&state->request_timeout_timer, ticks + msecs / MSECS_PER_TICK);
+  ktimer_modify(&state->request_timeout_timer, global_ticks + msecs / MSECS_PER_TICK);
   kprintf(KERN_WARNING "dhcp_handle_nak: request timeout %u msecs\n", msecs);
   dhcp_set_state(state, DHCP_BACKING_OFF);
 }
@@ -157,7 +159,7 @@ static void dhcp_check(struct dhcp_state *state) {
   }
   state->tries++;
   msecs = state->tries * 1000;
-  ktimer_modify(&state->request_timeout_timer, ticks + msecs / MSECS_PER_TICK);
+  ktimer_modify(&state->request_timeout_timer, global_ticks + msecs / MSECS_PER_TICK);
 
   dhcp_set_state(state, DHCP_CHECKING);
 }
@@ -219,7 +221,7 @@ static err_t dhcp_select(struct dhcp_state *state) {
 
   state->tries++;
   msecs = state->tries < 4 ? state->tries * 1000 : 4 * 1000;
-  ktimer_modify(&state->request_timeout_timer, ticks + msecs / MSECS_PER_TICK);
+  ktimer_modify(&state->request_timeout_timer, global_ticks + msecs / MSECS_PER_TICK);
 
   dhcp_set_state(state, DHCP_REQUESTING);
   return result;
@@ -273,10 +275,11 @@ static void dhcp_timeout_handler(struct dhcp_state *state) {
 // dhcp_timeout
 //
 
-static void dhcp_timeout(void *arg) {
-  struct dhcp_state *state = arg;
+static void dhcp_timeout(void *arg)
+{
+    struct dhcp_state *state = arg;
 
-  queue_task(&sys_task_queue, &state->request_timeout_task, (taskproc_t) dhcp_timeout_handler, state);
+    queue_task(&sys_task_queue, &state->request_timeout_task, (taskproc_t) dhcp_timeout_handler, state);
 }
 
 //
@@ -312,7 +315,7 @@ static void dhcp_handle_ack(struct dhcp_state *state) {
   state->offered_bc_addr.addr = 0;
   state->offered_dns1_addr.addr = 0;
   state->offered_dns2_addr.addr = 0;
-  state->bind_time = time(NULL);
+  state->bind_time = kpit_get_time();
 
   option_ptr = dhcp_get_option_ptr(state, DHCP_OPTION_DHCP_LEASE_TIME);
   if (option_ptr != NULL) {
@@ -533,7 +536,7 @@ static err_t dhcp_decline(struct dhcp_state *state) {
 
   state->tries++;
   msecs = 10 * 1000;
-  ktimer_modify(&state->request_timeout_timer, ticks + msecs / MSECS_PER_TICK);
+  ktimer_modify(&state->request_timeout_timer, global_ticks + msecs / MSECS_PER_TICK);
 
   dhcp_set_state(state, DHCP_BACKING_OFF);
   return result;
@@ -588,7 +591,7 @@ static err_t dhcp_discover(struct dhcp_state *state) {
 
   state->tries++;
   msecs = state->tries < 4 ? (state->tries + 1) * 1000 : 10 * 1000;
-  ktimer_modify(&state->request_timeout_timer, ticks + msecs / MSECS_PER_TICK);
+  ktimer_modify(&state->request_timeout_timer, global_ticks + msecs / MSECS_PER_TICK);
 
   dhcp_set_state(state, DHCP_SELECTING);
   return result;
@@ -604,11 +607,11 @@ static void dhcp_bind(struct dhcp_state *state) {
   struct ip_addr sn_mask, gw_addr;
 
   if (state->offered_t1_renew != 0xFFFFFFFF) {
-    ktimer_modify(&state->t1_timeout_timer, ticks + state->offered_t1_renew * TICKS_PER_SEC);
+    ktimer_modify(&state->t1_timeout_timer, global_ticks + state->offered_t1_renew * TICKS_PER_SEC);
   }
 
   if (state->offered_t2_rebind != 0xFFFFFFFF) {
-    ktimer_modify(&state->t2_timeout_timer, ticks + state->offered_t2_rebind * TICKS_PER_SEC);
+    ktimer_modify(&state->t2_timeout_timer, global_ticks + state->offered_t2_rebind * TICKS_PER_SEC);
   }
 
   ip_addr_set(&sn_mask, &state->offered_sn_mask);
@@ -689,7 +692,7 @@ err_t dhcp_renew(struct dhcp_state *state) {
   }
   state->tries++;
   msecs = state->tries < 10 ? state->tries * 2000 : 20 * 1000;
-  ktimer_modify(&state->request_timeout_timer, ticks + msecs / MSECS_PER_TICK);
+  ktimer_modify(&state->request_timeout_timer, global_ticks + msecs / MSECS_PER_TICK);
 
   dhcp_set_state(state, DHCP_RENEWING);
   return result;
@@ -731,7 +734,7 @@ static err_t dhcp_rebind(struct dhcp_state *state) {
 
   state->tries++;
   msecs = state->tries < 10 ? state->tries * 1000 : 10 * 1000;
-  ktimer_modify(&state->request_timeout_timer, ticks + msecs / MSECS_PER_TICK);
+  ktimer_modify(&state->request_timeout_timer, global_ticks + msecs / MSECS_PER_TICK);
 
   dhcp_set_state(state, DHCP_REBINDING);
   return result;
@@ -763,7 +766,7 @@ static err_t dhcp_release(struct dhcp_state *state) {
 
   state->tries++;
   msecs = state->tries < 10 ? state->tries * 1000 : 10 * 1000;
-  ktimer_modify(&state->request_timeout_timer, ticks + msecs / MSECS_PER_TICK);
+  ktimer_modify(&state->request_timeout_timer, global_ticks + msecs / MSECS_PER_TICK);
 
   // Remove IP address from interface
   netif_set_ipaddr(state->netif, IP_ADDR_ANY);

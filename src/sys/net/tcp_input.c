@@ -9,16 +9,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,11 +28,12 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <net/net.h>
+#include <os/kmalloc.h>
 
 #define UMAX(a, b) ((a) > (b) ? (a) : (b))
 
@@ -56,7 +57,7 @@ err_t tcp_input(struct pbuf *p, struct netif *inp) {
   err_t err;
 
   stats.tcp.recv++;
-  
+
   iphdr = p->payload;
   tcphdr = (struct tcp_hdr *)((char *) p->payload + IPH_HL(iphdr) * 4);
 
@@ -91,7 +92,7 @@ err_t tcp_input(struct pbuf *p, struct netif *inp) {
   }
 #endif
 
-  // Move the payload pointer in the pbuf so that it points to 
+  // Move the payload pointer in the pbuf so that it points to
   // the TCP data instead of the TCP header
   offset = TCPH_OFFSET(tcphdr) >> 4;
   if (pbuf_header(p, -(offset * 4)) < 0) return -EINVAL;
@@ -102,13 +103,13 @@ err_t tcp_input(struct pbuf *p, struct netif *inp) {
   tcphdr->seqno = ntohl(tcphdr->seqno);
   tcphdr->ackno = ntohl(tcphdr->ackno);
   tcphdr->wnd = ntohs(tcphdr->wnd);
-  
+
   //kprintf("tcp_input: size %d seqno %lu ackno %lu wnd %d flags: ", p->tot_len, tcphdr->seqno, tcphdr->ackno, tcphdr->wnd);
   //tcp_debug_print_flags(TCPH_FLAGS(tcphdr));
   //kprintf("\n");
 
   // Demultiplex an incoming segment. First, we check if it is destined for an active connection
-  prev = NULL;  
+  prev = NULL;
   for (pcb = tcp_active_pcbs; pcb != NULL; pcb = pcb->next) {
     if (pcb->remote_port == tcphdr->src &&
         pcb->local_port == tcphdr->dest &&
@@ -119,7 +120,7 @@ err_t tcp_input(struct pbuf *p, struct netif *inp) {
       if (prev != NULL) {
         prev->next = pcb->next;
         pcb->next = tcp_active_pcbs;
-        tcp_active_pcbs = pcb; 
+        tcp_active_pcbs = pcb;
       }
       break;
     }
@@ -139,21 +140,21 @@ err_t tcp_input(struct pbuf *p, struct netif *inp) {
         // many segments for connections in TIME-WAIT.
         break;
       }
-    }  
-  
+    }
+
     // Finally, if we still did not get a match, we check all PCBs that are LISTENing for incomming connections
-    prev = NULL;  
+    prev = NULL;
     if (pcb == NULL) {
       for (pcb = (struct tcp_pcb *) tcp_listen_pcbs; pcb != NULL; pcb = pcb->next) {
         if ((ip_addr_isany(&pcb->local_ip) || ip_addr_cmp(&pcb->local_ip, &iphdr->dest)) &&
              pcb->local_port == tcphdr->dest) {
           // Move this PCB to the front of the list so that subsequent
           // lookups will be faster (we exploit locality in TCP segment
-          // arrivals)          
+          // arrivals)
           if (prev != NULL) {
             prev->next = pcb->next;
             pcb->next = (struct tcp_pcb *) tcp_listen_pcbs;
-            tcp_listen_pcbs = (struct tcp_pcb_listen *) pcb; 
+            tcp_listen_pcbs = (struct tcp_pcb_listen *) pcb;
           }
           break;
         }
@@ -161,7 +162,7 @@ err_t tcp_input(struct pbuf *p, struct netif *inp) {
       }
     }
   }
-  
+
   if (pcb != NULL) {
     struct tcp_seg seg;
 
@@ -171,7 +172,7 @@ err_t tcp_input(struct pbuf *p, struct netif *inp) {
     seg.dataptr = p->payload;
     seg.p = p;
     seg.tcphdr = tcphdr;
-    
+
     if (pcb->state != LISTEN && pcb->state != TIME_WAIT) {
       pcb->recv_data = NULL;
       pcb->acked = 0;
@@ -187,7 +188,7 @@ err_t tcp_input(struct pbuf *p, struct netif *inp) {
         if (pcb->flags & TF_RESET) {
           if (pcb->errf != NULL) pcb->errf(pcb->callback_arg, -ERST);
 
-          if (pcb->state == TIME_WAIT) { 
+          if (pcb->state == TIME_WAIT) {
             tcp_pcb_remove(&tcp_tw_pcbs, pcb);
           } else {
             tcp_pcb_remove(&tcp_active_pcbs, pcb);
@@ -200,11 +201,11 @@ err_t tcp_input(struct pbuf *p, struct netif *inp) {
         } else {
           if (pcb->state < TIME_WAIT) {
             err = 0;
-            
+
             // If the application has registered a "sent" function to be
             // called when new send buffer space is avaliable, we call it now
             if (pcb->acked > 0 && pcb->sent != NULL) err = pcb->sent(pcb->callback_arg, pcb, pcb->acked);
-            
+
             if (pcb->recv != NULL) {
               if (pcb->recv_data != NULL) {
                 err = pcb->recv(pcb->callback_arg, pcb, pcb->recv_data, 0);
@@ -231,7 +232,7 @@ err_t tcp_input(struct pbuf *p, struct netif *inp) {
         }
       }
     }
-    
+
     pcb->flags &= ~TF_IN_RECV;
     if (seg.p) pbuf_free(seg.p);
   } else {
@@ -268,13 +269,13 @@ static err_t tcp_process(struct tcp_seg *seg, struct tcp_pcb *pcb) {
   unsigned long optdata;
   struct tcp_seg *rseg;
   int acceptable = 0;
-  
+
   iphdr = (struct ip_hdr *) ((char *) seg->tcphdr - IP_HLEN);
   tcphdr = seg->tcphdr;
   flags = TCPH_FLAGS(tcphdr);
   seqno = tcphdr->seqno;
   ackno = tcphdr->ackno;
-  
+
   // Process incoming RST segments
   if (flags & TCP_RST) {
     // First, determine if the reset is acceptable
@@ -299,7 +300,7 @@ static err_t tcp_process(struct tcp_seg *seg, struct tcp_pcb *pcb) {
 
   // Update the PCB timer unless we are in the LISTEN state
   if (pcb->state != LISTEN) pcb->tmr = tcp_ticks;
-  
+
   // Do different things depending on the TCP state
   switch (pcb->state) {
     case CLOSED:
@@ -325,7 +326,7 @@ static err_t tcp_process(struct tcp_seg *seg, struct tcp_pcb *pcb) {
           stats.tcp.memerr++;
           break;
         }
-        
+
         // Set up the new PCB
         ip_addr_set(&npcb->local_ip, &iphdr->dest);
         npcb->local_port = pcb->local_port;
@@ -341,13 +342,13 @@ static err_t tcp_process(struct tcp_seg *seg, struct tcp_pcb *pcb) {
 
         // Register the new PCB so that we can begin receiving segments for it
         TCP_REG(&tcp_active_pcbs, npcb);
-      
+
         // Parse any options in the SYN
         tcp_parseopt(seg, npcb);
 
         // Build an MSS option
-        optdata = HTONL(((unsigned long) 2 << 24) | 
-                        ((unsigned long) 4 << 16) | 
+        optdata = HTONL(((unsigned long) 2 << 24) |
+                        ((unsigned long) 4 << 16) |
                         (((unsigned long) npcb->mss / 256) << 8) |
                         (npcb->mss & 255));
 
@@ -379,7 +380,7 @@ static err_t tcp_process(struct tcp_seg *seg, struct tcp_pcb *pcb) {
           pcb->connected(pcb->callback_arg, pcb, 0);
         }
         pcb->flags |= TF_ACK_DELAY;
-      }    
+      }
       break;
 
     case SYN_RCVD:
@@ -479,7 +480,7 @@ static err_t tcp_process(struct tcp_seg *seg, struct tcp_pcb *pcb) {
       if (TCP_TCPLEN(seg) > 0) pcb->flags |= TF_ACK_NOW;
       break;
   }
-  
+
   return 0;
 }
 
@@ -528,7 +529,7 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
         pcb->dupacks++;
         if (pcb->dupacks >= 3 && pcb->unacked != NULL && pcb->state == ESTABLISHED) {
           if (!(pcb->flags & TF_INFR)) {
-            // This is fast retransmit. Retransmit the first unacked segment          
+            // This is fast retransmit. Retransmit the first unacked segment
             //kprintf("tcp_receive: dupacks %d (%lu), fast retransmit %lu\n", pcb->dupacks, pcb->lastack, ntohl(pcb->unacked->tcphdr->seqno));
             tcp_rexmit(pcb);
 
@@ -536,7 +537,7 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
             pcb->ssthresh = UMAX((unsigned long) (pcb->snd_max - pcb->lastack) / 2, (unsigned long) (2 * pcb->mss));
             pcb->cwnd = pcb->ssthresh + 3 * pcb->mss;
             pcb->flags |= TF_INFR;
-          } else {         
+          } else {
             // Inflate the congestion window, but not if it means that the value overflows
             if ((unsigned short) (pcb->cwnd + pcb->mss) > pcb->cwnd) pcb->cwnd += pcb->mss;
           }
@@ -558,7 +559,7 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
 
       // Reset the retransmission time-out
       pcb->rto = (pcb->sa >> 3) + pcb->sv;
-      
+
       // Update the send buffer space
       pcb->acked = (unsigned short) (ackno - pcb->lastack);
       pcb->snd_buf += pcb->acked;
@@ -566,7 +567,7 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
       // Reset the fast retransmit variables
       pcb->dupacks = 0;
       pcb->lastack = ackno;
-      
+
       // Update the congestion control variables (cwnd and ssthresh)
       if (pcb->state >= ESTABLISHED) {
         if (pcb->cwnd < pcb->ssthresh) {
@@ -615,14 +616,14 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
         pcb->unsent = pcb->unsent->next;
         pcb->snd_queuelen -= pbuf_clen(next->p);
         tcp_seg_free(next);
-        
+
         if (pcb->unsent != NULL) pcb->snd_nxt = htonl(pcb->unsent->tcphdr->seqno);
       }
     }
     // End of ACK for new data processing
-    
+
     //kprintf("tcp_receive: pcb->rttest %d rtseq %lu ackno %lu\n", pcb->rttest, pcb->rtseq, ackno);
-    
+
     // RTT estimation calculations. This is done by checking if the
     // incoming segment acknowledges the segment we use to take a
     // round-trip time measurement
@@ -638,13 +639,13 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
       m = m - (pcb->sv >> 2);
       pcb->sv += m;
       pcb->rto = (pcb->sa >> 3) + pcb->sv;
-      
+
       //kprintf("tcp_receive: RTO %d (%d miliseconds)\n", pcb->rto, pcb->rto * TCP_SLOW_INTERVAL);
 
       pcb->rttest = 0;
-    } 
+    }
   }
-  
+
   // If the incoming segment contains data, we must process it further
   if (TCP_TCPLEN(seg) > 0) {
     // This code basically does three things:
@@ -652,7 +653,7 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
     // +) If the incoming segment contains data that is the next
     //    in-sequence data, this data is passed to the application. This
     //    might involve trimming the first edge of the data. The rcv_nxt
-    //    variable and the advertised window are adjusted.       
+    //    variable and the advertised window are adjusted.
     //
     // +) If the incoming segment has data that is above the next
     //    sequence number expected (->rcv_nxt), the segment is placed on
@@ -721,7 +722,7 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
         // The whole segment is < rcv_nxt
         // Must be a duplicate of a packet that has already been correctly handled
         // or a keep-alive packet
-        
+
         //kprintf("tcp_receive: duplicate seqno %lu\n", seqno);
         pcb->flags |= TF_ACK_NOW;
       }
@@ -730,7 +731,7 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
     // The sequence number must be within the window (above rcv_nxt
     // and below rcv_nxt + rcv_wnd) in order to be further
     // processed.
-    
+
     if (TCP_SEQ_GEQ(seqno, pcb->rcv_nxt) && TCP_SEQ_LT(seqno, pcb->rcv_nxt + pcb->rcv_wnd)) {
       if (pcb->rcv_nxt == seqno) {
         // The incoming segment is the next in sequence. We check if
@@ -741,16 +742,16 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
           seg->len = pcb->ooseq->tcphdr->seqno - seqno;
           pbuf_realloc(seg->p, seg->len);
         }
-        
-        pcb->rcv_nxt += TCP_TCPLEN(seg);        
-        
+
+        pcb->rcv_nxt += TCP_TCPLEN(seg);
+
         // Update the receiver's (our) window
         if (pcb->rcv_wnd < TCP_TCPLEN(seg)) {
           pcb->rcv_wnd = 0;
         } else {
           pcb->rcv_wnd -= TCP_TCPLEN(seg);
         }
-        
+
         // If there is data in the segment, we make preparations to
         // pass this up to the application. The ->recv_data variable
         // is used for holding the pbuf that goes to the
@@ -758,7 +759,7 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
         // chains its data on this pbuf as well.
         if (seg->p->tot_len > 0) {
           pcb->recv_data = seg->p;
-          
+
           // Since this pbuf now is the responsibility of the
           // application, we delete our reference to it so that we won't
           // (mistakingly) deallocate it.
@@ -772,13 +773,13 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
           //kprintf("tcp_receive: received FIN.\n");
           pcb->flags |= TF_GOT_FIN;
         }
-        
+
         // We now check if we have segments on the ->ooseq queue that
         // is now in sequence.
         while (pcb->ooseq != NULL && pcb->ooseq->tcphdr->seqno == pcb->rcv_nxt) {
           cseg = pcb->ooseq;
           seqno = pcb->ooseq->tcphdr->seqno;
-          
+
           pcb->rcv_nxt += TCP_TCPLEN(cseg);
           if (pcb->rcv_wnd < TCP_TCPLEN(cseg)) {
             pcb->rcv_wnd = 0;
@@ -791,11 +792,11 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
             pbuf_chain(pcb->recv_data, cseg->p);
             cseg->p = NULL;
           }
-          
+
           if (TCPH_FLAGS(cseg->tcphdr) & TCP_FIN) {
             //kprintf("tcp_receive: dequeued FIN.\n");
             pcb->flags |= TF_GOT_FIN;
-          }         
+          }
 
           pcb->ooseq = cseg->next;
           tcp_seg_free(cseg);
@@ -917,8 +918,8 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
               }
             }
             prev = next;
-          }    
-        } 
+          }
+        }
       }
     }
   } else {
@@ -935,7 +936,7 @@ static void tcp_receive(struct tcp_seg *seg, struct tcp_pcb *pcb) {
 //
 // Parses the options contained in the incoming segment. (Code taken
 // from uIP with only small changes.)
-// 
+//
 //
 
 static void tcp_parseopt(struct tcp_seg *seg, struct tcp_pcb *pcb) {
@@ -944,22 +945,22 @@ static void tcp_parseopt(struct tcp_seg *seg, struct tcp_pcb *pcb) {
   unsigned short mss;
 
   opts = (unsigned char *) (seg->tcphdr) + TCP_HLEN;
-  
+
   // Parse the TCP MSS option, if present
   if ((TCPH_OFFSET(seg->tcphdr) & 0xf0) > 0x50) {
     for (c = 0; c < ((TCPH_OFFSET(seg->tcphdr) >> 4) - 5) << 2 ;) {
       opt = opts[c];
       if (opt == 0x00) {
-        // End of options   
+        // End of options
         break;
       } else if (opt == 0x01) {
         // NOP option
         c++;
       } else if (opt == 0x02 && opts[c + 1] == 0x04) {
-        // An MSS option with the right option length       
+        // An MSS option with the right option length
         mss = (opts[c + 2] << 8) | opts[c + 3];
         pcb->mss = mss > TCP_MSS? TCP_MSS: mss;
-        
+
         // And we are done processing options
         break;
       } else {
@@ -972,7 +973,7 @@ static void tcp_parseopt(struct tcp_seg *seg, struct tcp_pcb *pcb) {
         // All other options have a length field, so that we easily
         // can skip past them
         c += opts[c + 1];
-      }      
+      }
     }
   }
 }

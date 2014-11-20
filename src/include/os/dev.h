@@ -35,6 +35,7 @@
 #ifndef DEV_H
 #define DEV_H
 
+
 struct devfile;
 
 struct dev;
@@ -72,143 +73,157 @@ struct unit;
 #define BIND_BY_UNITCODE        2
 #define BIND_BY_SUBUNITCODE     3
 
+
+#include <os/krnl.h>
+#include <os/kmalloc.h>
+#include <os/ldr.h>
+#include <net/netif.h>
 #include <net/ether.h>
 #include <net/pbuf.h>
+
 
 //
 // Bus
 //
 
-struct bus {
-  struct bus *next;
-  struct bus *sibling;
-  struct bus *parent;
+struct bus
+{
+    struct bus *next;
+    struct bus *sibling;
+    struct bus *parent;
 
-  struct unit *self;
+    struct unit *self;
 
-  unsigned long bustype;
-  unsigned long busno;
+    unsigned long bustype;
+    unsigned long busno;
 
-  struct unit *units;
-  struct bus *bridges;
+    struct unit *units;
+    struct bus *bridges;
 };
 
 //
 // Unit
 //
 
-struct unit {
-  struct unit *next;
-  struct unit *sibling;
-  struct bus *bus;
-  struct dev *dev;
+struct unit
+{
+    struct unit *next;
+    struct unit *sibling;
+    struct bus *bus;
+    struct dev *dev;
 
-  unsigned long classcode;
-  unsigned long unitcode;
-  unsigned long subunitcode;
-  unsigned long revision;
-  unsigned long unitno;
+    unsigned long classcode;
+    unsigned long unitcode;
+    unsigned long subunitcode;
+    unsigned long revision;
+    unsigned long unitno;
 
-  char *classname;
-  char *vendorname;
-  char *productname;
+    char *classname;
+    char *vendorname;
+    char *productname;
 
-  struct resource *resources;
+    struct resource *resources;
 };
 
 //
 // Resource
 //
 
-struct resource {
-  struct resource *next;
-  unsigned short type;
-  unsigned short flags;
-  unsigned long start;
-  unsigned long len;
+struct resource
+{
+    struct resource *next;
+    unsigned short type;
+    unsigned short flags;
+    unsigned long start;
+    unsigned long len;
 };
 
 //
 // Binding
 //
 
-struct binding {
-  int bindtype;
-  unsigned long bustype;
-  unsigned long code;
-  unsigned long mask;
-  char *module;
+struct binding
+{
+    int bindtype;
+    unsigned long bustype;
+    unsigned long code;
+    unsigned long mask;
+    char *module;
 };
 
 //
 // Driver
 //
 
-struct driver {
-  char *name;
-  int type;
+struct driver
+{
+    char *name;
+    int type;
 
-  int (*ioctl)(struct dev *dev, int cmd, void *args, size_t size);
-  int (*read)(struct dev *dev, void *buffer, size_t count, blkno_t blkno, int flags);
-  int (*write)(struct dev *dev, void *buffer, size_t count, blkno_t blkno, int flags);
+    int (*ioctl)(struct dev *dev, int cmd, void *args, size_t size);
+    int (*read)(struct dev *dev, void *buffer, size_t count, blkno_t blkno, int flags);
+    int (*write)(struct dev *dev, void *buffer, size_t count, blkno_t blkno, int flags);
 
-  int (*attach)(struct dev *dev, struct eth_addr *hwaddr);
-  int (*detach)(struct dev *dev);
-  int (*transmit)(struct dev *dev, struct pbuf *p);
-  int (*set_rx_mode)(struct dev *dev);
+    int (*attach)(struct dev *dev, struct eth_addr *hwaddr);
+    int (*detach)(struct dev *dev);
+    int (*transmit)(struct dev *dev, struct pbuf *p);
+    int (*set_rx_mode)(struct dev *dev);
 };
 
 //
 // Device
 //
 
-struct dev {
-  char name[DEVNAMELEN];
-  struct driver *driver;
-  struct unit *unit;
-  void *privdata;
-  int refcnt;
-  uid_t uid;
-  gid_t gid;
-  int mode;
-  struct devfile *files;
+struct dev
+{
+    char name[DEVNAMELEN];
+    struct driver *driver;
+    struct unit *unit;
+    void *privdata;
+    int refcnt;
+    uid_t uid;
+    gid_t gid;
+    int mode;
+    struct devfile *files;
 
-  int reads;
-  int writes;
-  int input;
-  int output;
+    int reads;
+    int writes;
+    int input;
+    int output;
 
-  struct netif *netif;
-  int (*receive)(struct netif *netif, struct pbuf *p);
+    struct netif *netif;
+    int (*receive)(struct netif *netif, struct pbuf *p);
 };
 
 //
 // Geometry
 //
 
-struct geometry {
-  int cyls;
-  int heads;
-  int spt;
-  int sectorsize;
-  int sectors;
+struct geometry
+{
+    int cyls;
+    int heads;
+    int spt;
+    int sectorsize;
+    int sectors;
 };
 
 //
 // Board info
 //
 
-struct board {
-  char *vendorname;
-  char *productname;
-  unsigned long bustype;
-  unsigned long unitcode;
-  unsigned long unitmask;
-  unsigned long subsystemcode;
-  unsigned long subsystemmask;
-  unsigned long revisioncode;
-  unsigned long revisionmask;
-  int flags;
+struct board
+{
+    char *vendorname;
+    char *productname;
+    unsigned long bustype;
+    unsigned long unitcode;
+    unsigned long unitmask;
+    unsigned long subsystemcode;
+    unsigned long subsystemmask;
+    unsigned long revisioncode;
+    unsigned long revisionmask;
+    int flags;
 };
 
 extern struct dev *devtab[];

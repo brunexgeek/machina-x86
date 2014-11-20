@@ -1350,12 +1350,17 @@ struct meminfo {
   unsigned int pagesize;
 };
 
-struct loadinfo {
-  long uptime;
-  int load_user;
-  int load_system;
-  int load_intr;
-  int load_idle;
+
+/**
+ * Store information about the system load.
+ */
+struct loadinfo
+{
+    long uptime;
+    int load_user;
+    int load_system;
+    int load_intr;
+    int load_idle;
 };
 
 #define UTSNAMELEN 65

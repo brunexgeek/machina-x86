@@ -32,6 +32,12 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/trap.h>
+#include <os/pci.h>
+#include <os/mbr.h>
+#include <os/pic.h>
+
 
 #define CDSECTORSIZE            2048
 
@@ -52,7 +58,7 @@
 #define HD1_DRVSEL              0x10 // was:0xB0
 #define HD_LBA                  0x40
 
-#define idedelay() udelay(25)
+#define idedelay()              kpit_udelay(25)
 
 //
 // Controller registers
@@ -414,7 +420,7 @@ static int hd_wait(struct hdc *hdc, unsigned char mask, unsigned int timeout) {
   unsigned int start;
   unsigned char status;
 
-  start = clocks;
+  start = global_clocks;
   while (1) {
     status = inp(hdc->iobase + HDC_ALT_STATUS);
     if (status & HDCS_ERR) {
@@ -427,9 +433,9 @@ static int hd_wait(struct hdc *hdc, unsigned char mask, unsigned int timeout) {
     }
 
     if (!(status & HDCS_BSY) && ((status & mask) == mask)) return 0;
-    if (time_before(start + timeout, clocks)) return -ETIMEOUT;
+    if (time_before(start + timeout, global_clocks)) return -ETIMEOUT;
 
-    yield();
+    kthread_yield();
   }
 }
 
@@ -1268,13 +1274,14 @@ void hd_dpc(void *arg) {
   }
 }
 
-int hdc_handler(struct context *ctxt, void *arg) {
-  struct hdc *hdc = (struct hdc *) arg;
+int hdc_handler(struct context *ctxt, void *arg)
+{
+    struct hdc *hdc = (struct hdc *) arg;
 
-  if (hdc->xfer_dpc.flags & DPC_QUEUED) kprintf("hd: intr lost\n");
-  queue_irq_dpc(&hdc->xfer_dpc, hd_dpc, hdc);
-  eoi(hdc->irq);
-  return 0;
+    if (hdc->xfer_dpc.flags & DPC_QUEUED) kprintf("hd: intr lost\n");
+    kdpc_queue_irq(&hdc->xfer_dpc, hd_dpc, "hd_dpc", hdc);
+    kpic_eoi(hdc->irq);
+    return 0;
 }
 
 static int part_ioctl(struct dev *dev, int cmd, void *args, size_t size) {
@@ -1410,8 +1417,8 @@ static int wait_reset_done(struct hdc *hdc, int drvsel) {
   outp(hdc->iobase + HDC_DRVHD, drvsel);
   idedelay();
 
-  tmo = ticks + 5*HZ;
-  while (time_after(tmo, ticks)) {
+  tmo = global_ticks + 5*HZ;
+  while (time_after(tmo, global_ticks)) {
     hdc->status = inp(hdc->iobase + HDC_STATUS);
     if ((hdc->status & HDCS_BSY) == 0) return 0;
   }
@@ -1453,7 +1460,7 @@ static int setup_hdc(struct hdc *hdc, int iobase, int irq, int bmregbase, int *m
     hdc->prds_phys = virt2phys(hdc->prds);
   }
 
-  init_dpc(&hdc->xfer_dpc);
+  kdpc_create(&hdc->xfer_dpc);
   init_mutex(&hdc->lock, 0);
   init_event(&hdc->ready, 0, 0);
 
@@ -1503,7 +1510,7 @@ static int setup_hdc(struct hdc *hdc, int iobase, int irq, int bmregbase, int *m
 
   // Enable interrupts
   register_interrupt(&hdc->intr, IRQ2INTR(irq), hdc_handler, hdc);
-  enable_irq(irq);
+  kpic_enable_irq(irq);
 
   outp(hdc->iobase + HDC_CONTROL, HDDC_HD15);
   idedelay();

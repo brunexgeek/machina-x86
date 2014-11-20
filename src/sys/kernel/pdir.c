@@ -1,8 +1,9 @@
 //
 // pdir.c
 //
-// Page directory
+// Page directory management
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,74 +32,107 @@
 // SUCH DAMAGE.
 //
 
-#include <os/krnl.h>
+#include <os/pdir.h>
+#include <os/procfs.h>
+#include <os/syspage.h>
+#include <os/pframe.h>
+#include <os/vmm.h>
 
 pte_t *pdir = (pte_t *) PAGEDIR_ADDRESS; // Page directory
 pte_t *ptab = (pte_t *) PTBASE;          // Page tables
 
-void map_page(void *vaddr, unsigned long pfn, unsigned long flags) {
-  // Allocate page table if not already done
-  if ((GET_PDE(vaddr) & PT_PRESENT) == 0) {
-    unsigned long pdfn;
+extern struct page_frame_t *pfdb;
 
-    pdfn = alloc_pageframe(0x50544142 /* PTAB */);
-    if (USERSPACE(vaddr)) {
-      SET_PDE(vaddr, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE | PT_USER);
-    } else {
-      SET_PDE(vaddr, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE);
+void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags)
+{
+    // allocate page table if not already done
+    if ((GET_PDE(vaddr) & PT_PRESENT) == 0)
+    {
+        //kprintf("Creating page table for 0x%08x (idx: %d)\n", vaddr, PDEIDX(vaddr));
+        unsigned long pdfn;
+
+        pdfn = kpframe_alloc(PFT_PTAB);
+        if (USERSPACE(vaddr))
+        {
+            SET_PDE(vaddr, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE | PT_USER);
+        }
+        else
+        {
+            SET_PDE(vaddr, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE);
+        }
+
+        memset(ptab + PDEIDX(vaddr) * PTES_PER_PAGE, 0, PAGESIZE);
+        kmach_register_page_table(pdfn);
     }
 
-    memset(ptab + PDEIDX(vaddr) * PTES_PER_PAGE, 0, PAGESIZE);
-    register_page_table(pdfn);
-  }
-
-  // Map page frame into address space
-  SET_PTE(vaddr, PTOB(pfn) | flags);
+    // map page frame into address space
+    SET_PTE(vaddr, PTOB(pfn) | flags);
 }
 
-void unmap_page(void *vaddr) {
-  SET_PTE(vaddr, 0);
-  invlpage(vaddr);
+
+void kpage_unmap(void *vaddr)
+{
+    SET_PTE(vaddr, 0);
+    kmach_invlpage(vaddr);
 }
 
-unsigned long virt2phys(void *vaddr) {
-  return ((GET_PTE(vaddr) & PT_PFNMASK) + PGOFF(vaddr));
+
+unsigned long virt2phys(void *vaddr)
+{
+    return ((GET_PTE(vaddr) & PT_PFNMASK) + PGOFF(vaddr));
 }
 
-unsigned long virt2pfn(void *vaddr) {
-  return BTOP(GET_PTE(vaddr) & PT_PFNMASK);
+
+unsigned long virt2pfn(void *vaddr)
+{
+    return BTOP(GET_PTE(vaddr) & PT_PFNMASK);
 }
 
-pte_t get_page_flags(void *vaddr) {
-  return GET_PTE(vaddr) & PT_FLAGMASK;
+
+pte_t kpage_get_flags(void *vaddr)
+{
+    return GET_PTE(vaddr) & PT_FLAGMASK;
 }
 
-void set_page_flags(void *vaddr, unsigned long flags) {
-  SET_PTE(vaddr, (GET_PTE(vaddr) & PT_PFNMASK) | flags);
-  invlpage(vaddr);
+
+void kpage_set_flags(void *vaddr, unsigned long flags)
+{
+    SET_PTE(vaddr, (GET_PTE(vaddr) & PT_PFNMASK) | flags);
+    kmach_invlpage(vaddr);
 }
 
-int page_mapped(void *vaddr) {
-  if ((GET_PDE(vaddr) & PT_PRESENT) == 0) return 0;
-  if ((GET_PTE(vaddr) & PT_PRESENT) == 0) return 0;
-  return 1;
+/**
+ * Return a non-zero value if the given virtual address it's mapped to a page.
+ */
+int kpage_is_mapped(void *vaddr)
+{
+    if ((GET_PDE(vaddr) & PT_PRESENT) == 0) return 0;
+    if ((GET_PTE(vaddr) & PT_PRESENT) == 0) return 0;
+    return 1;
 }
 
-int page_directory_mapped(void *vaddr) {
-  return (GET_PDE(vaddr) & PT_PRESENT) != 0;
+/**
+ * Return a non-zero value if the given virtual address it's mapped to a page table.
+ */
+int kpage_is_directory_mapped(void *vaddr)
+{
+    return (GET_PDE(vaddr) & PT_PRESENT) != 0;
 }
 
-void unguard_page(void *vaddr) {
-  SET_PTE(vaddr, (GET_PTE(vaddr) & ~PT_GUARD) | PT_USER);
-  invlpage(vaddr);
+void kpage_unguard(void *vaddr)
+{
+    SET_PTE(vaddr, (GET_PTE(vaddr) & ~PT_GUARD) | PT_USER);
+    kmach_invlpage(vaddr);
 }
 
-void clear_dirty(void *vaddr) {
-  SET_PTE(vaddr, GET_PTE(vaddr) & ~PT_DIRTY);
-  invlpage(vaddr);
+void kpage_clear_dirty(void *vaddr)
+{
+    SET_PTE(vaddr, GET_PTE(vaddr) & ~PT_DIRTY);
+    kmach_invlpage(vaddr);
 }
 
-int mem_access(void *vaddr, int size, pte_t access) {
+int mem_access(void *vaddr, int size, pte_t access)
+{
   unsigned long addr;
   unsigned long next;
   pte_t pte;
@@ -109,10 +143,10 @@ int mem_access(void *vaddr, int size, pte_t access) {
     if ((GET_PDE(addr) & PT_PRESENT) == 0) return 0;
     pte = GET_PTE(addr);
     if ((pte & access) != access) {
-      if (pte & PT_FILE) {
+      /*if (pte & PT_FILE) {
         if (fetch_page((void *) PAGEADDR(addr)) < 0) return 0;
         if ((GET_PTE(addr) & access) != access) return 0;
-      } else {
+      } else*/ {
         return 0;
       }
     }
@@ -133,10 +167,10 @@ int str_access(char *s, pte_t access) {
     if ((GET_PDE(s) & PT_PRESENT) == 0) return 0;
     pte = GET_PTE(s);
     if ((pte & access) != access) {
-      if (pte & PT_FILE) {
+      /*if (pte & PT_FILE) {
         if (fetch_page((void *) PAGEADDR(s)) < 0) return 0;
         if ((GET_PTE(s) & access) != access) return 0;
-      } else {
+      } else*/ {
         return 0;
       }
     }
@@ -149,11 +183,12 @@ int str_access(char *s, pte_t access) {
   }
 }
 
-void init_pdir() {
-  unsigned long i;
+void init_pdir()
+{
+    unsigned long i;
 
-  // Clear identity mapping of the first 4 MB made by the os loader
-  for (i = 0; i < PTES_PER_PAGE; i++) SET_PTE(PTOB(i), 0);
+    // Clear identity mapping of the first 4 MB made by the os loader
+    for (i = 0; i < PTES_PER_PAGE; i++) SET_PTE(PTOB(i), 0);
 }
 
 int pdir_proc(struct proc_file *pf, void *arg) {
@@ -220,11 +255,11 @@ int pdir_proc(struct proc_file *pf, void *arg) {
   return 0;
 }
 
-static print_virtmem(struct proc_file *pf, char *start, char *end, unsigned long tag) {
-  char tagname[5];
-  tag2str(tag, tagname);
-
-  pprintf(pf, "%08x %08x %8dK %-4s\n", start, end - 1, (end - start) / 1024, tagname);
+static print_virtmem(struct proc_file *pf, char *start, char *end, unsigned long tag)
+{
+    const char *name;
+    name = kpframe_tag_name(tag);
+    pprintf(pf, "%08x %08x %8dK %-4s\n", start, end - 1, (end - start) / 1024, name);
 }
 
 int virtmem_proc(struct proc_file *pf, void *arg) {

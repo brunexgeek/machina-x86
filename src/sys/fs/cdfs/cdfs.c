@@ -32,6 +32,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/buf.h>
 #include "iso9660.h"
 
 #define CDFS_DEFAULT_CACHESIZE 128

@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,12 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
+
+
+#include <os/kbd.h>
 
 struct keytable dkkeys = {
   "dk",
@@ -80,7 +83,7 @@ struct keytable dkkeys = {
     {0xF8,   0xD8,   0,      0x2800, 0xF8,   0xD8,   0xF8,   0xD8,   0},   // 28 '
     {0xBD,   0xA7,   0,      0x2900, 0xBD,   0xBD,   0xA7,   0xA7,   0},   // 29 ~
     {0x0,    0,      0,      0,      0,      0,      0,      0,      0},   // 2A left shift
-    {0x27,   0x2A,   0x1C,   0x2B00, 0x27,   0x27,   0x2A,   0x2A,   0},   // 2B \ 
+    {0x27,   0x2A,   0x1C,   0x2B00, 0x27,   0x27,   0x2A,   0x2A,   0},   // 2B \
     {0x7A,   0x5A,   0x1A,   0x2C00, 0x7A,   0x5A,   0x7A,   0x5A,   0},   // 2C Z
     {0x78,   0x58,   0x18,   0x2D00, 0x78,   0x58,   0x78,   0x58,   0},   // 2D X
     {0x63,   0x43,   0x03,   0x2E00, 0x63,   0x43,   0x63,   0x43,   0},   // 2E C
@@ -123,7 +126,7 @@ struct keytable dkkeys = {
     {0x5300, 0x2E,   0x9300, 0,      0x2E,   0x5300, 0x2E,   0x5300, 0},   // 53 . del (kpad)
     {0,      0,      0,      0,      0,      0,      0,      0,      0},   // 54 caps
     {0,      0,      0,      0,      0,      0,      0,      0,      0},   // 55
-    {0x3C,   0x3E,   0,      0,      0,      0,      0,      0,      0x5C},// 56 < > \ 
+    {0x3C,   0x3E,   0,      0,      0,      0,      0,      0,      0x5C},// 56 < > \
     {0x8500, 0x8700, 0x8900, 0x8B00, 0x8500, 0x8500, 0x8700, 0x8700, 0},   // 57 F11
     {0x8600, 0x8800, 0x8A00, 0x8C00, 0x8600, 0x8600, 0x8800, 0x8800, 0},   // 58 F12
   }

@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,18 +27,18 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
 int getuid() {
-  return self()->ruid;
+  return kthread_self()->ruid;
 }
 
 int setuid(uid_t uid) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
 
   if (thread->euid == 0) {
     thread->ruid = thread->euid = uid;
@@ -52,11 +52,11 @@ int setuid(uid_t uid) {
 }
 
 int getgid() {
-  return self()->rgid;
+  return kthread_self()->rgid;
 }
 
 int setgid(gid_t gid) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
 
   if (thread->euid == 0) {
     thread->rgid = thread->egid = gid;
@@ -70,11 +70,11 @@ int setgid(gid_t gid) {
 }
 
 int geteuid() {
-  return self()->euid;
+  return kthread_self()->euid;
 }
 
 int seteuid(uid_t uid) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
 
   if (thread->euid == 0 || uid == thread->ruid) {
     thread->euid = uid;
@@ -86,11 +86,11 @@ int seteuid(uid_t uid) {
 }
 
 int getegid() {
-  return self()->egid;
+  return kthread_self()->egid;
 }
 
 int setegid(gid_t gid) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
 
   if (thread->euid == 0 || gid == thread->rgid) {
     thread->egid = gid;
@@ -102,7 +102,7 @@ int setegid(gid_t gid) {
 }
 
 int getgroups(int size, gid_t *list) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
 
   if (!list || size < thread->ngroups) return -EINVAL;
   memcpy(list, thread->groups, thread->ngroups * sizeof(gid_t));
@@ -110,7 +110,7 @@ int getgroups(int size, gid_t *list) {
 }
 
 int setgroups(int size, gid_t *list) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
 
   if (thread->euid != 0) return -EPERM;
   if (!list || size < 0 || size > NGROUPS_MAX) return -EINVAL;
@@ -121,7 +121,7 @@ int setgroups(int size, gid_t *list) {
 }
 
 int check(int mode, uid_t uid, gid_t gid, int access) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
 
   if (thread->euid == 0) return 0;
 

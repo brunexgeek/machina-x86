@@ -35,12 +35,13 @@
 #define VMM_H
 
 #include <os/vfs.h>
+#include <os/procfs.h>
 
-extern struct rmap *vmap;
+extern struct rmap_t *vmap;
 
 void init_vmm();
 
-KERNELAPI void *vmalloc(void *addr, unsigned long size, int type, int protect, unsigned long tag, int *rc);
+KERNELAPI void *vmalloc(void *addr, unsigned long size, int type, int protect, uint8_t tag, int *rc);
 KERNELAPI void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off64_t offset, int *rc);
 KERNELAPI int vmsync(void *addr, unsigned long size);
 KERNELAPI int vmfree(void *addr, unsigned long size, int type);
@@ -53,7 +54,7 @@ KERNELAPI void *miomap(unsigned long addr, int size, int protect);
 KERNELAPI void miounmap(void *addr, int size);
 
 int guard_page_handler(void *addr);
-int fetch_page(void *addr);
+//int fetch_page(void *addr);
 
 int vmem_proc(struct proc_file *pf, void *arg);
 int mem_sysinfo(struct meminfo *info);

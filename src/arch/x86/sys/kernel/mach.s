@@ -1,9 +1,10 @@
 //
 // mach.s
 //
-// Machine "naked" functions for x86
+// Machine naked functions for x86
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
+// Copyright (C) 2013 Bruno Ribeiro.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -18,7 +19,7 @@
 //    may be used to endorse or promote products derived from this software
 //    without specific prior written permission.
 //
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 // ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -52,6 +53,7 @@
     .global ___outsw
     .global ___outsd
     .global ___hw_rdtsc
+    .global ___cpuid_is_supported
 
 ___inb:
 ___inp:
@@ -135,4 +137,30 @@ ___outsd:
 
 ___hw_rdtsc:
     rdtsc
+    ret
+
+___cpuid_is_supported:
+    // return false by default
+    mov     eax, 0x00
+    // get EFLAGS
+    pushfd
+    pop     ecx
+    mov     ebx, ecx
+    // toggle the CPUID bit and store in the EFLAGS
+    xor     ebx, 0x200000
+    push    ebx
+    popfd
+    // get EFLAGS again and compare
+    pushfd
+    pop     ebx
+    cmp     ebx, ecx
+    jnz     1f
+    jmp     3f
+    // return true
+    1: mov eax, 0x01
+    // store the CPUID enable EFLAGS
+    or ecx, 0x200000
+    push ecx
+    popfd
+    3: nop
     ret

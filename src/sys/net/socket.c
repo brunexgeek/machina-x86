@@ -32,6 +32,8 @@
 //
 
 #include <net/net.h>
+#include <os/kmalloc.h>
+#include <os/iovec.h>
 
 extern struct sockops tcpops;
 extern struct sockops udpops;
@@ -54,10 +56,11 @@ void cancel_socket_request(struct sockreq *req) {
   }
 }
 
-void release_socket_request(struct sockreq *req, int rc) {
-  cancel_socket_request(req);
-  req->rc = rc;
-  mark_thread_ready(req->thread, 1, 2);
+void release_socket_request(struct sockreq *req, int rc)
+{
+    cancel_socket_request(req);
+    req->rc = rc;
+    kthread_ready(req->thread, 1, 2);
 }
 
 static void socket_timeout(void *arg) {
@@ -74,7 +77,7 @@ err_t submit_socket_request(struct socket *s, struct sockreq *req, int type, str
   if (timeout == 0) return -ETIMEOUT;
 
   req->socket = s;
-  req->thread = self();
+  req->thread = kthread_self();
   req->type = type;
   req->msg = msg;
   req->rc = 0;
@@ -87,11 +90,11 @@ err_t submit_socket_request(struct socket *s, struct sockreq *req, int type, str
 
   if (timeout != INFINITE) {
     ktimer_init(&timer, socket_timeout, req);
-    timer.expires = ticks + timeout / MSECS_PER_TICK;
+    timer.expires = global_ticks + timeout / MSECS_PER_TICK;
     ktimer_add(&timer);
   }
 
-  rc = enter_alertable_wait(THREAD_WAIT_SOCKET);
+  rc = kthread_alertable_wait(THREAD_WAIT_SOCKET);
   if (rc < 0) {
     cancel_socket_request(req);
     req->rc = rc;

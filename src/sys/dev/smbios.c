@@ -32,6 +32,7 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
 
 //
 // System Management BIOS Reference Specification, v2.4 Final

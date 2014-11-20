@@ -35,22 +35,9 @@
 #include <os/krnl.h>
 
 
-#ifdef VMACH
-
-int probe_vmi(); // from vmi.c
-int init_vmi(); // from vmi.c
+int global_kring;
 
 void init_mach()
 {
-    kprintf("mach: running in machine virtualization mode\n");
-    if (probe_vmi()) init_vmi();
+    //global_kring = 0;
 }
-
-#else
-
-void init_mach()
-{
-    // nothing to do
-}
-
-#endif

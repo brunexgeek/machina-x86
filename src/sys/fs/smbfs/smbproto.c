@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,18 +27,19 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
+#include <net/socket.h>
 #include "smb.h"
 
 struct smb_server *servers = NULL;
 
 struct smb *smb_init(struct smb_share *share, int aux) {
   struct smb *smb;
-  
+
   if (aux) {
     smb = (struct smb *) share->server->auxbuf;
   } else {
@@ -60,7 +61,7 @@ int smb_send(struct smb_share *share, struct smb *smb, unsigned char cmd, int pa
   smb->len[1] = (len & 0xFF0000) >> 16;
   smb->len[2] = (len & 0xFF00) >> 8;
   smb->len[3] = (len & 0xFF);
-    
+
   smb->protocol[0] = 0xFF;
   smb->protocol[1] = 'S';
   smb->protocol[2] = 'M';
@@ -129,7 +130,7 @@ int smb_request(struct smb_share *share, struct smb *smb, unsigned char cmd, int
   return 0;
 }
 
-int smb_trans_send(struct smb_share *share, unsigned short cmd, 
+int smb_trans_send(struct smb_share *share, unsigned short cmd,
                    void *params, int paramlen,
                    void *data, int datalen,
                    int maxparamlen, int maxdatalen) {
@@ -152,7 +153,7 @@ int smb_trans_send(struct smb_share *share, unsigned short cmd,
   smb->len[1] = (len > 0xFF0000) >> 16;
   smb->len[2] = (len & 0xFF00) >> 8;
   smb->len[3] = (len & 0xFF);
-    
+
   smb->protocol[0] = 0xFF;
   smb->protocol[1] = 'S';
   smb->protocol[2] = 'M';
@@ -171,7 +172,7 @@ int smb_trans_send(struct smb_share *share, unsigned short cmd,
   smb->params.req.trans.max_data_count = maxdatalen;
   smb->params.req.trans.max_setup_count = 0;
   smb->params.req.trans.parameter_count = paramlen;
-  smb->params.req.trans.parameter_offset = paramofs; 
+  smb->params.req.trans.parameter_offset = paramofs;
   smb->params.req.trans.data_count = datalen;
   smb->params.req.trans.data_offset = dataofs;
   smb->params.req.trans.setup_count = 1;
@@ -244,7 +245,7 @@ int smb_trans_recv(struct smb_share *share,
 }
 
 int smb_trans(struct smb_share *share,
-              unsigned short cmd, 
+              unsigned short cmd,
               void *reqparams, int reqparamlen,
               void *reqdata, int reqdatalen,
               void *rspparams, int *rspparamlen,
@@ -302,7 +303,7 @@ int smb_connect_tree(struct smb_share *share) {
   if (rc < 0) return rc;
 
   share->tid = smb->tid;
-  share->mounttime = time(0);
+  share->mounttime = kpit_get_time();
 
   return 0;
 }
@@ -335,13 +336,13 @@ int smb_connect(struct smb_share *share) {
   sin.sin_family = AF_INET;
   sin.sin_addr.s_addr = server->ipaddr.addr;
   sin.sin_port = htons(server->port);
-  
+
   rc = connect(server->sock, (struct sockaddr *) &sin, sizeof(sin));
   if (rc < 0) goto error;
 
   // Negotiate protocol version
   smb = smb_init(share, 1);
-  rc = smb_request(share, smb, SMB_COM_NEGOTIATE, 0, "\002NT LM 0.12", 12, 0); 
+  rc = smb_request(share, smb, SMB_COM_NEGOTIATE, 0, "\002NT LM 0.12", 12, 0);
   if (rc < 0) goto error;
 
   if (smb->params.rsp.negotiate.dialect_index == 0xFFFF) {
@@ -370,7 +371,7 @@ int smb_connect(struct smb_share *share) {
   p = addstrz(p, SMB_CLIENT_OS);
   p = addstrz(p, SMB_CLIENT_LANMAN);
 
-  rc = smb_request(share, smb, SMB_COM_SESSION_SETUP_ANDX, 13, buf, p - buf, 0); 
+  rc = smb_request(share, smb, SMB_COM_SESSION_SETUP_ANDX, 13, buf, p - buf, 0);
   if (rc < 0) goto error;
 
   server->uid = smb->uid;
@@ -434,8 +435,8 @@ int smb_get_connection(struct smb_share *share, struct ip_addr *ipaddr, unsigned
 
   server->ipaddr = *ipaddr;
   server->port = port;
-  strcpy(server->domain, domain); 
-  strcpy(server->username, username); 
+  strcpy(server->domain, domain);
+  strcpy(server->username, username);
   strcpy(server->password, password);
   server->uid = 0xFFFF;
   init_mutex(&server->lock, 0);

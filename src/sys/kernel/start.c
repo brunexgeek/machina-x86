@@ -32,6 +32,29 @@
 //
 
 #include <os/krnl.h>
+#include <os/cpu.h>
+#include <os/vmm.h>
+#include <os/pdir.h>
+#include <os/pframe.h>
+#include <os/kmem.h>
+#include <os/mach.h>
+#include <os/dev.h>
+#include <os/kbd.h>
+#include <os/dfs.h>
+#include <os/devfs.h>
+#include <os/pic.h>
+#include <os/trap.h>
+#include <os/pit.h>
+#include <net/stats.h>
+#include <net/arp.h>
+#include <net/tcp.h>
+#include <net/ip.h>
+#include <net/udp.h>
+#include <net/raw.h>
+#include <net/dhcp.h>
+#include <net/socket.h>
+#include <net/net.h>
+
 
 #ifdef BSD
 char *copyright =
@@ -60,26 +83,68 @@ char *copyright =
 "SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n";
 #endif
 
-#ifdef GPL
-char *copyright =
-"This program is free software; you can redistribute it and/or modify it under\n"
-"the terms of the GNU General Public License as published by the Free Software\n"
-"Foundation; either version 2 of the License, or (at your option) any later\n"
-"version.\n"
-"\n"
-"This program is distributed in the hope that it will be useful, but WITHOUT\n"
-"ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS\n"
-"FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.\n"
-"\n"
-"You should have received a copy of the GNU General Public License along with\n"
-"this program; if not, write to the Free Software Foundation,\n"
-"Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA\n";
-#endif
 
 #define ONPANIC_HALT      EXITOS_HALT
 #define ONPANIC_REBOOT    EXITOS_REBOOT
 #define ONPANIC_DEBUG     EXITOS_DEBUG
 #define ONPANIC_POWEROFF  EXITOS_POWEROFF
+
+
+
+// syscall.c
+
+void init_syscall();
+
+// cpu.c
+
+//int cpu_proc(struct proc_file *pf, void *arg);
+
+// smbfs.c
+
+void init_smbfs();
+
+// pipefs.c
+
+void init_pipefs();
+int pipe(struct file **readpipe, struct file **writepipe);
+
+// cdfs.c
+
+void init_cdfs();
+
+// cons.c
+
+extern int serial_console;
+void init_console();
+int console(struct unit *unit, char *opts);
+void console_print(char *buffer, int size);
+
+// serial.c
+
+void init_serial();
+
+// ramdisk.c
+
+int create_initrd();
+
+// hd.c
+
+void init_hd();
+
+// fd.c
+
+void init_fd();
+
+// virtioblk.c
+
+void init_vblk();
+
+// apm.c
+
+void apm_power_off();
+extern int apm_enabled;
+
+
 
 struct thread *mainthread;
 struct section *krnlcfg;
@@ -89,102 +154,117 @@ char krnlopts[KRNLOPTS_LEN];
 
 void main(void *arg);
 
-int license() {
-  return LICENSE;
+int license()
+{
+    return LICENSE;
 }
 
-void stop(int mode) {
-  suspend_all_user_threads();
-  umount_all();
-  tcp_shutdown();
-  msleep(200);
+void stop(int mode)
+{
+    ksched_destroy();
 
-  switch (mode) {
-    case EXITOS_HALT:
-      kprintf("kernel: system stopped\n");
-      break;
+    umount_all();
+    tcp_shutdown();
+    msleep(200);
 
-    case EXITOS_POWEROFF:
-      kprintf("kernel: power down...\n");
-      poweroff();
-      break;
+    switch (mode)
+    {
+        case EXITOS_HALT:
+            kprintf("kernel: system stopped\n");
+            break;
 
-    case EXITOS_REBOOT:
-      kprintf("kernel: rebooting...\n");
-      reboot();
-      break;
+        case EXITOS_POWEROFF:
+            kprintf("kernel: power down...\n");
+            kmach_poweroff();
+            break;
 
-    case EXITOS_DEBUG:
-      dbg_break();
-      break;
-  }
+        case EXITOS_REBOOT:
+            kprintf("kernel: rebooting...\n");
+            kmach_reboot();
+            break;
 
-  while (1) {
-    cli();
-    halt();
-  }
+        case EXITOS_DEBUG:
+            dbg_break();
+            break;
+    }
+
+    while (1)
+    {
+        kmach_cli();
+        kmach_halt();
+    }
 }
 
-void panic(char *msg) {
-  static int inpanic = 0;
+void panic(char *msg)
+{
+    static int inpanic = 0;
 
-  if (inpanic) {
-    kprintf(KERN_EMERG "double panic: %s, halting\n", msg);
-    cli();
-    halt();
-  }
+    if (inpanic)
+    {
+        kprintf(KERN_EMERG "double panic: %s, halting\n", msg);
+        kmach_cli();
+        kmach_halt();
+    }
 
-  inpanic = 1;
-  kprintf(KERN_EMERG "panic: %s\n", msg);
+    inpanic = 1;
+    kprintf(KERN_EMERG "panic: %s\n", msg);
 
-  if (onpanic == ONPANIC_DEBUG) {
-    if (debugging) dbg_output(msg);
-    dbg_break();
-  } else {
-    stop(onpanic);
-  }
+    if (onpanic == ONPANIC_DEBUG)
+    {
+
+        if (debugging) dbg_output(msg);
+        dbg_break();
+    }
+    else
+    {
+        stop(onpanic);
+    }
 }
 
-static int load_kernel_config() {
-  struct file *f;
-  int size;
-  int rc;
-  struct stat64 buffer;
-  char config[MAXPATH];
-  char *props;
 
-  get_option(krnlopts, "config", config, sizeof(config), "/boot/krnl.ini");
+static int load_kernel_config()
+{
+    struct file *f;
+    int size;
+    int rc;
+    struct stat64 buffer;
+    char config[MAXPATH];
+    char *props;
 
-  rc = open(config, O_RDONLY | O_BINARY, 0, &f);
-  if (rc < 0) return rc;
+    get_option(krnlopts, "config", config, sizeof(config), "/boot/krnl.ini");
 
-  fstat(f, &buffer);
-  size = (int) buffer.st_size;
+    rc = open(config, O_RDONLY | O_BINARY, 0, &f);
+    if (rc < 0) return rc;
 
-  props = (char *) kmalloc(size + 1);
-  if (!props)  {
+    fstat(f, &buffer);
+    size = (int) buffer.st_size;
+
+    props = (char *) kmalloc(size + 1);
+    if (!props)
+    {
+        close(f);
+        destroy(f);
+        return -ENOMEM;
+        }
+
+    rc = read(f, props, size);
+    if (rc < 0)
+    {
+        free(props);
+        close(f);
+        destroy(f);
+        return rc;
+    }
+
     close(f);
     destroy(f);
-    return -ENOMEM;
-  }
 
-  rc = read(f, props, size);
-  if (rc < 0) {
+    props[size] = 0;
+
+    krnlcfg = parse_properties(props);
     free(props);
-    close(f);
-    destroy(f);
-    return rc;
-  }
 
-  close(f);
-  destroy(f);
-
-  props[size] = 0;
-
-  krnlcfg = parse_properties(props);
-  free(props);
-
-  return 0;
+    return 0;
 }
 
 static void init_filesystem()
@@ -284,26 +364,44 @@ static int version_proc(struct proc_file *pf, void *arg) {
   return 0;
 }
 
-static int copyright_proc(struct proc_file *pf, void *arg) {
-  hmodule_t krnl = (hmodule_t) OSBASE;
-  char copy[128];
-  char legal[128];
 
-  if (get_version_value(krnl, "LegalCopyright", copy, sizeof(copy)) < 0) strcpy(copy, OS_COPYRIGHT);
-  if (get_version_value(krnl, "LegalTrademarks", legal, sizeof(legal)) < 0) strcpy(legal, OS_LEGAL);
+static int copyright_proc(struct proc_file *pf, void *arg)
+{
+    hmodule_t krnl = (hmodule_t) OSBASE;
+    char copy[128];
+    char legal[128];
 
-  version_proc(pf, arg);
-  pprintf(pf, "%s %s\n\n", copy, legal);
-  proc_write(pf, copyright, strlen(copyright));
-  return 0;
+    if (get_version_value(krnl, "LegalCopyright", copy, sizeof(copy)) < 0) strcpy(copy, OS_COPYRIGHT);
+    if (get_version_value(krnl, "LegalTrademarks", legal, sizeof(legal)) < 0) strcpy(legal, OS_LEGAL);
+
+    version_proc(pf, arg);
+    pprintf(pf, "%s %s\n\n", copy, legal);
+    proc_write(pf, copyright, strlen(copyright));
+    return 0;
 }
 
-__attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmod, char *opts, int reserved2)
+
+void dummy_func( void *arg)
 {
-    // Copy kernel options
+    while (1)
+    {
+        struct thread *t = kthread_self();
+        kprintf("Thread %s\n", t->name);
+        kthread_wait(1);
+    }
+}
+
+
+__attribute__((section("entryp"))) void __attribute__((stdcall)) start(
+    void *hmod,
+    char *opts,
+    int reserved2 )
+{
+    // copy kernel options
     strcpy(krnlopts, opts);
-    if (get_option(opts, "silent", NULL, 0, NULL) != NULL) kprint_enabled = 0;
-    if (get_option(opts, "serialconsole", NULL, 0, NULL) != NULL) serial_console = 1;
+    //if (get_option(opts, "silent", NULL, 0, NULL) != NULL) kprint_enabled = 0;
+    //if (get_option(opts, "serialconsole", NULL, 0, NULL) != NULL) serial_console = 1;
+    serial_console = 1;
 
     // Initialize console
     init_console();
@@ -312,29 +410,22 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
     // Display banner
     if (*krnlopts) kprintf(KERN_INFO "options: %s\n", krnlopts);
 
-    // Initialize machine
+    // initialize machine
     init_mach();
-
-    // Initialize CPU
+    // initialize CPU
     init_cpu();
-
-    // Initialize page frame database
-    init_pfdb();
-
-    // Initialize page directory
+    // initialize page frame database
+    kpframe_init();
+    // initialize page directory
     init_pdir();
-
-    // Initialize kernel heap
+    // initialize kernel heap
     init_kmem();
-
-    // Initialize kernel allocator
+    // initialize kernel allocator
     init_malloc();
-
-    // Initialize virtual memory manager
+    // initialize virtual memory manager
     init_vmm();
-
-    // Flush tlb
-    flushtlb();
+    // flush tlb
+    kmach_flushtlb();
 
     // Register memory management procs
     register_proc_inode("memmap", memmap_proc, NULL);
@@ -347,29 +438,31 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
     register_proc_inode("kmodmem", kmodmem_proc, NULL);
     register_proc_inode("kheap", kheapstat_proc, NULL);
     register_proc_inode("vmem", vmem_proc, NULL);
-console(NULL, NULL);
-    register_proc_inode("cpu", cpu_proc, NULL);
+    register_proc_inode("cpu", kcpu_proc, NULL);
 
     // Initialize interrupts, floating-point support, and real-time clock
-    init_pic();
-    init_trap();
+    kpic_init();
+    ktrap_init();
     init_fpu();
-    init_pit();
+    kpit_init();
 
     // Initialize timers, scheduler, and handle manager
     init_timers();
-    init_sched();
+    ksched_init();
     init_handles();
     init_syscall();
 
-    // Enable interrupts and calibrate delay
-    sti();
-    calibrate_delay();
+    // enable interrupts and calibrate delay
+    kmach_sti();
+    kpit_calibrate_delay();
 
     // Start main task and dispatch to idle task
     mainthread = kthread_create_kland(main, 0, PRIORITY_NORMAL, "init");
-    idle_task();
+    kthread_create_kland(dummy_func, 0, PRIORITY_NORMAL, "dummy");
+    kthread_create_kland(dummy_func, 0, PRIORITY_NORMAL, "dumbass");
+    ksched_idle();
 }
+
 
 void init_net()
 {
@@ -389,10 +482,32 @@ void init_net()
     register_ether_netifs();
 }
 
+
+void main_readFile( const char *fileName )
+{
+    struct file *tmp;
+    char buffer[16];
+    int ret;
+    ret = open(fileName, 0, S_IREAD, &tmp);
+    if (ret == 0)
+    {
+        kprintf("##########################\n## %s\n##########################\n", fileName);
+        int count = 1;
+        while (count != 0)
+        {
+            count = read(tmp, buffer, 15);
+            buffer[count] = 0;
+            kprintf("%s", buffer);
+        }
+        close(tmp);
+    }
+}
+
+
 void main(void *arg)
 {
     unsigned long *stacktop;
-    struct thread *t = self();
+    struct thread *t = kthread_self();
 
     void *imgbase;
     void *entrypoint;
@@ -403,13 +518,13 @@ void main(void *arg)
     int rc;
     char *str;
     struct file *cons;
-    char *console;
+    char *sconsole;
 
     // Allocate and initialize PEB
-    peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 0x00504542 /* PEB */, NULL);
+    peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, PFT_PEB, NULL);
     if (!peb) panic("unable to allocate PEB");
     memset(peb, 0, PAGESIZE);
-    peb->fast_syscalls_supported = (cpu.features & CPU_FEATURE_SEP) != 0;
+    peb->fast_syscalls_supported = (global_cpu.features & CPU_FEATURE_SEP) != 0;
 
     // Enumerate root host buses and units
     enum_host_bus();
@@ -455,7 +570,8 @@ void main(void *arg)
     peb->pathsep = pathsep;
 
     // Initialize module loader
-    // >>> init_kernel_modules();
+    //init_kernel_modules();
+    console(NULL, NULL);
 
     // Get os version info from kernel version resource
     /*get_version_value((hmodule_t) OSBASE, "ProductName", peb->osname, sizeof peb->osname);
@@ -475,7 +591,7 @@ void main(void *arg)
     }*/
 
     // Install device drivers
-    //install_drivers();
+    install_drivers();
 
     // Initialize network
     init_net();
@@ -485,14 +601,34 @@ void main(void *arg)
     register_proc_inode("copyright", copyright_proc, NULL);
 
     // Allocate handles for stdin, stdout and stderr
-    console = get_property(krnlcfg, "kernel", "console", serial_console ? "/dev/com1" : "/dev/console");
-    rc = open(console, O_RDWR, S_IREAD | S_IWRITE, &cons);
+    sconsole = get_property(krnlcfg, "kernel", "console", serial_console ? "/dev/com1" : "/dev/console");
+    rc = open(sconsole, O_RDWR, S_IREAD | S_IWRITE, &cons);
     if (rc < 0) panic("no console");
     cons->flags |= F_TTY;
     if (halloc(&cons->iob.object) != 0) panic("unexpected stdin handle");
     if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
+    main_readFile("/proc/units");
+    main_readFile("/proc/memmap");
+    main_readFile("/proc/memusage");
+    main_readFile("/proc/memstat");
+    main_readFile("/proc/physmem");
+    //main_readFile("/proc/pdir");
+    main_readFile("/proc/virtmem");
+    main_readFile("/proc/kmem");
+    main_readFile("/proc/kmodmem");
+    main_readFile("/proc/kheap");
+    main_readFile("/proc/vmem");
+    main_readFile("/proc/cpu");
+    main_readFile("/proc/netif");
+
+    while (1)
+    {
+        kprintf("%s is waiting\n", kthread_self()->name);
+        kthread_wait(0);
+    }
+/*
     // Load kernel32.so in user address space
     imgbase = load_image_file(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
     if (!imgbase) panic("unable to load kernel32.so");
@@ -538,5 +674,5 @@ void main(void *arg)
         :
         : "i" (SEL_UDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3), "m" (stacktop), "m" (entrypoint)
     );
-kprintf("## %s %d\n", __FILE__, __LINE__);
+kprintf("## %s %d\n", __FILE__, __LINE__);*/
 }

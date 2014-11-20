@@ -34,6 +34,7 @@
 #ifndef THREAD_H
 #define THREAD_H
 
+
 #define MAX_WAIT_OBJECTS  16
 
 #define WAIT_ALL 0
@@ -152,6 +153,7 @@ struct mutex {
   int recursion;
 };
 
+
 struct waitable_timer {
   struct object object;
   struct timer timer;
@@ -162,13 +164,28 @@ struct thread
     struct object object;
 
     int state;
+
+    /// Remaining quantum
     int quantum;
+
+    /// Reason for thread is stoped
     int wait_reason;
+
+    /// Thread flags
     int flags;
+
+    /// Thread dynamic priority (can be boosted)
     int priority;
+
+    /// Thread base (and static) priority defined when it's created
     int base_priority;
+
+    /// ID for thread information block
     tid_t id;
+
+    /// Handle assigned for the thread
     handle_t hndl;
+
     struct tib *tib;
     int suspend_count;
     void *entrypoint;
@@ -222,6 +239,10 @@ struct filemap {
   handle_t self;
 };
 
+#include <os/sched.h>
+#include <os/krnl.h>
+#include <os/pit.h>
+
 #ifdef KERNEL
 
 #define HPROTECT  1
@@ -245,7 +266,7 @@ void release_thread(struct thread *t);
 void release_waiters(struct object *o, int waitkey);
 
 void init_thread(struct thread *t, int priority);
-void exit_thread(struct thread *t);
+void kthread_exit(struct thread *t);
 
 KERNELAPI void init_event(struct event *e, int manual_reset, int initial_state);
 KERNELAPI void pulse_event(struct event *e);

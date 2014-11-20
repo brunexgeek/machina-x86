@@ -33,6 +33,7 @@
 //
 
 #include <net/net.h>
+#include <os/dev.h>
 
 #define HWTYPE_ETHERNET    1
 
@@ -115,7 +116,7 @@ static void arp_tmr(void *arg) {
 
   for (i = 0; i < ARP_XMIT_QUEUE_SIZE; i++) {
     struct xmit_queue_entry *entry = xmit_queue_table + i;
-    if (entry->p && time_before(entry->expires, ticks)) {
+    if (entry->p && time_before(entry->expires, global_ticks)) {
       //kprintf("arp: xmit queue entry %d expired\n", i);
       pbuf_free(entry->p);
       entry->p = NULL;
@@ -123,7 +124,7 @@ static void arp_tmr(void *arg) {
     }
   }
 
-  ktimer_modify(&arp_timer, ticks + ARP_TIMER_INTERVAL / MSECS_PER_TICK);
+  ktimer_modify(&arp_timer, global_ticks + ARP_TIMER_INTERVAL / MSECS_PER_TICK);
 }
 
 void arp_init() {
@@ -132,7 +133,7 @@ void arp_init() {
   for (i = 0; i < ARP_TABLE_SIZE; ++i) ip_addr_set(&arp_table[i].ipaddr, IP_ADDR_ANY);
   memset(xmit_queue_table, 0, sizeof(xmit_queue_table));
   ktimer_init(&arp_timer, arp_tmr, NULL);
-  ktimer_modify(&arp_timer, ticks + ARP_TIMER_INTERVAL / MSECS_PER_TICK);
+  ktimer_modify(&arp_timer, global_ticks + ARP_TIMER_INTERVAL / MSECS_PER_TICK);
   register_proc_inode("arp", arp_proc, NULL);
 }
 
@@ -333,7 +334,7 @@ int arp_queue(struct netif *netif, struct pbuf *p, struct ip_addr *ipaddr) {
   // If no entry entry found, try to find an expired entry
   if (entry == NULL) {
     for (i = 0; i < ARP_XMIT_QUEUE_SIZE; i++) {
-      if (time_before(xmit_queue_table[i].expires, ticks)) {
+      if (time_before(xmit_queue_table[i].expires, global_ticks)) {
         entry = &xmit_queue_table[i];
         break;
       }
@@ -356,7 +357,7 @@ int arp_queue(struct netif *netif, struct pbuf *p, struct ip_addr *ipaddr) {
   entry->netif = netif;
   entry->p = p;
   ip_addr_set(&entry->ipaddr, ipaddr);
-  entry->expires = ticks + MAX_XMIT_DELAY / MSECS_PER_TICK;
+  entry->expires = global_ticks + MAX_XMIT_DELAY / MSECS_PER_TICK;
 
   return 0;
 }

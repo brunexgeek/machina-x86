@@ -32,6 +32,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/pdir.h>
+#include <os/dev.h>
+#include <os/pnpbios.h>
 
 #pragma warning(disable: 4731)
 
@@ -179,7 +182,7 @@ static int pnp_bios_call(int func, int arg1, int arg2, int arg3, int arg4, int a
 static int pnp_bios_dev_node_info(struct pnp_dev_node_info *data) {
   int status;
 
-  set_gdt_entry(GDT_AUX1, (unsigned long) data, sizeof(struct pnp_dev_node_info), D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
+  kmach_set_gdt_entry(GDT_AUX1, (unsigned long) data, sizeof(struct pnp_dev_node_info), D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
 
   status = pnp_bios_call(PNP_GET_NUM_SYS_DEV_NODES, 0, SEL_AUX1, 2, SEL_AUX1, SEL_PNPDATA, 0, 0);
   data->no_nodes &= 0xFF;
@@ -200,8 +203,8 @@ static int pnp_bios_dev_node_info(struct pnp_dev_node_info *data) {
 static int pnp_bios_get_dev_node(unsigned char *nodenum, char boot, struct pnp_bios_node *data) {
   int status;
 
-  set_gdt_entry(GDT_AUX1, (unsigned long) nodenum, sizeof(char), D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
-  set_gdt_entry(GDT_AUX2, (unsigned long) data, 64 * 1024, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
+  kmach_set_gdt_entry(GDT_AUX1, (unsigned long) nodenum, sizeof(char), D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
+  kmach_set_gdt_entry(GDT_AUX2, (unsigned long) data, 64 * 1024, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
 
   status = pnp_bios_call(PNP_GET_SYS_DEV_NODE, 0, SEL_AUX1, 0, SEL_AUX2, boot ? 2 : 1, SEL_PNPDATA, 0);
   return status;
@@ -214,7 +217,7 @@ static int pnp_bios_get_dev_node(unsigned char *nodenum, char boot, struct pnp_b
 static int pnp_bios_isapnp_config(struct pnp_isa_config_struc *data) {
   int status;
 
-  set_gdt_entry(GDT_AUX1, (unsigned long) data, sizeof(struct pnp_isa_config_struc), D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
+  kmach_set_gdt_entry(GDT_AUX1, (unsigned long) data, sizeof(struct pnp_isa_config_struc), D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
 
   status = pnp_bios_call(PNP_GET_PNP_ISA_CONFIG_STRUC, 0, SEL_AUX1, SEL_PNPDATA, 0, 0, 0, 0);
   return status;
@@ -224,13 +227,14 @@ static int pnp_bios_isapnp_config(struct pnp_isa_config_struc *data) {
 // Call PnP BIOS with function 0x41, "Get ESCD info"
 //
 
-static int pnp_bios_escd_info(struct escd_info_struc *data) {
-  int status;
+static int pnp_bios_escd_info(struct escd_info_struc *data)
+{
+    int status;
 
-  set_gdt_entry(GDT_AUX1, (unsigned long) data, sizeof(struct escd_info_struc), D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
+    kmach_set_gdt_entry(GDT_AUX1, (unsigned long) data, sizeof(struct escd_info_struc), D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
 
-  status = pnp_bios_call(PNP_GET_ESCD_INFO, 0, SEL_AUX1, 2, SEL_AUX1, 4, SEL_AUX1, SEL_PNPDATA);
-  return status;
+    status = pnp_bios_call(PNP_GET_ESCD_INFO, 0, SEL_AUX1, 2, SEL_AUX1, 4, SEL_AUX1, SEL_PNPDATA);
+    return status;
 }
 
 //
@@ -241,8 +245,8 @@ static int pnp_bios_escd_info(struct escd_info_struc *data) {
 static int pnp_bios_read_escd(void *data, void *nvram_base) {
   int status;
 
-  set_gdt_entry(GDT_AUX1, (unsigned long) data, 64 * 1024, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
-  set_gdt_entry(GDT_AUX2, (unsigned long) nvram_base, 64 * 1024, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
+  kmach_set_gdt_entry(GDT_AUX1, (unsigned long) data, 64 * 1024, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
+  kmach_set_gdt_entry(GDT_AUX2, (unsigned long) nvram_base, 64 * 1024, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
 
   status = pnp_bios_call(PNP_READ_ESCD, 0, SEL_AUX1, SEL_AUX2, SEL_PNPDATA, 0, 0, 0);
   return status;
@@ -629,7 +633,7 @@ int enum_isapnp(struct bus *bus) {
   int i, length;
 
   // Map first 1MB physical memory
-  for (i = 0; i < 256; i++) map_page((void *) PTOB(i), i, PT_WRITABLE | PT_PRESENT);
+  for (i = 0; i < 256; i++) kpage_map((void *) PTOB(i), i, PT_WRITABLE | PT_PRESENT);
 
   // Search the defined area (0xf0000-0xffff0) for a valid PnP BIOS
   // structure and, if one is found, sets up the selectors and
@@ -649,9 +653,9 @@ int enum_isapnp(struct bus *bus) {
 
     memcpy(&pnpbios, hdr, sizeof(struct pnp_bios_expansion_header));
 
-    set_gdt_entry(GDT_PNPTEXT, pnpbios.pm16cseg, 64 * 1024, D_CODE | D_DPL0 | D_READ | D_PRESENT, 0);
-    set_gdt_entry(GDT_PNPDATA, pnpbios.pm16dseg, 64 * 1024, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
-    set_gdt_entry(GDT_PNPTHUNK, (unsigned long) pnp_bios_thunk, 1, D_CODE | D_DPL0 | D_READ | D_PRESENT, D_BIG | D_BIG_LIM);
+    kmach_set_gdt_entry(GDT_PNPTEXT, pnpbios.pm16cseg, 64 * 1024, D_CODE | D_DPL0 | D_READ | D_PRESENT, 0);
+    kmach_set_gdt_entry(GDT_PNPDATA, pnpbios.pm16dseg, 64 * 1024, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, 0);
+    kmach_set_gdt_entry(GDT_PNPTHUNK, (unsigned long) pnp_bios_thunk, 1, D_CODE | D_DPL0 | D_READ | D_PRESENT, D_BIG | D_BIG_LIM);
 
     *((unsigned short *)(pnp_bios_thunk + 6)) = pnpbios.pm16offset;
     *((unsigned short *)(pnp_bios_thunk + 8)) = SEL_PNPTEXT;
@@ -662,15 +666,15 @@ int enum_isapnp(struct bus *bus) {
     build_sys_devlist(bus);
     build_isa_devlist(bus);
 
-    set_gdt_entry(GDT_PNPTEXT, 0, 0, 0, 0);
-    set_gdt_entry(GDT_PNPDATA, 0, 0, 0, 0);
-    set_gdt_entry(GDT_PNPTHUNK, 0, 0, 0, 0);
+    kmach_set_gdt_entry(GDT_PNPTEXT, 0, 0, 0, 0);
+    kmach_set_gdt_entry(GDT_PNPDATA, 0, 0, 0, 0);
+    kmach_set_gdt_entry(GDT_PNPTHUNK, 0, 0, 0, 0);
 
-    for (i = 0; i < 256; i++) unmap_page((void *) PTOB(i));
+    for (i = 0; i < 256; i++) kpage_unmap((void *) PTOB(i));
     return 1;
   }
 
-  for (i = 0; i < 256; i++) unmap_page((void *) PTOB(i));
+  for (i = 0; i < 256; i++) kpage_unmap((void *) PTOB(i));
   return 0;
 }
 

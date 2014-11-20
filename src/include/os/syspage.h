@@ -35,11 +35,6 @@
 #define MACHINA_OS_SYSPAGE_H
 
 
-#include <os.h>
-#include <os/tss.h>
-#include <os/seg.h>
-
-
 #define GDT_TO_SEL(gdt) ((gdt) << 3)
 
 #define GDT_NULL     0
@@ -93,6 +88,50 @@
 #define APM_BIOS_DISABLED       0x0008
 #define APM_BIOS_DISENGAGED     0x0010
 
+// Memory map
+
+#define MAX_MEMENTRIES    32
+
+#define MEMTYPE_RAM       1
+#define MEMTYPE_RESERVED  2
+#define MEMTYPE_ACPI      3
+#define MEMTYPE_NVS       4
+
+#define OSBASE      0x80000000  // 2048 MiB
+#define PTBASE      0x90000000  // 2304 MiB
+#define SYSBASE     0x90400000  // 2308 MiB
+#define PFDBBASE    0x90800000  // 2312 MiB
+#define HTABBASE    0x91000000  // 2320 MiB
+#define KHEAPBASE   0x92000000  // 2336 MiB
+
+#define KMODSIZE    0x10000000  // 256 MiB
+#define KHEAPSIZE   0x6E000000  // 1760 MiB
+#define HTABSIZE    0x01000000  // 16 MiB
+
+#define SYSPAGE_ADDRESS (SYSBASE + 0 * PAGESIZE)
+#define PAGEDIR_ADDRESS (SYSBASE + 1 * PAGESIZE)
+#define INITTCB_ADDRESS (SYSBASE + 2 * PAGESIZE)
+#define OSVMAP_ADDRESS  (SYSBASE + 4 * PAGESIZE)
+#define KMODMAP_ADDRESS (SYSBASE + 5 * PAGESIZE)
+#define VIDBASE_ADDRESS (SYSBASE + 6 * PAGESIZE)
+
+#define DMABUF_ADDRESS  (SYSBASE + 16 * PAGESIZE)  // 64K
+#define INITRD_ADDRESS  (SYSBASE + 32 * PAGESIZE)  // 512K
+
+#define TSS_ESP0 (SYSPAGE_ADDRESS + 4)
+
+#define USERSPACE(addr) ((unsigned long)(addr) < OSBASE)
+#define KERNELSPACE(addr) ((unsigned long)(addr) >= OSBASE)
+
+#ifndef __ASSEMBLER__
+
+
+#include <os.h>
+#include <os/tss.h>
+#include <os/seg.h>
+#include <os/pdir.h>
+
+
 // APM BIOS parameter block
 
 struct apmparams {
@@ -107,24 +146,18 @@ struct apmparams {
   unsigned short dseglen;      // APM BIOS data segment length
 };
 
-// Memory map
-
-#define MAX_MEMENTRIES    32
-
-#define MEMTYPE_RAM       1
-#define MEMTYPE_RESERVED  2
-#define MEMTYPE_ACPI      3
-#define MEMTYPE_NVS       4
 
 #pragma pack(push, 1)
 
-struct memmap {
-  int count;              // Number of entries in memory map
-  struct mementry {
-    unsigned __int64 addr;     // Start of memory segment
-    unsigned __int64 size;     // Size of memory segment
-    unsigned long type;        // Type of memory segment
-  } entry[MAX_MEMENTRIES];
+struct memmap
+{
+    int count;              // Number of entries in memory map
+    struct mementry
+    {
+        unsigned __int64 addr;     // start of memory segment
+        unsigned __int64 size;     // size of memory segment
+        unsigned long type;        // type of memory segment
+    } entry[MAX_MEMENTRIES];
 };
 
 // Boot parameter block
@@ -175,31 +208,7 @@ KERNELAPI extern struct syspage *syspage;
 #endif
 #endif
 
-#define OSBASE      0x80000000  // 2048 MiB
-#define PTBASE      0x90000000  // 2304 MiB
-#define SYSBASE     0x90400000  // 2308 MiB
-#define PFDBBASE    0x90800000  // 2312 MiB
-#define HTABBASE    0x91000000  // 2320 MiB
-#define KHEAPBASE   0x92000000  // 2336 MiB
 
-#define KMODSIZE    0x10000000  // 256 MiB
-#define KHEAPSIZE   0x6E000000  // 1760 MiB
-#define HTABSIZE    0x01000000  // 16 MiB
-
-#define SYSPAGE_ADDRESS (SYSBASE + 0 * PAGESIZE)
-#define PAGEDIR_ADDRESS (SYSBASE + 1 * PAGESIZE)
-#define INITTCB_ADDRESS (SYSBASE + 2 * PAGESIZE)
-#define OSVMAP_ADDRESS  (SYSBASE + 4 * PAGESIZE)
-#define KMODMAP_ADDRESS (SYSBASE + 5 * PAGESIZE)
-#define VIDBASE_ADDRESS (SYSBASE + 6 * PAGESIZE)
-
-#define DMABUF_ADDRESS  (SYSBASE + 16 * PAGESIZE)  // 64K
-#define INITRD_ADDRESS  (SYSBASE + 32 * PAGESIZE)  // 512K
-
-#define TSS_ESP0 (SYSPAGE_ADDRESS + 4)
-
-#define USERSPACE(addr) ((unsigned long)(addr) < OSBASE)
-#define KERNELSPACE(addr) ((unsigned long)(addr) >= OSBASE)
-
+#endif  // __ASSEMBLER__
 
 #endif  // MACHINA_OS_SYSPAGE_H

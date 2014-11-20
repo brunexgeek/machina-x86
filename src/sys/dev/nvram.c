@@ -32,6 +32,7 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
 
 #define NVRAM_SIZE 128
 
@@ -53,7 +54,7 @@ static int nvram_read(struct dev *dev, void *buffer, size_t count, blkno_t blkno
   if (count == 0) return 0;
   if (blkno + count > NVRAM_SIZE) return -EFAULT;
 
-  for (n = 0; n < count; n++) ((unsigned char *) buffer)[n] = read_cmos_reg(n + blkno);
+  for (n = 0; n < count; n++) ((unsigned char *) buffer)[n] = kpit_read_cmos(n + blkno);
   return count;
 }
 
@@ -63,7 +64,7 @@ static int nvram_write(struct dev *dev, void *buffer, size_t count, blkno_t blkn
   if (count == 0) return 0;
   if (blkno + count > NVRAM_SIZE) return -EFAULT;
 
-  for (n = 0; n < count; n++) write_cmos_reg(n + blkno, ((unsigned char *) buffer)[n]);
+  for (n = 0; n < count; n++) kpit_write_cmos(n + blkno, ((unsigned char *) buffer)[n]);
   return count;
 }
 
@@ -75,7 +76,8 @@ struct driver nvram_driver = {
   nvram_write
 };
 
-int /*__declspec(dllexport)*/ nvram() {
-  kdev_create("nvram", &nvram_driver, NULL, NULL);
-  return 0;
+int /*__declspec(dllexport)*/ nvram()
+{
+    kdev_create("nvram", &nvram_driver, NULL, NULL);
+    return 0;
 }

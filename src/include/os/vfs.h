@@ -31,8 +31,8 @@
 // SUCH DAMAGE.
 //
 
-#ifndef VFS_H
-#define VFS_H
+#ifndef MACHINA_OS_VFS_H
+#define MACHINA_OS_VFS_H
 
 
 #include <os/object.h>
@@ -75,25 +75,27 @@
 #define FSOP_OPENDIR    0x08000000
 #define FSOP_READDIR    0x10000000
 
-struct filesystem {
-  char *name;
-  struct fsops *ops;
-  struct filesystem *next;
+struct filesystem
+{
+    char *name;
+    struct fsops *ops;
+    struct filesystem *next;
 };
 
-struct fs {
-  int locks;
-  struct mutex exclusive;
-  char mntfrom[MAXPATH];
-  char mntto[MAXPATH];
-  struct fsops *ops;
-  struct fs *next;
-  struct fs *prev;
-  mode_t mode;
-  uid_t uid;
-  gid_t gid;
-  void *data;
-  struct filesystem *fsys;
+struct fs
+{
+    int locks;
+    struct mutex exclusive;
+    char mntfrom[MAXPATH];
+    char mntto[MAXPATH];
+    struct fsops *ops;
+    struct fs *next;
+    struct fs *prev;
+    mode_t mode;
+    uid_t uid;
+    gid_t gid;
+    void *data;
+    struct filesystem *fsys;
 };
 
 struct file {
@@ -226,4 +228,4 @@ KERNELAPI int readdir(struct file *filp, struct direntry *dirp, int count);
 
 #endif
 
-#endif
+#endif  // MACHINA_OS_VFS_H

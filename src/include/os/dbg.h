@@ -31,8 +31,11 @@
 // SUCH DAMAGE.
 //
 
+
 #ifndef DBG_H
 #define DBG_H
+
+
 
 #define DBG_SIGNATURE     0xDB
 #define DRPC_VERSION      2
@@ -70,6 +73,9 @@
 #define DBGERR_INVALIDTHREAD      0x84
 #define DBGERR_INVALIDSEL         0x85
 #define DBGERR_NOCONTEXT          0x86
+
+#include <os/cpu.h>
+#include <os/object.h>
 
 struct dbg_hdr {
   unsigned char signature;
@@ -190,6 +196,8 @@ struct dbg_event {
   union dbg_body evt;
   struct dbg_event *next;
 };
+
+
 
 #ifdef KERNEL
 

@@ -33,6 +33,8 @@
 //
 
 #include <net/net.h>
+#include <os/dev.h>
+#include <os/queue.h>
 
 static const struct eth_addr ethbroadcast = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 struct queue *ether_queue;
@@ -284,7 +286,7 @@ err_t ether_input(struct netif *netif, struct pbuf *p) {
   msg->netif = netif;
 
   if (enqueue(ether_queue, msg, 0) < 0) {
-    if (!debugging) kprintf("ether: drop (queue full)\n");
+    //if (!debugging) kprintf("ether: drop (queue full)\n");
     kfree(msg);
     stats.link.memerr++;
     stats.link.drop++;

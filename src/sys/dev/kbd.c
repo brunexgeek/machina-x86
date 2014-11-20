@@ -32,6 +32,12 @@
 //
 
 #include <os/krnl.h>
+#include <os/kbd.h>
+#include <os/trap.h>
+#include <os/dbg.h>
+#include <os/dev.h>
+#include <os/pic.h>
+
 
 //
 // Keyboard Ports
@@ -165,7 +171,7 @@ static void kbd_wait() {
       return;
     }
 
-    udelay(1);
+    kpit_udelay(1);
   }
 }
 
@@ -206,7 +212,7 @@ static int kbd_wait_for_data() {
       return -ETIMEOUT;
     }
 
-    udelay(1);
+    kpit_udelay(1);
   }
 }
 
@@ -230,22 +236,24 @@ static void kbd_write_command(unsigned char cmd) {
 // Reboot machine
 //
 
-void kbd_reboot() {
-  kbd_wait();
-  kbd_write_command(0xFE);
-  cli();
-  halt();
+void kbd_reboot()
+{
+    kbd_wait();
+    kbd_write_command(0xFE);
+    kmach_cli();
+    kmach_halt();
 }
 
 //
 // Set keyboard LEDs
 //
 
-static void setleds() {
-  kbd_write_data(KBD_CMD_SET_LEDS);
-  kbd_wait();
-  kbd_write_data(led_status);
-  kbd_wait();
+static void setleds()
+{
+    kbd_write_data(KBD_CMD_SET_LEDS);
+    kbd_wait();
+    kbd_write_data(led_status);
+    kbd_wait();
 }
 
 //
@@ -296,7 +304,7 @@ static void process_scancode(unsigned int scancode) {
 
   // Ctrl-Alt-Del
   if ((control_keys & (CK_LCTRL | CK_LALT)) && scancode == 0x53) {
-    if (ctrl_alt_del_enabled) reboot();
+    if (ctrl_alt_del_enabled) kmach_reboot();
   }
 
   // LED keys, i.e. scroll lock, num lock, and caps lock
@@ -400,17 +408,17 @@ static void keyb_dpc(void *arg) {
     process_scancode(scancode);
   }
 
-  eoi(IRQ_KBD);
+  kpic_eoi(IRQ_KBD);
 }
 
 //
 // Keyboard interrupt handler
 //
 
-int keyboard_handler(struct context *ctxt, void *arg) {
-  queue_irq_dpc(&kbddpc, keyb_dpc, NULL);
-
-  return 0;
+int keyboard_handler(struct context *ctxt, void *arg)
+{
+    kdpc_queue_irq(&kbddpc, keyb_dpc, "keyb_dpc", NULL);
+    return 0;
 }
 
 //
@@ -585,8 +593,8 @@ void init_keyboard(dev_t devno, int reset) {
   if (reset) reset_keyboard();
 
   // Setup keyboard interrupt handler
-  init_dpc(&kbddpc);
+  kdpc_create(&kbddpc);
   init_sem(&kbdsem, 0);
   register_interrupt(&kbdintr, INTR_KBD, keyboard_handler, NULL);
-  enable_irq(IRQ_KBD);
+  kpic_enable_irq(IRQ_KBD);
 }

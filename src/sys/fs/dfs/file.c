@@ -32,6 +32,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/dfs.h>
+#include <os/buf.h>
 
 static int open_existing(struct filsys *fs, char *name, struct inode **retval) {
   struct inode *inode;
@@ -197,7 +199,7 @@ static int create_new(struct filsys *fs, char *name, ino_t ino, int mode, struct
     rc = get_inode(fs, ino, &inode);
     if (rc < 0) inode = NULL;
     if (inode) {
-      inode->desc->ctime = inode->desc->mtime = time(NULL);
+      inode->desc->ctime = inode->desc->mtime = kpit_get_time();
       inode->desc->uid = inode->desc->gid = 0;
       inode->desc->mode = S_IFREG | 0700;
       inode->desc->linkcount++;
@@ -289,7 +291,7 @@ int dfs_close(struct file *filp) {
 
   inode = (struct inode *) filp->data;
   if (filp->flags & F_MODIFIED) {
-    inode->desc->mtime = time(NULL);
+    inode->desc->mtime = kpit_get_time();
     mark_inode_dirty(inode);
   }
 
@@ -545,7 +547,7 @@ int dfs_fstat(struct file *filp, struct stat64 *buffer) {
     buffer->st_ino = inode->ino;
     buffer->st_nlink = inode->desc->linkcount;
     buffer->st_dev = inode->fs->devno;
-    buffer->st_atime = time(NULL);
+    buffer->st_atime = kpit_get_time();
     buffer->st_mtime = inode->desc->mtime;
     buffer->st_ctime = inode->desc->ctime;
     buffer->st_size = inode->desc->size;
@@ -555,7 +557,7 @@ int dfs_fstat(struct file *filp, struct stat64 *buffer) {
 }
 
 int dfs_fchmod(struct file *filp, int mode) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   struct inode *inode;
 
   inode = (struct inode *) filp->data;
@@ -567,7 +569,7 @@ int dfs_fchmod(struct file *filp, int mode) {
 }
 
 int dfs_fchown(struct file *filp, int owner, int group) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   struct inode *inode;
 
   inode = (struct inode *) filp->data;

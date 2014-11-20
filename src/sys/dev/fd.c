@@ -32,6 +32,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/trap.h>
+#include <os/pic.h>
 
 #define NUMDRIVES             4
 
@@ -185,7 +188,7 @@ static int fd_command(unsigned char cmd) {
   int msr;
   unsigned int tmo;
 
-  tmo = ticks + 1*HZ;
+  tmo = global_ticks + 1*HZ;
   while (1) {
     msr = inp(FDC_MSR);
     if ((msr & 0xc0) == 0x80) {
@@ -193,8 +196,8 @@ static int fd_command(unsigned char cmd) {
       return 0;
     }
 
-    if (time_before(tmo, ticks)) break;
-    yield(); // delay
+    if (time_before(tmo, global_ticks)) break;
+    kthread_yield(); // delay
   }
 
   if (!fd_init) kprintf(KERN_WARNING "fd: command timeout\n");
@@ -209,12 +212,12 @@ static int fd_data() {
   int msr;
   unsigned int tmo;
 
-  tmo = ticks + 5*HZ;
+  tmo = global_ticks + 5*HZ;
   while (1) {
     msr = inp(FDC_MSR);
     if ((msr & 0xd0) == 0xd0) return inp(FDC_DATA) & 0xFF;
-    if (time_before(tmo, ticks)) break;
-    yield(); // delay
+    if (time_before(tmo, global_ticks)) break;
+    kthread_yield(); // delay
   }
 
   if (!fd_init) kprintf(KERN_WARNING "fd: data timeout\n");
@@ -290,7 +293,7 @@ static void fd_motor_on(struct fd *fd) {
 static void fd_motor_off(struct fd *fd) {
   if (fd->motor_status == FD_MOTOR_ON) {
     fd->motor_status = FD_MOTOR_DELAY;
-    ktimer_modify(&fd->motortimer, ticks + FD_MOTOR_TIMEOUT / MSECS_PER_TICK);
+    ktimer_modify(&fd->motortimer, global_ticks + FD_MOTOR_TIMEOUT / MSECS_PER_TICK);
   }
 }
 
@@ -555,10 +558,11 @@ static void fd_dpc(void *arg) {
 // fd_handler
 //
 
-static int fd_handler(struct context *ctxt, void *arg) {
-  queue_irq_dpc(&fdc.dpc, fd_dpc, arg);
-  eoi(IRQ_FD);
-  return 0;
+static int fd_handler(struct context *ctxt, void *arg)
+{
+    kdpc_queue_irq(&fdc.dpc, fd_dpc, "fd_dpc", arg);
+    kpic_eoi(IRQ_FD);
+    return 0;
 }
 
 struct driver floppy_driver = {
@@ -588,7 +592,8 @@ static void init_drive(char *devname, struct fd *fd, struct fdc *fdc, int drive,
     fd->geom->tracks, fd->geom->heads, fd->geom->spt);
 }
 
-void init_fd() {
+void init_fd()
+{
   int i;
   unsigned char fdtypes;
   int first_floppy;
@@ -596,7 +601,7 @@ void init_fd() {
   //int version;
   //char *name;
 
-  fdtypes = read_cmos_reg(0x10);
+  fdtypes = kpit_read_cmos(0x10);
   first_floppy = (fdtypes >> 4) & 0x0F;
   second_floppy = fdtypes & 0x0F;
   if (!first_floppy && !second_floppy) return;
@@ -635,7 +640,7 @@ void init_fd() {
   //fdc.type = version;
   //fdc.name = name;
 
-  init_dpc(&fdc.dpc);
+  kdpc_create(&fdc.dpc);
   init_mutex(&fdc.lock, 0);
   init_event(&fdc.done, 0, 0);
   fdc.dor = 0x0C; // TODO: select drive in DOR on transfer
@@ -645,10 +650,11 @@ void init_fd() {
   fdc.bufh = (DMA_BUFFER_START >> 8) & 0xFF;
   fdc.bufl = DMA_BUFFER_START & 0xFF;
 
-  for (i = 0; i < DMA_BUFFER_PAGES; i++) map_page(fdc.dmabuf + i * PAGESIZE, BTOP(DMA_BUFFER_START) + i, PT_WRITABLE | PT_PRESENT);
+  for (i = 0; i < DMA_BUFFER_PAGES; i++)
+    kpage_map(fdc.dmabuf + i * PAGESIZE, BTOP(DMA_BUFFER_START) + i, PT_WRITABLE | PT_PRESENT);
 
   register_interrupt(&fdc.intr, INTR_FD, fd_handler, &fdc);
-  enable_irq(IRQ_FD);
+  kpic_enable_irq(IRQ_FD);
 
   //kprintf("fdc: %s\n", fdc.name);
 

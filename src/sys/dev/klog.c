@@ -32,6 +32,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/cpu.h>
 
 #define KLOG_SIZE (64 * 1024)
 
@@ -50,14 +52,18 @@ static unsigned int klog_size;
 static struct klogreq *klog_waiters;
 static struct dpc klog_dpc;
 
+
+// TODO: we need a place for this!
+void console_print(char *buffer, int size);
+
 static int wait_for_klog() {
   struct klogreq req;
 
-  req.thread = self();
+  req.thread = kthread_self();
   req.next = klog_waiters;
   klog_waiters = &req;
 
-  enter_wait(THREAD_WAIT_DEVIO);
+  kthread_wait(THREAD_WAIT_DEVIO);
 
   return req.rc;
 }
@@ -67,9 +73,9 @@ static void release_klog_waiters(void *arg)
     struct klogreq *waiter;
 
     // Defer scheduling of kernel log waiter if we are in a interrupt handler
-    if ((eflags() & EFLAG_IF) == 0)
+    if ((kcpu_get_eflags() & EFLAG_IF) == 0)
     {
-        queue_irq_dpc(&klog_dpc, release_klog_waiters, NULL);
+        kdpc_queue_irq(&klog_dpc, release_klog_waiters, "release_klog_waiters", NULL);
         return;
     }
 
@@ -77,7 +83,7 @@ static void release_klog_waiters(void *arg)
     while (waiter)
     {
         waiter->rc = 0;
-        mark_thread_ready(waiter->thread, 1, 2);
+        kthread_ready(waiter->thread, 1, 2);
         waiter = waiter->next;
     }
 
@@ -111,7 +117,7 @@ static void add_to_klog(char *buf, int size)
     }
 
     // TODO: fix this!
-    //release_klog_waiters(NULL);
+    release_klog_waiters(NULL);
 }
 
 void kprintf(const char *fmt,...)
@@ -126,7 +132,7 @@ void kprintf(const char *fmt,...)
 
     add_to_klog(buffer, len);
 
-    //if (debugging) dbg_output(buffer);
+    if (debugging) dbg_output(buffer);
 
     if (kprint_enabled)
     {

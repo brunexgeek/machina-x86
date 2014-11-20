@@ -3,7 +3,7 @@
 //
 // Task scheduler
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
+// Copyright (C) 2014 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,17 @@
 // SUCH DAMAGE.
 //
 
+#include <os/sched.h>
 #include <os/krnl.h>
+#include <os/procfs.h>
+#include <os/vmm.h>
+#include <os/kmem.h>
+#include <os/dbg.h>
+#include <os/trap.h>
+#include <os/pit.h>
+#include <os/rnd.h>
+#include <os/asmutil.h>
+
 
 #define DEFAULT_STACK_SIZE           (1 * 1024 * 1024)
 #define DEFAULT_INITIAL_STACK_COMMIT (8 * 1024)
@@ -44,16 +54,28 @@ unsigned long dpc_total = 0;
 unsigned long dpc_lost = 0;
 unsigned long thread_ready_summary = 0;
 
-struct thread *idle_thread;
-struct thread *ready_queue_head[THREAD_PRIORITY_LEVELS];
-struct thread *ready_queue_tail[THREAD_PRIORITY_LEVELS];
-struct thread *threadlist;
+static struct thread *idle_thread = NULL;
 
-struct dpc *dpc_queue_head;
-struct dpc *dpc_queue_tail;
+/**
+ * Head of the queue for ready thread's.
+ */
+static struct thread *ready_queue_head[THREAD_PRIORITY_LEVELS] = { NULL };
 
-struct task *idle_tasks_head;
-struct task *idle_tasks_tail;
+/**
+ * Tail of the queue for ready thread's.
+ */
+static struct thread *ready_queue_tail[THREAD_PRIORITY_LEVELS] = { NULL };
+
+/**
+ * List containing all threads.
+ */
+static struct thread *threadlist = NULL;
+
+static struct dpc *dpc_queue_head = NULL;
+static struct dpc *dpc_queue_tail = NULL;
+
+static struct task *idle_tasks_head = NULL;
+static struct task *idle_tasks_tail = NULL;
 
 struct task_queue sys_task_queue;
 
@@ -62,7 +84,15 @@ static void tmr_alarm(void *arg);
 void user_thread_start(void *arg);
 void init_thread_stack(struct thread *t, void *startaddr, void *arg);
 void switch_context(struct thread *t) __asm__("___switch_context");
+int init_user_thread(struct thread *t, void *entrypoint);
+int allocate_user_stack(struct thread *t, unsigned long stack_reserve, unsigned long stack_commit);
+static struct dpc *kdpc_get_next();
 
+void kthread_mark_running();
+
+/**
+ * Insert 't2' before 't1'.
+ */
 static void insert_before( struct thread *t1, struct thread *t2 )
 {
     t2->next = t1;
@@ -87,7 +117,10 @@ static void remove(struct thread *t)
     t->prev->next = t->next;
 }
 
-static void insert_ready_head(struct thread *t)
+/**
+ * Insert the given thread at head of the ready queue.
+ */
+static void insert_ready_head( struct thread *t )
 {
     if (!ready_queue_head[t->priority])
     {
@@ -104,6 +137,10 @@ static void insert_ready_head(struct thread *t)
     }
 }
 
+
+/**
+ * Insert the given thread at tail of the ready queue.
+ */
 static void insert_ready_tail(struct thread *t)
 {
     if (!ready_queue_tail[t->priority])
@@ -121,7 +158,11 @@ static void insert_ready_tail(struct thread *t)
     }
 }
 
-static void remove_from_ready_queue(struct thread *t)
+
+/**
+ * Remove the given thread from ready queue.
+ */
+static void remove_from_ready_queue( struct thread *t )
 {
     if (t->next_ready) t->next_ready->prev_ready = t->prev_ready;
     if (t->prev_ready) t->prev_ready->next_ready = t->next_ready;
@@ -131,27 +172,30 @@ static void remove_from_ready_queue(struct thread *t)
 }
 
 
-void enter_wait(int reason)
+void kthread_wait(int reason)
 {
-    struct thread *t = self();
+    struct thread *t = kthread_self();
 
     t->state = THREAD_STATE_WAITING;
     t->wait_reason = reason;
-    dispatch();
+    //kprintf("%s: waiting\n", t->name);
+    ksched_dispatch();
+    //kprintf("%s: back\n", t->name);
 }
 
-int enter_alertable_wait(int reason)
-{
-    struct thread *t = self();
 
-    if (signals_ready(t)) return -EINTR;
+int kthread_alertable_wait(int reason)
+{
+    struct thread *t = kthread_self();
+
+    if (kthread_signals_ready(t)) return -EINTR;
 
     t->state = THREAD_STATE_WAITING;
     t->wait_reason = reason;
     t->flags &= ~THREAD_INTERRUPTED;
 
     t->flags |= THREAD_ALERTABLE;
-    dispatch();
+    ksched_dispatch();
     t->flags &= ~THREAD_ALERTABLE;
 
     if (t->flags & THREAD_INTERRUPTED)
@@ -163,18 +207,20 @@ int enter_alertable_wait(int reason)
     return 0;
 }
 
+
 int kthread_interrupt(struct thread *t)
 {
     if (t->state != THREAD_STATE_WAITING) return -EBUSY;
     if ((t->flags & THREAD_ALERTABLE) == 0) return -EPERM;
     t->flags |= THREAD_INTERRUPTED;
-    mark_thread_ready(t, 1, 1);
+    kthread_ready(t, 1, 1);
     return 0;
 }
 
-void mark_thread_ready(struct thread *t, int charge, int boost)
+
+void kthread_ready(struct thread *t, int charge, int boost)
 {
-    int prio = t->priority;
+    //int prio = t->priority;
     int newprio;
 
     // check for suspended thread that is now ready to run
@@ -184,7 +230,7 @@ void mark_thread_ready(struct thread *t, int charge, int boost)
         return;
     }
 
-    // If thread has been interrupted it is already ready
+    // if thread has been interrupted it is already ready
     if ((t->flags & THREAD_INTERRUPTED) !=0 && t->state == THREAD_STATE_READY) return;
 
     // Charge quantums units each time a thread is restarted
@@ -222,16 +268,16 @@ void mark_thread_ready(struct thread *t, int charge, int boost)
     }
 
     // Signal preemption if new ready thread has priority over the running thread
-    if (t->priority > self()->priority) preempt = 1;
+    if (t->priority > kthread_self()->priority) preempt = 1;
 }
 
 
 void kthread_preempt()
 {
-    struct thread *t = self();
+    struct thread *t = kthread_self();
 
     // Enable interrupt in case we have been called in interupt context
-    sti();
+    kmach_sti();
 
     // Count number of preempted context switches
     t->preempts++;
@@ -252,16 +298,16 @@ void kthread_preempt()
     insert_ready_tail(t);
 
     // Relinquish CPU
-    dispatch();
+    ksched_dispatch();
 }
 
 
 void kernel_thread_start(void *arg)
 {
-    struct thread *t = self();
+    struct thread *t = kthread_self();
 
     // Mark thread as running
-    mark_thread_running();
+    kthread_mark_running();
 
     // Call entry point
     ((void (*)(void *)) (t->entrypoint))(arg);
@@ -271,19 +317,19 @@ void kernel_thread_start(void *arg)
 static struct thread *kthread_create(threadproc_t startaddr, void *arg, int priority)
 {
     // Allocate a new aligned thread control block
-    struct thread *t = (struct thread *) alloc_pages_align(PAGES_PER_TCB, PAGES_PER_TCB, 0x00544342 /*"TCB"*/);
+    struct thread *t = (struct thread *) kmem_alloc_align(PAGES_PER_TCB, PAGES_PER_TCB, PFT_TCB);
     if (!t) return NULL;
     memset(t, 0, PAGES_PER_TCB * PAGESIZE);
     init_thread(t, priority);
 
-    // initialize the thread stack to start executing the task function
+    // initialize the thread stack to start executing the thread function
     init_thread_stack(t, (void *) startaddr, arg);
 
     // Add thread to thread list
     insert_before(threadlist, t);
 
     // Signal preemption if new ready thread has priority over the running thread
-    if (t->priority > self()->priority) preempt = 1;
+    if (t->priority > kthread_self()->priority) preempt = 1;
 
     return t;
 }
@@ -300,7 +346,7 @@ struct thread *kthread_create_kland(threadproc_t startaddr, void *arg, int prior
     t->entrypoint = startaddr;
 
     // Mark thread as ready to run
-    mark_thread_ready(t, 0, 0);
+    kthread_ready(t, 0, 0);
 
     // Notify debugger
     dbg_notify_create_thread(t, startaddr);
@@ -311,7 +357,7 @@ struct thread *kthread_create_kland(threadproc_t startaddr, void *arg, int prior
 
 int kthread_create_uland(void *entrypoint, unsigned long stacksize, char *name, struct thread **retval)
 {
-    struct thread *creator = self();
+    struct thread *creator = kthread_self();
     struct thread *t;
     int rc;
 
@@ -364,7 +410,7 @@ int init_user_thread(struct thread *t, void *entrypoint)
     struct tib *tib;
 
     // Allocate and initialize thread information block for thread
-    tib = vmalloc(NULL, sizeof(struct tib), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE, 0x00544942 /*"TIB"*/, NULL);
+    tib = vmalloc(NULL, sizeof(struct tib), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE, PFT_TIB, NULL);
     if (!tib) return -ENOMEM;
 
     t->entrypoint = entrypoint;
@@ -385,7 +431,7 @@ int allocate_user_stack(struct thread *t, unsigned long stack_reserve, unsigned 
     char *stack;
     struct tib *tib;
 
-    stack = vmalloc(NULL, stack_reserve, MEM_RESERVE, PAGE_READWRITE, 0x0053544b /*"STK"*/, NULL);
+    stack = vmalloc(NULL, stack_reserve, MEM_RESERVE, PAGE_READWRITE, PFT_STACK, NULL);
     if (!stack) return -ENOMEM;
 
     tib = t->tib;
@@ -393,7 +439,7 @@ int allocate_user_stack(struct thread *t, unsigned long stack_reserve, unsigned 
     tib->stacktop = stack + stack_reserve;
     tib->stacklimit = stack + (stack_reserve - stack_commit);
 
-    if (!vmalloc(tib->stacklimit, stack_commit, MEM_COMMIT, PAGE_READWRITE, 0x0053544b /*"STK"*/, NULL)) return -ENOMEM;
+    if (!vmalloc(tib->stacklimit, stack_commit, MEM_COMMIT, PAGE_READWRITE, PFT_STACK, NULL)) return -ENOMEM;
     if (vmprotect(tib->stacklimit, PAGESIZE, PAGE_READWRITE | PAGE_GUARD) < 0) return -ENOMEM;
 
     return 0;
@@ -403,7 +449,7 @@ int allocate_user_stack(struct thread *t, unsigned long stack_reserve, unsigned 
 static void destroy_tcb(void *arg)
 {
     // Deallocate TCB
-    free_pages(arg, PAGES_PER_TCB);
+    kmem_free(arg, PAGES_PER_TCB);
 
     // Set the TASK_QUEUE_ACTIVE_TASK_INVALID flag, to inform the sys task queue that the
     // executing task is invalid. The destroy_tcb task is placed in the TCB, and we dont want
@@ -478,7 +524,7 @@ int kthread_suspend(struct thread *t)
         if (t->state == THREAD_STATE_RUNNING)
         {
             t->state = THREAD_STATE_SUSPENDED;
-            dispatch();
+            ksched_dispatch();
         }
     }
 
@@ -495,7 +541,7 @@ int kthread_resume( struct thread *t )
         if (--(t->suspend_count) == 0)
         {
             if (t->state == THREAD_STATE_SUSPENDED || t->state == THREAD_STATE_INITIALIZED)
-                mark_thread_ready(t, 0, 0);
+                kthread_ready(t, 0, 0);
         }
     }
 
@@ -503,12 +549,19 @@ int kthread_resume( struct thread *t )
 }
 
 
-void suspend_all_user_threads()
+/**
+ * Suspend the execution of all threads other than the current one.
+ */
+static void ksched_suspend_all_threads()
 {
     struct thread *t = threadlist;
+
+    if (threadlist == NULL) return;
+
     while (1)
     {
-        if (t->tib && t != self()) kthread_suspend(t);
+        if (t->tib && t != kthread_self())
+            kthread_suspend(t);
         t = t->next;
         if (t == threadlist) break;
     }
@@ -524,67 +577,73 @@ static void tmr_alarm(void *arg)
 
 int schedule_alarm(unsigned int seconds)
 {
-    struct thread *t = self();
+    struct thread *t = kthread_self();
     int rc = 0;
 
-    if (t->alarm.active) rc = (t->alarm.expires - ticks) / HZ;
+    if (t->alarm.active) rc = (t->alarm.expires - global_ticks) / HZ;
     if (seconds == 0)
     {
         ktimer_remove(&t->alarm);
     }
     else
     {
-        ktimer_modify(&t->alarm, ticks + seconds * HZ);
+        ktimer_modify(&t->alarm, global_ticks + seconds * HZ);
     }
 
     return rc;
 }
 
-void terminate_thread(int exitcode) {
-  struct thread *t = self();
-  t->state = THREAD_STATE_TERMINATED;
-  t->exitcode = exitcode;
-  ktimer_remove(&t->alarm);
-  exit_thread(t);
-  hunprotect(t->hndl);
-  hfree(t->hndl);
-  dispatch();
+
+void kthread_terminate(int exitcode)
+{
+    struct thread *t = kthread_self();
+
+    t->state = THREAD_STATE_TERMINATED;
+    t->exitcode = exitcode;
+    ktimer_remove(&t->alarm);
+    kthread_exit(t);
+
+    hunprotect(t->hndl);
+    hfree(t->hndl);
+
+    // switch to another thread
+    ksched_dispatch();
 }
 
-int get_thread_priority(struct thread *t) {
-  return t->priority;
+
+int kthread_get_priority(struct thread *t)
+{
+    return t->priority;
 }
 
 
-int set_thread_priority(struct thread *t, int priority)
+int kthread_set_priority(struct thread *t, int priority)
 {
     if (priority < 0 || priority >= THREAD_PRIORITY_LEVELS) return -EINVAL;
     if (t->base_priority == priority) return 0;
 
-    if (t == self())
+    // check if the thread is tying to change it own priority
+    if (t == kthread_self())
     {
-        // Thread changed priority for it self, reschedule if new priority lower
+        t->base_priority = t->priority = priority;
+        // we need to reschedule if new priority is lower
         if (priority < t->priority)
         {
-            t->base_priority = t->priority = priority;
-            mark_thread_ready(t, 0, 0);
-            dispatch();
-        }
-        else
-        {
-            t->base_priority = t->priority = priority;
+            kthread_ready(t, 0, 0);
+            ksched_dispatch();
         }
     }
     else
     {
-        // If thread is ready to run, remove it from the current ready queue
-        // and insert the ready queue for the new priority
+        // Note: if thread is ready to run, we remove it from the current ready queue
+        //       and insert int the ready queue for the new priority. Otherwise, this
+        //       will be done automacally when the thread runs again.
         if (t->state == THREAD_STATE_READY)
         {
             remove_from_ready_queue(t);
             t->base_priority = t->priority = priority;
             t->state = THREAD_STATE_TRANSITION;
-            mark_thread_ready(t, 0, 0);
+            kthread_ready(t, 0, 0);
         }
         else
         {
@@ -608,7 +667,7 @@ static void task_queue_task(void *tqarg)
         // Wait until tasks arrive on the task queue
         while (tq->head == NULL)
         {
-            enter_wait(THREAD_WAIT_TASK);
+            kthread_wait(THREAD_WAIT_TASK);
         }
 
         // Get next task from task queue
@@ -678,14 +737,14 @@ int queue_task(struct task_queue *tq, struct task *task, taskproc_t proc, void *
 
     if ((tq->flags & TASK_QUEUE_ACTIVE) == 0 && tq->thread->state == THREAD_STATE_WAITING)
     {
-        mark_thread_ready(tq->thread, 0, 0);
+        kthread_ready(tq->thread, 0, 0);
     }
 
     return 0;
 }
 
 
-void init_dpc(struct dpc *dpc)
+void kdpc_create( struct dpc *dpc )
 {
     dpc->proc = NULL;
     dpc->arg = NULL;
@@ -694,7 +753,7 @@ void init_dpc(struct dpc *dpc)
 }
 
 
-void queue_irq_dpc(struct dpc *dpc, dpcproc_t proc, void *arg)
+void kdpc_queue_irq( struct dpc *dpc, dpcproc_t proc,  const char *proc_name, void *arg)
 {
     if (dpc->flags & DPC_QUEUED)
     {
@@ -703,28 +762,30 @@ void queue_irq_dpc(struct dpc *dpc, dpcproc_t proc, void *arg)
     }
 
     dpc->proc = proc;
+    dpc->proc_name = proc_name;
     dpc->arg = arg;
     dpc->next = NULL;
     if (dpc_queue_tail) dpc_queue_tail->next = dpc;
     dpc_queue_tail = dpc;
     if (!dpc_queue_head) dpc_queue_head = dpc;
     set_bit(&dpc->flags, DPC_QUEUED_BIT);
+    //kprintf("[DEBUG] installed DPC for '%s'\n", (proc_name == NULL) ? "<unnamed_proc>" : proc_name);
 }
 
 
-void queue_dpc(struct dpc *dpc, dpcproc_t proc, void *arg)
+void kdpc_queue( struct dpc *dpc, dpcproc_t proc, void *arg)
 {
-    cli();
-    queue_irq_dpc(dpc, proc, arg);
-    sti();
+    kmach_cli();
+    kdpc_queue_irq(dpc, proc, NULL, arg);
+    kmach_sti();
 }
 
 
-struct dpc *get_next_dpc()
+static struct dpc *kdpc_get_next()
 {
     struct dpc *dpc;
 
-    cli();
+    kmach_cli();
 
     if (dpc_queue_head)
     {
@@ -737,13 +798,19 @@ struct dpc *get_next_dpc()
         dpc = NULL;
     }
 
-    sti();
+    kmach_sti();
 
     return dpc;
 }
 
 
-void dispatch_dpc_queue()
+void kdpc_check_queue()
+{
+    if (dpc_queue_head) kdpc_dispatch_queue();
+}
+
+
+void kdpc_dispatch_queue()
 {
     struct dpc *dpc;
     dpcproc_t proc;
@@ -752,13 +819,13 @@ void dispatch_dpc_queue()
     if (in_dpc) panic("sched: nested execution of dpc queue");
     in_dpc = 1;
 
-    while (1) {
-        // Get next deferred procedure call
-        // As a side effect this will enable interrupts
-        dpc = get_next_dpc();
+    while (1)
+    {
+        // get next DPC (enabling interrupts by side effect)
+        dpc = kdpc_get_next();
         if (!dpc) break;
 
-        // Execute DPC
+        // execute the DPC
         proc = dpc->proc;
         arg = dpc->arg;
         clear_bit(&dpc->flags, DPC_QUEUED_BIT);
@@ -780,12 +847,12 @@ void dispatch_dpc_queue()
 }
 
 
-static struct thread *find_ready_thread()
+static struct thread *next_ready_thread()
 {
     int prio;
     struct thread *t;
 
-    // Find highest priority non-empty ready queue
+    // find highest priority non-empty ready queue
     if (thread_ready_summary == 0) return NULL;
     prio = find_highest_bit(thread_ready_summary);
 
@@ -808,67 +875,67 @@ static struct thread *find_ready_thread()
     return t;
 }
 
-void dispatch()
+
+void ksched_dispatch()
 {
-    struct thread *curthread = self();
+    struct thread *curthread = kthread_self();
     struct thread *t;
 
-    // Clear preemption flag
+    // clear preemption flag
     preempt = 0;
 
-    // Execute all queued DPCs
-    check_dpc_queue();
+    // execute all queued DPCs
+    if (dpc_queue_head) kdpc_dispatch_queue();
 
-    // Find next thread to run
-    t = find_ready_thread();
+    // find next thread to run
+    t = next_ready_thread();
     if (!t) panic("No thread ready to run");
 
-    // If current thread has been selected to run again then just return
+    // if current thread has been selected to run again then just return
     if (t == curthread)
     {
         t->state = THREAD_STATE_RUNNING;
         return;
     }
 
-    // Save fpu state if fpu has been used
+    // save FPU state if FPU has been used
     if (curthread->flags & THREAD_FPU_ENABLED)
     {
         fpu_disable(&curthread->fpustate);
         t->flags &= ~THREAD_FPU_ENABLED;
     }
 
-    // Switch to new thread
+    // switch to new thread (after this call the current thread is "t")
     switch_context(t);
-    #ifdef VMACH
-    switch_kernel_stack();
-    #endif
-
-    // Mark new thread as running
-    mark_thread_running();
+    // mark the thread as running
+    kthread_mark_running();
 }
 
-void yield()
+
+void kthread_yield()
 {
-    struct thread *t = self();
+    struct thread *t = kthread_self();
 
     // Give up remaining quantum
     t->quantum = 0;
 
     // Mark thread as ready to run
-    mark_thread_ready(t, 0, 0);
+    kthread_ready(t, 0, 0);
 
     // Dispatch next thread
-    dispatch();
+    ksched_dispatch();
 }
 
-int system_idle()
+
+int ksched_is_system_idle()
 {
     if (thread_ready_summary != 0) return 0;
     if (dpc_queue_head != NULL) return 0;
     return 1;
 }
 
-void add_idle_task(struct task *task, taskproc_t proc, void *arg)
+
+void ksched_add_idle_task(struct task *task, taskproc_t proc, void *arg)
 {
     task->proc = proc;
     task->arg = arg;
@@ -886,9 +953,10 @@ void add_idle_task(struct task *task, taskproc_t proc, void *arg)
     }
 }
 
-void idle_task()
+
+void ksched_idle()
 {
-    struct thread *t = self();
+    struct thread *t = kthread_self();
 
     while (1)
     {
@@ -897,7 +965,7 @@ void idle_task()
         {
             while (task)
             {
-                if (!system_idle()) break;
+                if (!ksched_is_system_idle()) break;
                 task->flags |= TASK_EXECUTING;
                 task->proc(task->arg);
                 task->flags &= ~TASK_EXECUTING;
@@ -906,17 +974,18 @@ void idle_task()
         }
         else
         {
-            if (system_idle())
+            if (ksched_is_system_idle())
             {
-                halt();
+                kmach_halt();
             }
         }
 
-        mark_thread_ready(t, 0, 0);
-        dispatch();
+        kthread_ready(t, 0, 0);
+        ksched_dispatch();
         //if ((eflags() & EFLAG_IF) == 0) panic("sched: interrupts disabled in idle loop");
     }
 }
+
 
 static int threads_proc(struct proc_file *pf, void *arg) {
     static char *threadstatename[] = {"init", "ready", "run", "wait", "term", "susp", "trans"};
@@ -959,6 +1028,7 @@ static int threads_proc(struct proc_file *pf, void *arg) {
     return 0;
 }
 
+
 static int dpcs_proc(struct proc_file *pf, void *arg)
 {
     pprintf(pf, "dpc time   : %8d\n", dpc_time);
@@ -969,18 +1039,18 @@ static int dpcs_proc(struct proc_file *pf, void *arg)
 }
 
 
-void init_sched()
+void ksched_init()
 {
-    // Initialize scheduler
+    // initialize scheduler
     dpc_queue_head = dpc_queue_tail = NULL;
     memset(ready_queue_head, 0, sizeof(ready_queue_head));
     memset(ready_queue_tail, 0, sizeof(ready_queue_tail));
 
-    // The initial kernel thread will later become the idle thread
-    idle_thread = self();
+    // the initial kernel thread will later become the idle thread
+    idle_thread = kthread_self();
     threadlist = idle_thread;
 
-    // The idle thread is always ready to run
+    // the idle thread is always ready to run
     memset(idle_thread, 0, sizeof(struct thread));
     idle_thread->object.type = OBJECT_THREAD;
     idle_thread->priority = PRIORITY_SYSIDLE;
@@ -996,4 +1066,11 @@ void init_sched()
     // Register /proc/threads and /proc/dpcs
     register_proc_inode("threads", threads_proc, NULL);
     register_proc_inode("dpcs", dpcs_proc, NULL);
+}
+
+
+void ksched_destroy()
+{
+    ksched_suspend_all_threads();
+    threadlist = NULL;
 }

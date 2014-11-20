@@ -32,6 +32,7 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
 
 struct ramdisk {
   unsigned int blks;

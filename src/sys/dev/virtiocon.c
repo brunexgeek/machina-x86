@@ -32,6 +32,8 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/virtio.h>
 
 //
 // Feature bits
@@ -78,12 +80,12 @@ static int virtiocon_write(struct dev *dev, void *buffer, size_t count, blkno_t 
   // Issue request
   sg[0].data = buffer;
   sg[0].size = count;
-  rc = virtio_enqueue(&vcon->output_queue, sg, 1, 0, self());
+  rc = virtio_enqueue(&vcon->output_queue, sg, 1, 0, kthread_self());
   if (rc < 0) return rc;
   virtio_kick(&vcon->output_queue);
 
   // Wait for request to complete
-  enter_wait(THREAD_WAIT_DEVIO);
+  kthread_wait(THREAD_WAIT_DEVIO);
 
   return count;
 }
@@ -109,7 +111,7 @@ static int virtiocon_output_callback(struct virtio_queue *vq) {
 
   kprintf("[VCO]");
   while ((thread = virtio_dequeue(vq, &len)) != NULL) {
-    mark_thread_ready(thread, 1, 2);
+    kthread_ready(thread, 1, 2);
   }
 
   return 0;

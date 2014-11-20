@@ -31,14 +31,20 @@
 // SUCH DAMAGE.
 //
 
+
 #include <os/krnl.h>
+#include <os/dbg.h>
+#include <os/sched.h>
+#include <moddb.h>
+
 
 #define DEBUGPORT         0x3F8 // COM1
 #define MAX_DBG_CHUNKSIZE PAGESIZE
 
 #define MAX_DBG_PACKETLEN (MAX_DBG_CHUNKSIZE + sizeof(union dbg_body))
 
-extern char *trapnames[]; // Defined in trap.c
+extern char *INTR_NAMES[]; // Defined in trap.c
+extern struct moddb kmods; // Define in ???
 
 int debugging = 0;
 int debugger_active = 0;
@@ -62,14 +68,14 @@ static void init_debug_port() {
 }
 
 static void dbg_send(void *buffer, int count) {
-  unsigned char *p = buffer;
+    unsigned char *p = buffer;
 
-  while (count-- > 0) {
+    while (count-- > 0) {
     while ((inp(DEBUGPORT + 5) & 0x20) == 0) {
-      if (!debug_nointr) check_dpc_queue();
+    if (!debug_nointr) kdpc_check_queue();
     }
     outp(DEBUGPORT, *p++);
-  }
+    }
 }
 
 static void dbg_recv(void *buffer, int count) {
@@ -77,7 +83,7 @@ static void dbg_recv(void *buffer, int count) {
 
   while (count-- > 0) {
     while ((inp(DEBUGPORT + 5) & 0x01) == 0) {
-      if (!debug_nointr) check_dpc_queue();
+      if (!debug_nointr) kdpc_check_queue();
     }
     *p++ = inp(DEBUGPORT) & 0xFF;
   }
@@ -198,24 +204,28 @@ static int dbg_recv_packet(struct dbg_hdr *hdr, void *data) {
   return hdr->len;
 }
 
-static void dbg_connect(struct dbg_hdr *hdr, union dbg_body *body) {
-  struct thread *t = self();
+static void dbg_connect(struct dbg_hdr *hdr, union dbg_body *body)
+{
+    struct thread *t = kthread_self();
 
-  if (body->conn.version != DRPC_VERSION) {
-    dbg_send_error(DBGERR_VERSION, hdr->id);
-  } else {
-    body->conn.version = DRPC_VERSION;
-    body->conn.trap = last_trap;
-    body->conn.mod.hmod = (hmodule_t) OSBASE;
-    body->conn.mod.name = &krnlname;
-    body->conn.thr.tid = t->id;
-    body->conn.thr.tib = t->tib;
-    body->conn.thr.tcb = t;
-    body->conn.thr.startaddr = t->entrypoint;
-    body->conn.cpu = cpu;
+    if (body->conn.version != DRPC_VERSION)
+    {
+        dbg_send_error(DBGERR_VERSION, hdr->id);
+    }
+    else
+    {
+        body->conn.version = DRPC_VERSION;
+        body->conn.trap = last_trap;
+        body->conn.mod.hmod = (hmodule_t) OSBASE;
+        body->conn.mod.name = &krnlname;
+        body->conn.thr.tid = t->id;
+        body->conn.thr.tib = t->tib;
+        body->conn.thr.tcb = t;
+        body->conn.thr.startaddr = t->entrypoint;
+        body->conn.cpu = global_cpu;
 
-    dbg_send_packet(hdr->cmd + DBGCMD_REPLY, hdr->id, body, sizeof(struct dbg_connect));
-  }
+        dbg_send_packet(hdr->cmd + DBGCMD_REPLY, hdr->id, body, sizeof(struct dbg_connect));
+    }
 }
 
 static void dbg_read_memory(struct dbg_hdr *hdr, union dbg_body *body) {
@@ -245,7 +255,7 @@ static void dbg_suspend_thread(struct dbg_hdr *hdr, union dbg_body *body) {
     t = kthread_get(tid);
     if (t == NULL) {
       body->thr.threadids[n] = -ENOENT;
-    } else if (t != self()) {
+    } else if (t != kthread_self()) {
       body->thr.threadids[n] = kthread_suspend(t);
     }
   }
@@ -263,7 +273,7 @@ static void dbg_resume_thread(struct dbg_hdr *hdr, union dbg_body *body) {
     t = kthread_get(tid);
     if (t == NULL) {
       body->thr.threadids[n] = -ENOENT;
-    } else if (t != self()) {
+    } else if (t != kthread_self()) {
       body->thr.threadids[n] = kthread_resume(t);
     }
   }
@@ -289,7 +299,7 @@ static void dbg_get_thread_context(struct dbg_hdr *hdr, union dbg_body *body) {
 
     // Kernel mode contexts does not have ss:esp in context, fixup
     if (KERNELSPACE(body->ctx.ctxt.eip)) {
-      body->ctx.ctxt.ess = SEL_KDATA | mach.kring;
+      body->ctx.ctxt.ess = SEL_KDATA | global_kring;
       body->ctx.ctxt.esp = (unsigned long) t->ctxt + sizeof(struct context) - 8;
     }
   } else {
@@ -305,10 +315,10 @@ static void dbg_get_thread_context(struct dbg_hdr *hdr, union dbg_body *body) {
     body->ctx.ctxt.eip = kctxt->eip;
     body->ctx.ctxt.esp = (unsigned long) kctxt->stack;
 
-    body->ctx.ctxt.ds = SEL_KDATA | mach.kring;
-    body->ctx.ctxt.es = SEL_KDATA | mach.kring;
-    body->ctx.ctxt.ess = SEL_KDATA | mach.kring;
-    body->ctx.ctxt.ecs = SEL_KTEXT | mach.kring;
+    body->ctx.ctxt.ds = SEL_KDATA | global_kring;
+    body->ctx.ctxt.es = SEL_KDATA | global_kring;
+    body->ctx.ctxt.ess = SEL_KDATA | global_kring;
+    body->ctx.ctxt.ecs = SEL_KTEXT | global_kring;
   }
 
   dbg_send_packet(hdr->cmd | DBGCMD_REPLY, hdr->id, body, sizeof(struct dbg_context));
@@ -367,7 +377,7 @@ static void dbg_get_modules(struct dbg_hdr *hdr, union dbg_body *body) {
     }
   }
 
-  if (page_mapped(peb) && peb->usermods) {
+  if (kpage_is_mapped(peb) && peb->usermods) {
     mod = peb->usermods->modules;
     while (1) {
       body->modl.mods[n].hmod = mod->hmod;
@@ -391,7 +401,7 @@ static void dbg_get_modules(struct dbg_hdr *hdr, union dbg_body *body) {
 
 static void dbg_get_threads(struct dbg_hdr *hdr, union dbg_body *body) {
   int n = 0;
-  struct thread *t = threadlist;
+  struct thread *t = kthread_self();//threadlist;
 
   while (1) {
     body->thl.threads[n].tid = t->id;
@@ -401,7 +411,7 @@ static void dbg_get_threads(struct dbg_hdr *hdr, union dbg_body *body) {
     n++;
 
     t = t->next;
-    if (t == threadlist) break;
+    if (t == kthread_self()/*threadlist*/) break;
   }
   body->thl.count = n;
   dbg_send_packet(hdr->cmd | DBGCMD_REPLY, hdr->id, body, sizeof(struct dbg_threadlist) + n * sizeof(struct dbg_threadinfo));
@@ -431,7 +441,8 @@ static void dbg_main() {
     switch (hdr.cmd) {
       case DBGCMD_CONNECT:
         dbg_connect(&hdr, body);
-        print_string("dbg: remote debugger connected\n");
+        // TODO: where is this function?
+        //print_string("dbg: remote debugger connected\n");
         break;
 
       case DBGCMD_CONTINUE:
@@ -484,33 +495,35 @@ static void dbg_main() {
   debugger_active = 0;
 }
 
-void dumpregs(struct context *ctxt) {
-  kprintf("EAX  = %08X EBX  = %08X ECX  = %08X EDX  = %08X\n", ctxt->eax, ctxt->ebx, ctxt->ecx, ctxt->edx);
-  kprintf("EDI  = %08X ESI  = %08X EBP  = %08X ESP  = %08X\n", ctxt->edi, ctxt->esi, ctxt->ebp, ctxt->esp);
-  kprintf("CS   = %08X DS   = %08X ES   = %08X SS   = %08X\n", ctxt->ecs, ctxt->ds, ctxt->es, ctxt->ess);
-  kprintf("EIP  = %08X EFLG = %08X TRAP = %08X ERR  = %08X\n", ctxt->eip, ctxt->eflags, ctxt->traptype, ctxt->errcode);
+void dumpregs( struct context *ctxt )
+{
+    kprintf("EAX  = %08X EBX  = %08X ECX  = %08X EDX  = %08X\n", ctxt->eax, ctxt->ebx, ctxt->ecx, ctxt->edx);
+    kprintf("EDI  = %08X ESI  = %08X EBP  = %08X ESP  = %08X\n", ctxt->edi, ctxt->esi, ctxt->ebp, ctxt->esp);
+    kprintf("CS   = %08X DS   = %08X ES   = %08X SS   = %08X\n", ctxt->ecs, ctxt->ds, ctxt->es, ctxt->ess);
+    kprintf("EIP  = %08X EFLG = %08X TRAP = %08X ERR  = %08X\n", ctxt->eip, ctxt->eflags, ctxt->traptype, ctxt->errcode);
 }
 
-void dbg_enter(struct context *ctxt, void *addr) {
+void dbg_enter(struct context *ctxt, void *addr)
+{
   if (!debugging) {
-    kprintf("dbg: trap %d (%s) thread %d, addr %p\n", ctxt->traptype, trapnames[ctxt->traptype], self()->id, addr);
+    kprintf("dbg: trap %d (%s) thread %d, addr %p\n", ctxt->traptype, INTR_NAMES[ctxt->traptype], kthread_self()->id, addr);
     dumpregs(ctxt);
   }
 
-  last_trap.tid = self()->id;
+  last_trap.tid = kthread_self()->id;
   last_trap.traptype = ctxt->traptype;
   last_trap.errcode = ctxt->errcode;
   last_trap.eip = ctxt->eip;
   last_trap.addr = addr;
 
-  if (!debug_nointr) sti();
+  if (!debug_nointr) kmach_sti();
 
   if (debugging) {
     if (debugger_active) {
-      kprintf("dbg: trap %d thread %d, addr %p while debugger active, system halted.\n", ctxt->traptype, self()->id, addr);
+      kprintf("dbg: trap %d thread %d, addr %p while debugger active, system halted.\n", ctxt->traptype, kthread_self()->id, addr);
       dumpregs(ctxt);
-      cli();
-      halt();
+      kmach_cli();
+      kmach_halt();
     }
 
     dbg_send_packet(DBGEVT_TRAP, 0, &last_trap, sizeof(struct dbg_evt_trap));
@@ -518,7 +531,7 @@ void dbg_enter(struct context *ctxt, void *addr) {
 
   dbg_main();
 
-  if (self()->suspend_count > 0) dispatch();
+  if (kthread_self()->suspend_count > 0) ksched_dispatch();
 }
 
 void dbg_notify_create_thread(struct thread *t, void *startaddr) {

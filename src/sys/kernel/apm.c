@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,9 +27,9 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
 #include <os/krnl.h>
 
@@ -113,7 +113,7 @@ static struct fullptr apm_entrypoint;
 #pragma warning(disable: 4731) // C4731: frame pointer register 'ebp' modified by inline assembly code
 
 static int apm_bios_call(unsigned long func, unsigned long ebx_in, unsigned long ecx_in,
-                         unsigned long *eax_out, unsigned long *ebx_out, unsigned long *ecx_out, 
+                         unsigned long *eax_out, unsigned long *ebx_out, unsigned long *ecx_out,
                          unsigned long *edx_out, unsigned long *esi_out) {
   __asm {
     push edi
@@ -132,7 +132,7 @@ static int apm_bios_call(unsigned long func, unsigned long ebx_in, unsigned long
     mov eax, [func]
     mov ebx, [ebx_in]
     mov ecx, [ecx_in]
-    
+
     CLI
     call fword ptr [apm_entrypoint]
     setc al
@@ -150,7 +150,7 @@ static int apm_bios_call(unsigned long func, unsigned long ebx_in, unsigned long
 
     mov edi, [ebx_out]
     mov [edi], ebx
-    
+
     mov edi, [ecx_out]
     mov [edi], ecx
 
@@ -170,7 +170,7 @@ static int apm_bios_call(unsigned long func, unsigned long ebx_in, unsigned long
   return *eax_out & 0xFF;
 }
 
-static int apm_bios_call_simple(unsigned long func, unsigned long ebx_in, unsigned long ecx_in, 
+static int apm_bios_call_simple(unsigned long func, unsigned long ebx_in, unsigned long ecx_in,
                                 unsigned long *eax_out) {
   __asm {
     push edi
@@ -246,14 +246,14 @@ int apm_get_power_status(unsigned long *status, unsigned long *battery, unsigned
   *status = ebx;
   *battery = ecx;
   *life = edx;
-  
+
   return 0;
 }
 
 int apm_enable_power_management(unsigned long enable) {
   unsigned long eax;
   int rc;
-  
+
   rc = apm_bios_call_simple(APM_FUNC_ENABLE_PM, apm_conn_ver > 0x0100 ? APM_DEVICE_ALL : APM_DEVICE_OLD_ALL, enable, &eax);
   if (rc != 0) return (eax >> 8) & 0xFF;
   return 0;
@@ -354,7 +354,7 @@ int __declspec(dllexport) apm(struct unit *unit, char *opts) {
     case 0x0101:
       cseg16len = cseg32len;
       break;
-    
+
     case 0x0102:
     default:
       if (cseg16len == 0) cseg16len = 0x10000;
@@ -367,15 +367,15 @@ int __declspec(dllexport) apm(struct unit *unit, char *opts) {
 
   // Setup APM selectors in GDT
   vaddr = (unsigned long) iomap(apm->cseg32 << 4, cseg32len);
-  set_gdt_entry(GDT_APMCS,  vaddr, cseg32len, D_CODE | D_DPL0 | D_READ | D_PRESENT, D_BIG);
+  kmach_set_gdt_entry(GDT_APMCS,  vaddr, cseg32len, D_CODE | D_DPL0 | D_READ | D_PRESENT, D_BIG);
 
   vaddr = (unsigned long) iomap(apm->cseg16 << 4, cseg16len);
-  set_gdt_entry(GDT_APMCS16, vaddr, cseg16len, D_CODE | D_DPL0 | D_READ | D_PRESENT, 0);
+  kmach_set_gdt_entry(GDT_APMCS16, vaddr, cseg16len, D_CODE | D_DPL0 | D_READ | D_PRESENT, 0);
 
   vaddr = (unsigned long) iomap(apm->dseg << 4, dseglen);
-  set_gdt_entry(GDT_APMDS, vaddr, dseglen, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, D_BIG);
-  
-  set_gdt_entry(GDT_APM40, (unsigned long) iomap(0x400, 4096), 4096 - 0x40 * 16, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, D_BIG);
+  kmach_set_gdt_entry(GDT_APMDS, vaddr, dseglen, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, D_BIG);
+
+  kmach_set_gdt_entry(GDT_APM40, (unsigned long) iomap(0x400, 4096), 4096 - 0x40 * 16, D_DATA | D_DPL0 | D_WRITE | D_PRESENT, D_BIG);
 
   // Setup APM entry point
   apm_entrypoint.segment = SEL_APMCS;

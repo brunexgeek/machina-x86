@@ -35,6 +35,8 @@
 #ifndef TIMER_H
 #define TIMER_H
 
+
+
 #define time_after(a, b)     ((long) (b) - (long) (a) < 0)
 #define time_before(a, b)    time_after(b, a)
 
@@ -45,21 +47,25 @@ typedef void (*timerproc_t)(void *arg);
 
 struct timer;
 
-struct timer_link {
-  struct timer_link *next;
-  struct timer_link *prev;
+struct timer_link
+{
+    struct timer_link *next;
+    struct timer_link *prev;
 };
 
-struct timer {
-  struct timer_link link;
-  unsigned int expires;
-  int active;
-  timerproc_t handler;
-  void *arg;
+struct timer
+{
+    struct timer_link link;
+    unsigned int expires;
+    int active;
+    timerproc_t handler;
+    void *arg;
 };
 
 void init_timers();
 void run_timer_list();
+
+#include <os/krnl.h>
 
 KERNELAPI void ktimer_init( struct timer *timer, timerproc_t handler, void *arg);
 KERNELAPI void ktimer_add(struct timer *timer);

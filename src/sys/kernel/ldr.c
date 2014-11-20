@@ -8,16 +8,16 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
-// 
-// 1. Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.  
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright
 //    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.  
+//    documentation and/or other materials provided with the distribution.
 // 3. Neither the name of the project nor the names of its contributors
 //    may be used to endorse or promote products derived from this software
-//    without specific prior written permission. 
-// 
+//    without specific prior written permission.
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,11 +27,12 @@
 // OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 // HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 // LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
-// 
+//
 
-#include <os/krnl.h>
+#include <os/ldr.h>
+#include <os/kmalloc.h>
 
 struct moddb kmods;
 struct mutex ldr_lock;
@@ -85,10 +86,10 @@ void *load_image_file(char *filename, int userspace) {
   // Allocate memory for module
   if (userspace) {
     // User module
-    imgbase = (char *) vmalloc((void *) (imghdr->optional.image_base), imghdr->optional.size_of_image, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 'UMOD', NULL);
+    imgbase = (char *) vmalloc((void *) (imghdr->optional.image_base), imghdr->optional.size_of_image, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, PFT_UMOD, NULL);
     if (imgbase == NULL) {
-      // Try to load image at any available address 
-      imgbase = (char *) vmalloc(NULL, imghdr->optional.size_of_image, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 'UMOD', NULL);
+      // Try to load image at any available address
+      imgbase = (char *) vmalloc(NULL, imghdr->optional.size_of_image, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, PFT_UMOD, NULL);
     }
   } else {
     // Kernel module
@@ -197,8 +198,8 @@ static int dump_mods(struct proc_file *pf, struct moddb *moddb) {
   while (1) {
     struct image_header *imghdr = get_image_header(mod->hmod);
 
-    pprintf(pf, "%08X %-16s %4d %08X %5dK %5dK %5dK %5dK\n", 
-            mod->hmod, mod->name, mod->refcnt, 
+    pprintf(pf, "%08X %-16s %4d %08X %5dK %5dK %5dK %5dK\n",
+            mod->hmod, mod->name, mod->refcnt,
             get_entrypoint(mod->hmod),
             imghdr->optional.size_of_image / 1024,
             imghdr->optional.size_of_code / 1024,
@@ -218,7 +219,7 @@ static int kmods_proc(struct proc_file *pf, void *arg) {
 }
 
 static int umods_proc(struct proc_file *pf, void *arg) {
-  if (!page_mapped((void *) PEB_ADDRESS)) return -EFAULT;
+  if (!kpage_is_mapped((void *) PEB_ADDRESS)) return -EFAULT;
   if (!((struct peb *) PEB_ADDRESS)->usermods) return -EFAULT;
 
   return dump_mods(pf, ((struct peb *) PEB_ADDRESS)->usermods);
@@ -234,8 +235,8 @@ void init_kernel_modules() {
   kmods.unload_image = unload_image;
   kmods.protect_region = NULL;
   kmods.log = logldr;
-  kmods.notify_load = dbg_notify_load_module;
-  kmods.notify_unload = dbg_notify_unload_module;
+  kmods.notify_load = NULL/*dbg_notify_load_module*/;
+  kmods.notify_unload = NULL/*dbg_notify_unload_module*/;
 
   init_module_database(&kmods, "krnl.dll", (hmodule_t) OSBASE, get_property(krnlcfg, "kernel", "libpath", "/boot"), find_section(krnlcfg, "modaliases"), 0);
 
@@ -243,5 +244,5 @@ void init_kernel_modules() {
   register_proc_inode("umods", umods_proc, NULL);
 
   krnlmod = kmods.modules;
-  set_pageframe_tag(krnlmod->hmod, get_image_header(krnlmod->hmod)->optional.size_of_image, 'KMOD');
+  kpframe_set_tag(krnlmod->hmod, get_image_header(krnlmod->hmod)->optional.size_of_image, PFT_KMOD);
 }

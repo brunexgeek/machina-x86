@@ -18,6 +18,10 @@ FIELD_DEPENDENCIES = "FIELD_DEPENDENCIES"
 FIELD_NFLAGS = "FIELD_NFLAGS"
 FIELD_COMMANDS = "FIELD_COMMANDS"
 
+COLOR_BLUE="\\x1b[34;1m"
+COLOR_RESET="\\x1b[0m"
+
+
 BIN_DYNAMIC = 1
 BIN_STATIC = 2
 BIN_EXECUTABLE = 4
@@ -31,6 +35,10 @@ class MakefileTarget:
     def __init__(self, targetDefs):
         self.checkFields(targetDefs)
         self.target = targetDefs
+
+    @staticmethod
+    def println( text ):
+        print "\t@echo -e '" + text + "'"
 
     #
     # Returns the given suffix as a Makefile variable reference
@@ -111,14 +119,14 @@ class CMakefileTarget(MakefileTarget):
     # Generate the C Makefile target
     #
     def generateTarget(self):
-        # welcome message
+        # target header
         print "\n#\n#", self.target[FIELD_DESCRIPTION], "\n#"
 
         # welcome target
-        print self._toVarName("WELCOME") + ":"
-        print "\t@echo"
-        print "\t@echo Building", self.target[FIELD_DESCRIPTION]
-        print
+        #print self._toVarName("WELCOME") + ":"
+        #print "\t@echo"
+        #print "\t@echo Building", self.target[FIELD_DESCRIPTION]
+        #print
 
         # print the CFLAGS definition
         if (FIELD_CFLAGS in self.target):
@@ -186,16 +194,19 @@ class CMakefileTarget(MakefileTarget):
         # target to compile each C source file
         if ((langs & LANG_C) > 0):
             print self._toVar("OBJ_DIR") + "/%.c.o:", self._toVar("SRC_DIR") + "/%.c"
+            self.println(COLOR_BLUE + "Compiling $< " + COLOR_RESET)
             print "\t" + compiler, self._toVar("CFLAGS"), "-DTARGET_MACHINE=$(TARGET_MACHINE)", "-c $< -o $@"
             print
         # target to compile each S source file
         if ((langs & LANG_S) > 0):
             print self._toVar("OBJ_DIR") + "/%.s.o:", self._toVar("SRC_DIR") + "/%.s"
+            self.println(COLOR_BLUE + "Compiling $<" + COLOR_RESET)
             print "\t" + compiler, "-x assembler-with-cpp", self._toVar("CFLAGS"), "-c $< -o $@"
             print
         # target to compile each ASM source file
         if ((langs & LANG_ASM) > 0):
             print self._toVar("OBJ_DIR") + "/%.asm.o:", self._toVar("SRC_DIR") + "/%.asm"
+            self.println(COLOR_BLUE + "Compiling $<" + COLOR_RESET)
             print "\t$(NASM)", self._toVar("NFLAGS"), "$< -o $@"
             print
 
@@ -214,7 +225,8 @@ class CMakefileTarget(MakefileTarget):
             for entry in self.target[FIELD_DEPENDENCIES]:
                 depends += entry + " "
         # target to compile the binary file
-        print mainTarget, ":", depends, self._toVarName("WELCOME"), self._toVar("OBJ_FILES")
+        print mainTarget, ":", depends, self._toVar("OBJ_FILES")
+        self.println(COLOR_BLUE + "Building " + self.target[FIELD_DESCRIPTION] + COLOR_RESET)
         print "\t@mkdir -p", self._toVar("OUT_DIR")
         # check if the current target is for BIN_DYNAMIC or BIN_EXECUTABLE
         if ((self.target[FIELD_TYPE] & BIN_STATIC) == 0):
@@ -241,7 +253,7 @@ class AsmMakefileTarget(MakefileTarget):
     # Generate the NASM Makefile target
     #
     def generateTarget(self):
-        # welcome message
+        # target header
         print "\n#\n#", self.target[FIELD_DESCRIPTION], "\n#"
 
         # print the NFLAGS definition
@@ -271,8 +283,7 @@ class AsmMakefileTarget(MakefileTarget):
                 depends += entry + " "
         # target to compile the binary file
         print mainTarget, ":", depends
-        print "\t@echo"
-        print "\t@echo Building", self.target[FIELD_DESCRIPTION]
+        self.println(COLOR_BLUE + "Building " + self.target[FIELD_DESCRIPTION] + COLOR_RESET)
         print "\t@mkdir -p", self._toVar("OUT_DIR")
         # check if the current target is for BIN_DYNAMIC or BIN_EXECUTABLE
         print "\t$(NASM)", \
@@ -296,7 +307,7 @@ class CustomMakefileTarget(MakefileTarget):
     # Generate the NASM Makefile target
     #
     def generateTarget(self):
-        # welcome message
+        # target header
         print "\n#\n#", self.target[FIELD_DESCRIPTION], "\n#"
 
         # output directory and file
@@ -314,8 +325,7 @@ class CustomMakefileTarget(MakefileTarget):
                 depends += entry + " "
         # target to compile the binary file
         print mainTarget, ":", depends
-        print "\t@echo"
-        print "\t@echo Building", self.target[FIELD_DESCRIPTION]
+        self.println(COLOR_BLUE + "Building " + self.target[FIELD_DESCRIPTION] + COLOR_RESET)
         print "\t@mkdir -p", self._toVar("OUT_DIR")
         # include the cursom commands
         for command in self.target[FIELD_COMMANDS]:
@@ -395,7 +405,7 @@ class MakefileGenerator:
 #
 
 generator = MakefileGenerator()
-generator.addVariable("CFLAGS", "-O0 -m32 -mtune=i686")
+generator.addVariable("override CFLAGS", "$(CFLAGS) -Wall -Werror=overflow -Werror-implicit-function-declaration -O0 -m32 -mtune=i686")
 generator.addVariable("LDFLAGS", "-m32 -mtune=i686")
 generator.addVariable("NASM", "build/tools/nasm")
 generator.addVariable("TARGET_MACHINE", "x86")
@@ -489,7 +499,7 @@ target[FIELD_DESCRIPTION] = "Machina Kernel for x86"
 target[FIELD_PREFFIX] = "KERNEL32"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-g -O0 -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel"
-target[FIELD_LDFLAGS] = "-nostdlib -Wl,-T,src/sys/arch/x86/kernel/kernel.lds"
+target[FIELD_LDFLAGS] = "-nostdlib -Wl,-T,src/arch/x86/sys/kernel/kernel.lds"
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/kernel"
 target[FIELD_OUTPUT_FILE] = "kernel32.elf"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel"
@@ -505,7 +515,7 @@ target[FIELD_SOURCES] = \
     "sys/kernel/fpu.c", \
     "sys/kernel/hndl.c", \
     "sys/kernel/iomux.c", \
-    #"sys/kernel/iop.c", \
+    "sys/kernel/rmap.c", \
     "sys/kernel/iovec.c", \
     "sys/kernel/kmalloc.c", \
     "sys/kernel/kmem.c", \
@@ -520,10 +530,11 @@ target[FIELD_SOURCES] = \
     "sys/kernel/pnpbios.c", \
     "sys/kernel/queue.c", \
     "sys/kernel/sched.c", \
-    "sys/arch/x86/kernel/sched.c", \
-    "sys/arch/x86/kernel/sched.s", \
-    "sys/arch/x86/kernel/mach.c", \
-    "sys/arch/x86/kernel/mach.s", \
+    "arch/x86/sys/kernel/trap.c", \
+    "arch/x86/sys/kernel/trap.s", \
+    "arch/x86/sys/kernel/sched.c", \
+    "arch/x86/sys/kernel/sched.s", \
+    "arch/x86/sys/kernel/mach.s", \
     "sys/kernel/start.c", \
     "sys/kernel/syscall.c", \
     "sys/kernel/timer.c", \
@@ -590,7 +601,6 @@ target[FIELD_SOURCES] = \
     "lib/libc/inifile.c", \
     "lib/libc/moddb.c", \
     "lib/libc/opts.c", \
-    "lib/libc/rmap.c", \
     "lib/libc/string.c", \
     "lib/libc/strtol.c", \
     "lib/libc/tcccrt.c", \
@@ -621,7 +631,7 @@ target[FIELD_PREFFIX] = "LIBKERNEL"
 target[FIELD_TYPE] = BIN_DYNAMIC
 target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
 target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x7FF00000 -nostdlib"
-target[FIELD_DEPENDENCIES] = ["build/tools/nasm"]
+target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "kernel32.so"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel32"
@@ -667,7 +677,7 @@ target[FIELD_PREFFIX] = "LIBC"
 target[FIELD_TYPE] = BIN_STATIC
 target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
 target[FIELD_LDFLAGS] = "-nostdlib"
-target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as", "build/tools/ar"]
+target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)", "build/tools/ar"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/usr/lib"
 target[FIELD_OUTPUT_FILE] = "libc.a"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/libc"
@@ -761,12 +771,12 @@ target[FIELD_DESCRIPTION] = "Machina Stage 1 Bootloader"
 target[FIELD_PREFFIX] = "DISKBOOT"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_NFLAGS] = "-f bin"
-target[FIELD_DEPENDENCIES] = ["nasm"]
+target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "diskboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
-target[FIELD_SOURCES] = ["sys/arch/x86/boot/boot.asm"]
+target[FIELD_SOURCES] = ["arch/x86/boot/boot.asm"]
 generator.addTarget(target);
 #
 # Machina CD-ROM Stage 1 Bootloader
@@ -777,12 +787,12 @@ target[FIELD_DESCRIPTION] = "Machina CD-ROM Stage 1 Bootloader"
 target[FIELD_PREFFIX] = "CDEMBOOT"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_NFLAGS] = "-f bin"
-target[FIELD_DEPENDENCIES] = ["nasm"]
+target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "cdemboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
-target[FIELD_SOURCES] = ["sys/arch/x86/boot/cdemboot.asm"]
+target[FIELD_SOURCES] = ["arch/x86/boot/cdemboot.asm"]
 generator.addTarget(target);
 #
 # Machina PXE Stage 1 Bootloader
@@ -793,12 +803,12 @@ target[FIELD_DESCRIPTION] = "Machina PXE Stage 1 Bootloader"
 target[FIELD_PREFFIX] = "NETBOOT"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_NFLAGS] = "-f bin"
-target[FIELD_DEPENDENCIES] = ["nasm"]
+target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "netboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
-target[FIELD_SOURCES] = ["sys/arch/x86/boot/netboot.asm"]
+target[FIELD_SOURCES] = ["arch/x86/boot/netboot.asm"]
 generator.addTarget(target);
 #
 # Machina OS Loader Stub
@@ -809,13 +819,13 @@ target[FIELD_DESCRIPTION] = "Machina OS Loader Stub"
 target[FIELD_PREFFIX] = "OSLDRS"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_NFLAGS] = "-f bin"
-target[FIELD_DEPENDENCIES] = ["nasm"]
+target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_OUTPUT_FILE] = "osloader-stub.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
-    ["sys/arch/x86/osloader/stub.asm" ]
+    ["arch/x86/sys/osloader/stub.asm" ]
 generator.addTarget(target);
 #
 # Machina OS Loader Main
@@ -826,19 +836,19 @@ target[FIELD_DESCRIPTION] = "Machina OS Loader Main"
 target[FIELD_PREFFIX] = "OSLDRM"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-D OSLDR -D KERNEL -I src/include -masm=intel -nostdlib"
-target[FIELD_LDFLAGS] = "-Wl,-e,start -Wl,-T,src/sys/arch/x86/osloader/osloader.lds -nostdlib" #-Wl,-Ttext,0x90800"
-target[FIELD_DEPENDENCIES] = ["nasm", "osloader-stub"]
+target[FIELD_LDFLAGS] = "-Wl,-e,start -Wl,-T,src/arch/x86/sys/osloader/osloader.lds -nostdlib" #-Wl,-Ttext,0x90800"
+target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)", "$(OSLDRS_OUT_FILE)"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_OUTPUT_FILE] = "osloader-main.elf"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
-    ["sys/arch/x86/osloader/osloader.c", \
-    "sys/arch/x86/osloader/kernel.c", \
-    "sys/arch/x86/osloader/unzip.c", \
+    ["arch/x86/sys/osloader/osloader.c", \
+    "arch/x86/sys/osloader/kernel.c", \
+    "arch/x86/sys/osloader/unzip.c", \
     "lib/libc/vsprintf.c", \
     "lib/libc/string.c", \
-    "sys/arch/x86/osloader/bioscall.asm" ]
+    "arch/x86/sys/osloader/bioscall.asm" ]
 generator.addTarget(target);
 #
 # Machina OS Loader
@@ -847,7 +857,7 @@ target = {}
 target[FIELD_NAME] = "osloader"
 target[FIELD_DESCRIPTION] = "Machina OS Loader"
 target[FIELD_PREFFIX] = "OSLDR"
-target[FIELD_DEPENDENCIES] = ["nasm", "osloader-stub", "osloader-main"]
+target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)", "$(OSLDRM_OUT_FILE)"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "osloader.bin"
 target[FIELD_COMMANDS] = [
@@ -863,12 +873,11 @@ target = {}
 target[FIELD_NAME] = "iso"
 target[FIELD_DESCRIPTION] = "Machina CD image"
 target[FIELD_PREFFIX] = "ISO"
-target[FIELD_DEPENDENCIES] = ["cdemboot", "osloader", "kernel-image"]
+target[FIELD_DEPENDENCIES] = ["$(CDEMBOOT_OUT_FILE)", "$(OSLDR_OUT_FILE)", "$(MKDFS_OUT_FILE)", "kernel-image"]
 target[FIELD_OUTPUT_DIRECTORY] = "build"
 target[FIELD_OUTPUT_FILE] = "machina.iso"
 target[FIELD_COMMANDS] = [
     "build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE)" \
-#   " -k ../sanos/linux/install/boot/krnl.dll -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
     " -k $(KRNLIMG32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
     "genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install" ]
 generator.addTarget(target);

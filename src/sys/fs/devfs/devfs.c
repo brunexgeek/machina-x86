@@ -32,6 +32,9 @@
 //
 
 #include <os/krnl.h>
+#include <os/dev.h>
+#include <os/buf.h>
+#include <os/devfs.h>
 
 #define DEVROOT ((struct devfile *) NODEV)
 
@@ -110,9 +113,11 @@ struct fsops devfsops = {
   devfs_readdir
 };
 
-void init_devfs() {
-  register_filesystem("devfs", &devfsops);
-  mounttime = get_time();
+
+void init_devfs()
+{
+    register_filesystem("devfs", &devfsops);
+    mounttime = kpit_get_time();
 }
 
 int devfs_open(struct file *filp, char *name) {
@@ -315,7 +320,7 @@ int devfs_stat(struct fs *fs, char *name, struct stat64 *buffer) {
 }
 
 int devfs_access(struct fs *fs, char *name, int mode) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   dev_t devno;
   struct dev *dev;
   int rc = 0;
@@ -340,7 +345,7 @@ int devfs_access(struct fs *fs, char *name, int mode) {
 }
 
 int devfs_fchmod(struct file *filp, int mode) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   struct devfile *df = (struct devfile *) filp->data;
   struct dev *dev;
 
@@ -355,7 +360,7 @@ int devfs_fchmod(struct file *filp, int mode) {
 }
 
 int devfs_chmod(struct fs *fs, char *name, int mode) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   dev_t devno;
   struct dev *dev;
   int rc = 0;
@@ -377,7 +382,7 @@ int devfs_chmod(struct fs *fs, char *name, int mode) {
 }
 
 int devfs_fchown(struct file *filp, int owner, int group) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   struct devfile *df = (struct devfile *) filp->data;
   struct dev *dev;
 
@@ -393,7 +398,7 @@ int devfs_fchown(struct file *filp, int owner, int group) {
 }
 
 int devfs_chown(struct fs *fs, char *name, int owner, int group) {
-  struct thread *thread = self();
+  struct thread *thread = kthread_self();
   dev_t devno;
   struct dev *dev;
   int rc = 0;

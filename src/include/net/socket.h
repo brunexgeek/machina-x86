@@ -34,6 +34,8 @@
 #ifndef SOCKETS_H
 #define SOCKETS_H
 
+#include <os/object.h>
+
 //
 // Socket types
 //

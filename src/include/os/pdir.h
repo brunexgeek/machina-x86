@@ -3,6 +3,7 @@
 //
 // Page directory routines
 //
+// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,13 +32,9 @@
 // SUCH DAMAGE.
 //
 
-#ifndef PDIR_H
-#define PDIR_H
+#ifndef MACHINA_PDIR_H
+#define MACHINA_PDIR_H
 
-
-#include <os/procfs.h>
-
-typedef unsigned long pte_t;
 
 #define PAGESIZE       4096
 #define PAGESHIFT      12
@@ -61,47 +58,92 @@ typedef unsigned long pte_t;
 #define PT_PFNMASK   0xFFFFF000
 #define PT_PFNSHIFT  12
 
+/**
+ * Return the page directory entry index for given virtual address.
+ *
+ * The page directory can reference up to 1024 page tables. We divide the memory
+ * in groups of 4MiB (each PT can map up to 1024 pages of 4KiB). This macro returns the
+ * entry of the PD that point to the PT which maps the 4 MiB block address space where
+ * the given address is whithin.
+ */
 #define PDEIDX(vaddr)  (((unsigned long) vaddr) >> 22)
+
+/**
+ * Return the page table entry index for given virtual address.
+ */
 #define PTEIDX(vaddr)  ((((unsigned long) vaddr) >> 12) & 0x3FF)
+
 #define PGOFF(vaddr)   (((unsigned long) vaddr) & 0xFFF)
 #define PTABIDX(vaddr) (((unsigned long) vaddr) >> 12)
 
+/**
+ * Returns number of pages it's necessary to store the given amount of bytes.
+ */
 #define PAGES(x) (((unsigned long)(x) + (PAGESIZE - 1)) >> PAGESHIFT)
+
+/**
+ * Returns page address which the given address is within.
+ */
 #define PAGEADDR(x) ((unsigned long)(x) & ~(PAGESIZE - 1))
 
+/**
+ * Convert physical address to page index of the page frame database.
+ */
 #define PTOB(x) ((unsigned long)(x) << PAGESHIFT)
+
+/**
+ * Convert page index of the page frame database to physical address.
+ */
 #define BTOP(x) ((unsigned long)(x) >> PAGESHIFT)
 
-#define SET_PDE(vaddr, val) set_page_dir_entry(&pdir[PDEIDX(vaddr)], (val))
-#define SET_PTE(vaddr, val) set_page_table_entry(&ptab[PTABIDX(vaddr)], (val))
+#define SET_PDE(vaddr, val) kmach_set_page_dir_entry(&pdir[PDEIDX(vaddr)], (val))
+#define SET_PTE(vaddr, val) kmach_set_page_table_entry(&ptab[PTABIDX(vaddr)], (val))
+
+/**
+ * Returns the page directory entry for the given virtal address.
+ */
 #define GET_PDE(vaddr) (pdir[PDEIDX(vaddr)])
+
+/**
+ * Returns the page table entry for the given virtal address.
+ */
 #define GET_PTE(vaddr) (ptab[PTABIDX(vaddr)])
 
-struct pdirstat {
-  int present;
-  int user;
-  int kernel;
-  int readonly;
-  int readwrite;
-  int accessed;
-  int dirty;
+
+#ifndef __ASSEMBLER__
+
+typedef unsigned long pte_t;
+
+struct pdirstat
+{
+    int present;
+    int user;
+    int kernel;
+    int readonly;
+    int readwrite;
+    int accessed;
+    int dirty;
 };
+
+#include <os/krnl.h>
+#include <sys/types.h>
+#include <os/procfs.h>
 
 #ifdef KERNEL
 
 extern pte_t *pdir;
 extern pte_t *ptab;
 
-KERNELAPI void map_page(void *vaddr, unsigned long pfn, unsigned long flags);
-KERNELAPI void unmap_page(void *vaddr);
+KERNELAPI void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags);
+KERNELAPI void kpage_unmap(void *vaddr);
 KERNELAPI unsigned long virt2phys(void *vaddr);
 KERNELAPI unsigned long virt2pfn(void *vaddr);
-KERNELAPI pte_t get_page_flags(void *vaddr);
-KERNELAPI void set_page_flags(void *vaddr, unsigned long flags);
-KERNELAPI int page_mapped(void *vaddr);
-KERNELAPI int page_directory_mapped(void *vaddr);
-KERNELAPI void unguard_page(void *vaddr);
-KERNELAPI void clear_dirty(void *vaddr);
+KERNELAPI pte_t kpage_get_flags(void *vaddr);
+KERNELAPI void kpage_set_flags(void *vaddr, unsigned long flags);
+KERNELAPI int kpage_is_mapped(void *vaddr);
+KERNELAPI int kpage_is_directory_mapped(void *vaddr);
+KERNELAPI void kpage_unguard(void *vaddr);
+KERNELAPI void kpage_clear_dirty(void *vaddr);
 
 KERNELAPI int mem_access(void *vaddr, int size, pte_t access);
 KERNELAPI int str_access(char *s, pte_t access);
@@ -111,6 +153,6 @@ int pdir_proc(struct proc_file *pf, void *arg);
 int virtmem_proc(struct proc_file *pf, void *arg);
 int pdir_stat(void *addr, int len, struct pdirstat *buf);
 
-#endif
-
-#endif
+#endif  // KERNEL
+#endif  // __ASSEMBLER__
+#endif  // MACHINA_PDIR_H

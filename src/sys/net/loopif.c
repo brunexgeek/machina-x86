@@ -33,6 +33,7 @@
 //
 
 #include <net/net.h>
+#include <os/queue.h>
 
 struct netif *loopback_netif;
 struct queue *loopback_queue;

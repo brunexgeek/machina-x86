@@ -32,10 +32,13 @@
 //
 
 #include <os.h>
+#include <io.h>
+#include <net/socket.h>
 #include <os/pe.h>
 #include <string.h>
 #include <stdarg.h>
 #include <inifile.h>
+#include <malloc.h>
 
 #include <moddb.h>
 

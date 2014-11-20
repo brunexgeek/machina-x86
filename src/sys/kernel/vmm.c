@@ -3,7 +3,9 @@
 //
 // Virtual memory manager
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro
+// Copyright (C) 2002 Michael Ringgaard
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -32,18 +34,30 @@
 //
 
 #include <os/krnl.h>
+#include <os/vmm.h>
+#include <os/kmalloc.h>
+#include <os/rmap.h>
+#include <os/pdir.h>
+#include <os/pframe.h>
+#include <os/kmem.h>
+
 
 #define VMAP_ENTRIES 1024
 #define VMEM_START (64 * 1024)
 
-struct rmap *vmap;
+struct rmap_t *vmap;
+
+extern struct page_frame_t *pfdb;  // from 'pframe.c'
+extern uint32_t freeCount;         // from 'pframe.c'
+extern uint32_t usableCount;       // from 'pframe.c'
+
 
 static int valid_range(void *addr, int size) {
   int pages = PAGES(size);
 
   if ((unsigned long) addr < VMEM_START) return 0;
   if (KERNELSPACE((unsigned long) addr + pages * PAGESIZE)) return 0;
-  if (rmap_status(vmap, BTOP(addr), pages) != 1) return 0;
+  if (krmap_status(vmap, BTOP(addr), pages) != 1) return 0;
   return 1;
 }
 
@@ -73,7 +87,7 @@ static unsigned long pte_flags_from_protect(int protect) {
 
   return 0xFFFFFFFF;
 }
-
+/*
 static int free_filemap(struct filemap *fm) {
   int rc;
 
@@ -81,15 +95,15 @@ static int free_filemap(struct filemap *fm) {
   rc = hfree(fm->file);
   if (rc < 0) return rc;
 
-  rmap_free(vmap, BTOP(fm->addr), PAGES(fm->size));
+  krmap_free(vmap, BTOP(fm->addr), PAGES(fm->size));
 
   hunprotect(fm->self);
   rc = hfree(fm->self);
   if (rc < 0) return rc;
 
   return 0;
-}
-
+}*/
+/*
 static int fetch_file_page(struct filemap *fm, void *addr) {
   struct file *filp;
   unsigned long pfn;
@@ -99,30 +113,31 @@ static int fetch_file_page(struct filemap *fm, void *addr) {
   filp = (struct file *) olock(fm->file, OBJECT_FILE);
   if (!filp) return -EBADF;
 
-  pfn = alloc_pageframe(0x464d4150  /* FMAP */);
+  pfn = kpframe_alloc(PFT_FMAP);
   if (pfn == 0xFFFFFFFF) {
     orel(filp);
     return -ENOMEM;
   }
 
-  map_page(addr, pfn, PT_WRITABLE | PT_PRESENT);
+  kpage_map(addr, pfn, PT_WRITABLE | PT_PRESENT);
 
   pos = (char *) addr - fm->addr;
   rc = pread(filp, addr, PAGESIZE, fm->offset + pos);
   if (rc < 0) {
     orel(filp);
-    unmap_page(addr);
-    free_pageframe(pfn);
+    kpage_unmap(addr);
+    kpframe_free(pfn);
     return rc;
   }
 
-  pfdb[pfn].owner = fm->self;
-  map_page(addr, pfn, fm->protect | PT_PRESENT);
+  // TODO: may have data lost (32bits -> 20bits)
+  pfdb[pfn].next = fm->self;
+  kpage_map(addr, pfn, fm->protect | PT_PRESENT);
 
   orel(filp);
   return 0;
-}
-
+}*/
+/*
 static int save_file_page(struct filemap *fm, void *addr) {
   struct file *filp;
   unsigned long pos;
@@ -138,84 +153,120 @@ static int save_file_page(struct filemap *fm, void *addr) {
     return rc;
   }
 
-  clear_dirty(addr);
+  kpage_clear_dirty(addr);
 
   orel(filp);
   return 0;
-}
+}*/
 
 void init_vmm() {
-  vmap = (struct rmap *) kmalloc(VMAP_ENTRIES * sizeof(struct rmap));
-  rmap_init(vmap, VMAP_ENTRIES);
-  rmap_free(vmap, BTOP(VMEM_START), BTOP(OSBASE - VMEM_START));
+  vmap = (struct rmap_t *) kmalloc(VMAP_ENTRIES * sizeof(struct rmap_t));
+  krmap_init(vmap, VMAP_ENTRIES);
+  krmap_free(vmap, BTOP(VMEM_START), BTOP(OSBASE - VMEM_START));
 }
 
-void *vmalloc(void *addr, unsigned long size, int type, int protect, unsigned long tag, int *rc) {
-  int pages = PAGES(size);
-  unsigned long flags = pte_flags_from_protect(protect);
-  int i;
+/**
+ * Allocate memory using the given virtual address as a hint.
+ *
+ * @return Pointer to the allocated memory region. This address can be different than
+ *     that given to the function by caller.
+ */
+void *vmalloc(
+    void *address,
+    unsigned long size,
+    int type,
+    int protect,
+    uint8_t tag,
+    int *result)
+{
+    int pages = PAGES(size);
+    unsigned long flags = pte_flags_from_protect(protect);
+    int i;
 
-  if (rc) *rc = 0;
-  if (size == 0) {
-    if (rc) *rc = -EINVAL;
-    return NULL;
-  }
-  if ((type & MEM_COMMIT) != 0 && flags == 0xFFFFFFFF) {
-    if (rc) *rc = -EINVAL;
-    return NULL;
-  }
-  addr = (void *) PAGEADDR(addr);
-  if (!addr && (type & MEM_COMMIT) != 0) type |= MEM_RESERVE;
-  if (!tag) tag = 0x0000564d /* VM */;
-
-  if (type & MEM_RESERVE) {
-    if (addr == NULL) {
-      if (type & MEM_ALIGN64K) {
-        addr = (void *) PTOB(rmap_alloc_align(vmap, pages, 64 * 1024 / PAGESIZE));
-      } else {
-        addr = (void *) PTOB(rmap_alloc(vmap, pages));
-      }
-
-      if (addr == NULL) {
-        if (rc) *rc = -ENOMEM;
+    if (result) *result = 0;
+    if (size == 0)
+    {
+        if (result) *result = -EINVAL;
         return NULL;
-      }
-    } else {
-      if (rmap_reserve(vmap, BTOP(addr), pages)) {
-        if (rc) *rc = -ENOMEM;
+    }
+    if ((type & MEM_COMMIT) != 0 && flags == 0xFFFFFFFF)
+    {
+        if (result) *result = -EINVAL;
         return NULL;
-      }
     }
-  } else {
-    if (!valid_range(addr, size)) {
-      if (rc) *rc = -EFAULT;
-      return NULL;
-    }
-  }
+    // get the page address which the address is within
+    address = (void *) PAGEADDR(address);
+    if (!address && (type & MEM_COMMIT) != 0) type |= MEM_RESERVE;
+    if (!tag) tag = PFT_VM;
 
-  if (type & MEM_COMMIT) {
-    char *vaddr;
-    unsigned long pfn;
+    if (type & MEM_RESERVE)
+    {
+        if (address == NULL)
+        {
+            if (type & MEM_ALIGN64K)
+            {
+                address = (void *) PTOB(krmap_alloc_align(vmap, pages, 64 * 1024 / PAGESIZE));
+            }
+            else
+            {
+                address = (void *) PTOB(krmap_alloc(vmap, pages));
+            }
 
-    vaddr = (char *) addr;
-    for (i = 0; i < pages; i++) {
-      if (page_mapped(vaddr)) {
-        set_page_flags(vaddr, flags | PT_PRESENT);
-      } else {
-        pfn = alloc_pageframe(tag);
-        if (pfn == 0xFFFFFFFF) {
-          if (rc) *rc = -ENOMEM;
-          return NULL;
+            if (address == NULL)
+            {
+                if (result) *result = -ENOMEM;
+                return NULL;
+            }
         }
-
-        map_page(vaddr, pfn, flags | PT_PRESENT);
-        memset(vaddr, 0, PAGESIZE);
-      }
-      vaddr += PAGESIZE;
+        else
+        {
+            if (krmap_reserve(vmap, BTOP(address), pages))
+            {
+                if (result) *result = -ENOMEM;
+                return NULL;
+            }
+        }
     }
-  }
+    else
+    {
+        if (!valid_range(address, size))
+        {
+            if (result) *result = -EFAULT;
+            return NULL;
+        }
+    }
 
-  return addr;
+    if (type & MEM_COMMIT)
+    {
+        char *vaddr;
+        unsigned long pfn;
+
+        vaddr = (char *) address;
+        for (i = 0; i < pages; i++)
+        {
+            // check if the virtual address it's already mapped
+            if (kpage_is_mapped(vaddr))
+            {
+                // mark the page as valid
+                kpage_set_flags(vaddr, flags | PT_PRESENT);
+            }
+            else
+            {
+                // allocate a new page and map it to the address
+                pfn = kpframe_alloc(tag);
+                if (pfn == 0xFFFFFFFF)
+                {
+                    if (result) *result = -ENOMEM;
+                    return NULL;
+                }
+                kpage_map(vaddr, pfn, flags | PT_PRESENT);
+                memset(vaddr, 0, PAGESIZE);
+            }
+            vaddr += PAGESIZE;
+        }
+    }
+
+    return address;
 }
 
 void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off64_t offset, int *rc) {
@@ -232,13 +283,13 @@ void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off6
   }
   addr = (void *) PAGEADDR(addr);
   if (addr == NULL) {
-    addr = (void *) PTOB(rmap_alloc(vmap, pages));
+    addr = (void *) PTOB(krmap_alloc(vmap, pages));
     if (addr == NULL) {
       if (rc) *rc = -ENOMEM;
       return NULL;
     }
   } else {
-    if (rmap_reserve(vmap, BTOP(addr), pages)) {
+    if (krmap_reserve(vmap, BTOP(addr), pages)) {
       if (rc) *rc = -ENOMEM;
       return NULL;
     }
@@ -246,7 +297,7 @@ void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off6
 
   fm = (struct filemap *) kmalloc(sizeof(struct filemap));
   if (!fm) {
-    rmap_free(vmap, BTOP(addr), pages);
+    krmap_free(vmap, BTOP(addr), pages);
     if (rc) *rc = -ENOMEM;
     return NULL;
   }
@@ -269,7 +320,7 @@ void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off6
   vaddr = (char *) addr;
   flags = (flags & ~PT_USER) | PT_FILE;
   for (i = 0; i < pages; i++) {
-    map_page(vaddr, fm->self, flags);
+    kpage_map(vaddr, fm->self, flags);
     vaddr += PAGESIZE;
   }
 
@@ -282,17 +333,18 @@ int vmsync(void *addr, unsigned long size) {
   int i, rc;
   char *vaddr;
 
-  if (size == 0) return 0;
+  /*if (size == 0) return 0;
   addr = (void *) PAGEADDR(addr);
   if (!valid_range(addr, size)) return -EINVAL;
 
   vaddr = (char *) addr;
   for (i = 0; i < pages; i++) {
-    if (page_directory_mapped(vaddr)) {
-      pte_t flags = get_page_flags(vaddr);
-      if ((flags & (PT_FILE | PT_PRESENT | PT_DIRTY)) == (PT_FILE | PT_PRESENT | PT_DIRTY)) {
+    if (kpage_is_directory_mapped(vaddr)) {
+      pte_t flags = kpage_get_flags(vaddr);
+      /*if ((flags & (PT_FILE | PT_PRESENT | PT_DIRTY)) == (PT_FILE | PT_PRESENT | PT_DIRTY)) {
         unsigned long pfn = BTOP(virt2phys(vaddr));
-        struct filemap *newfm = (struct filemap *) hlookup(pfdb[pfn].owner);
+        // TODO: may have data lost (20bits -> 32bits)
+        struct filemap *newfm = (struct filemap *) hlookup(pfdb[pfn].next);
         if (newfm != fm) {
           if (fm) {
             rc = unlock_filemap(fm);
@@ -314,7 +366,7 @@ int vmsync(void *addr, unsigned long size) {
   if (fm) {
     rc = unlock_filemap(fm);
     if (rc < 0) return rc;
-  }
+  }*/
 
   return 0;
 }
@@ -332,12 +384,13 @@ int vmfree(void *addr, unsigned long size, int type) {
   if (type & (MEM_DECOMMIT | MEM_RELEASE)) {
     vaddr = (char *) addr;
     for (i = 0; i < pages; i++) {
-      if (page_directory_mapped(vaddr)) {
-        pte_t flags = get_page_flags(vaddr);
+      if (kpage_is_directory_mapped(vaddr)) {
+        pte_t flags = kpage_get_flags(vaddr);
         unsigned long pfn = BTOP(virt2phys(vaddr));
 
-        if (flags & PT_FILE) {
-          handle_t h = (flags & PT_PRESENT) ? pfdb[pfn].owner : pfn;
+        /*if (flags & PT_FILE) {
+          // TODO: may have data lost (20bits -> 32bits)
+          handle_t h = (flags & PT_PRESENT) ? pfdb[pfn].next : pfn;
           struct filemap *newfm = (struct filemap *) hlookup(h);
           if (newfm != fm) {
             if (fm) {
@@ -353,11 +406,11 @@ int vmfree(void *addr, unsigned long size, int type) {
             if (rc < 0) return rc;
           }
           fm->pages--;
-          unmap_page(vaddr);
-          if (flags & PT_PRESENT) free_pageframe(pfn);
-        } else  if (flags & PT_PRESENT) {
-          unmap_page(vaddr);
-          free_pageframe(pfn);
+          kpage_unmap(vaddr);
+          if (flags & PT_PRESENT) kpframe_free(pfn);
+        } else */ if (flags & PT_PRESENT) {
+          kpage_unmap(vaddr);
+          kpframe_free(pfn);
         }
       }
 
@@ -365,15 +418,15 @@ int vmfree(void *addr, unsigned long size, int type) {
     }
   }
 
-  if (fm) {
+  /*if (fm) {
     if (fm->pages == 0) {
       rc = free_filemap(fm);
     } else {
       rc = unlock_filemap(fm);
     }
     if (rc < 0) return rc;
-  } else if (type & MEM_RELEASE) {
-    rmap_free(vmap, BTOP(addr), pages);
+  } else*/ if (type & MEM_RELEASE) {
+    krmap_free(vmap, BTOP(addr), pages);
   }
 
   return 0;
@@ -397,8 +450,8 @@ int vmprotect(void *addr, unsigned long size, int protect) {
 
   vaddr = (char *) addr;
   for (i = 0; i < pages; i++) {
-    if (page_mapped(vaddr)) {
-      set_page_flags(vaddr, (get_page_flags(vaddr) & ~PT_PROTECTMASK) | flags);
+    if (kpage_is_mapped(vaddr)) {
+      kpage_set_flags(vaddr, (kpage_get_flags(vaddr) & ~PT_PROTECTMASK) | flags);
     }
     vaddr += PAGESIZE;
   }
@@ -420,11 +473,11 @@ void *miomap(unsigned long addr, int size, int protect) {
   unsigned long flags = pte_flags_from_protect(protect);
   int pages = PAGES(size);
 
-  vaddr = (char *) PTOB(rmap_alloc(vmap, pages));
+  vaddr = (char *) PTOB(krmap_alloc(vmap, pages));
   if (vaddr == NULL) return NULL;
 
   for (i = 0; i < pages; i++) {
-    map_page(vaddr + PTOB(i), BTOP(addr) + i, flags | PT_PRESENT);
+    kpage_map(vaddr + PTOB(i), BTOP(addr) + i, flags | PT_PRESENT);
   }
 
   return vaddr;
@@ -434,29 +487,29 @@ void miounmap(void *addr, int size) {
   int i;
   int pages = PAGES(size);
 
-  for (i = 0; i < pages; i++) unmap_page((char *) addr + PTOB(i));
-  rmap_free(vmap, BTOP(addr), pages);
+  for (i = 0; i < pages; i++) kpage_unmap((char *) addr + PTOB(i));
+  krmap_free(vmap, BTOP(addr), pages);
 }
 
 int guard_page_handler(void *addr) {
   unsigned long pfn;
-  struct thread *t = self();
+  struct thread *t = kthread_self();
 
   if (!t->tib) return -EFAULT;
 
   if (addr < t->tib->stacklimit || addr >= t->tib->stacktop) return -EFAULT;
   if (t->tib->stacklimit <= t->tib->stackbase) return -EFAULT;
 
-  pfn = alloc_pageframe(0x0053544b /* STK */);
+  pfn = kpframe_alloc(PFT_STACK);
   if (pfn == 0xFFFFFFFF) return -ENOMEM;
 
   t->tib->stacklimit = (char *) t->tib->stacklimit - PAGESIZE;
-  map_page(t->tib->stacklimit, pfn, PT_GUARD | PT_WRITABLE | PT_PRESENT);
+  kpage_map(t->tib->stacklimit, pfn, PT_GUARD | PT_WRITABLE | PT_PRESENT);
   memset(t->tib->stacklimit, 0, PAGESIZE);
 
   return 0;
 }
-
+/*
 int fetch_page(void *addr) {
   struct filemap *fm;
   int rc;
@@ -470,7 +523,7 @@ int fetch_page(void *addr) {
     return rc;
   }
 
-  if (!page_mapped(addr)) {
+  if (!kpage_is_mapped(addr)) {
     rc = fetch_file_page(fm, addr);
     if (rc < 0) {
       unlock_filemap(fm);
@@ -484,25 +537,27 @@ int fetch_page(void *addr) {
 
   orel(fm);
   return 0;
-}
+}*/
 
 int vmem_proc(struct proc_file *pf, void *arg) {
   return list_memmap(pf, vmap, BTOP(VMEM_START));
 }
 
-int mem_sysinfo(struct meminfo *info) {
-  struct rmap *r;
-  struct rmap *rlim;
-  unsigned int free = 0;
+int mem_sysinfo(struct meminfo *info)
+{
+    struct rmap *r;
+    struct rmap *rlim;
+    unsigned int free = 0;
 
-  rlim = &vmap[vmap->offset];
-  for (r = &vmap[1]; r <= rlim; r++) free += r->size;
+    // FIXME
+    //rlim = &vmap[vmap->offset];
+    //for (r = &vmap[1]; r <= rlim; r++) free += r->size;
 
-  info->physmem_total = totalmem * PAGESIZE;
-  info->physmem_avail = freemem * PAGESIZE;
-  info->virtmem_total = OSBASE - VMEM_START;
-  info->virtmem_avail = free * PAGESIZE;
-  info->pagesize = PAGESIZE;
+    info->physmem_total = usableCount * PAGESIZE;
+    info->physmem_avail = freeCount * PAGESIZE;
+    info->virtmem_total = OSBASE - VMEM_START;
+    info->virtmem_avail = free * PAGESIZE;
+    info->pagesize = PAGESIZE;
 
-  return 0;
+    return 0;
 }

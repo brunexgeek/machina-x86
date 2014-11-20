@@ -37,6 +37,7 @@
 //
 
 #include <net/net.h>
+#include <os/kmalloc.h>
 
 unsigned long tcp_ticks;
 unsigned long iss;
@@ -470,7 +471,7 @@ void tcp_slowtmr(void *arg) {
 
 void tcp_slow_handler(void *arg) {
   queue_task(&sys_task_queue, &tcp_slow_task, tcp_slowtmr, NULL);
-  ktimer_modify(&tcpslow_timer, ticks + TCP_SLOW_INTERVAL / MSECS_PER_TICK);
+  ktimer_modify(&tcpslow_timer, global_ticks + TCP_SLOW_INTERVAL / MSECS_PER_TICK);
 }
 
 //
@@ -501,7 +502,7 @@ void tcp_fasttmr(void *arg) {
 
 void tcp_fast_handler(void *arg) {
   queue_task(&sys_task_queue, &tcp_fast_task, tcp_fasttmr, NULL);
-  ktimer_modify(&tcpfast_timer, ticks + TCP_FAST_INTERVAL / MSECS_PER_TICK);
+  ktimer_modify(&tcpfast_timer, global_ticks + TCP_FAST_INTERVAL / MSECS_PER_TICK);
 }
 
 //
@@ -607,15 +608,15 @@ struct tcp_pcb *tcp_new() {
 
 void tcp_init() {
   // Initialize timer
-  iss = time(0) + 6510;
-  tcp_next_port = (unsigned short) (4096 + (time(0) % 1024));
+  iss = kpit_get_time() + 6510;
+  tcp_next_port = (unsigned short) (4096 + (kpit_get_time() % 1024));
   tcp_ticks = 0;
   init_task(&tcp_slow_task);
   init_task(&tcp_fast_task);
   ktimer_init(&tcpslow_timer, tcp_slow_handler, NULL);
   ktimer_init(&tcpfast_timer, tcp_fast_handler, NULL);
-  ktimer_modify(&tcpslow_timer, ticks + TCP_SLOW_INTERVAL / MSECS_PER_TICK);
-  ktimer_modify(&tcpfast_timer, ticks + TCP_FAST_INTERVAL / MSECS_PER_TICK);
+  ktimer_modify(&tcpslow_timer, global_ticks + TCP_SLOW_INTERVAL / MSECS_PER_TICK);
+  ktimer_modify(&tcpfast_timer, global_ticks + TCP_FAST_INTERVAL / MSECS_PER_TICK);
   register_proc_inode("tcpstat", tcpstat_proc, NULL);
 }
 

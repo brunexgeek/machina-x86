@@ -220,13 +220,8 @@ int list_memmap(struct proc_file *pf, struct rmap_t *rmap, unsigned int startpos
     unsigned int total = 0;
     struct pdirstat stat;
 
-    #if (0)
     pprintf(pf, "   start      end      size committed  readonly    status\n");
     pprintf(pf, "-------- -------- --------- --------- --------- ---------\n");
-    #else
-    kprintf( "   start      end      size committed  readonly    status\n");
-    kprintf("-------- -------- --------- --------- --------- ---------\n");
-    #endif
 
     current = rmap + 1;
     while (current != rmap)
@@ -234,17 +229,13 @@ int list_memmap(struct proc_file *pf, struct rmap_t *rmap, unsigned int startpos
         //if (pos >= startpos)
         {
             pdir_stat((void *) (pos * PAGESIZE), current->size * PAGESIZE, &stat);
-            #if (0)
-                pprintf(pf, "%08X %08X %8dK %8dK %8dK      %s\n",
-            #else
-                kprintf( "%08X %08X %8dK %8dK %8dK      %s\n",
-            #endif
-                    pos * PAGESIZE,
-                    (pos + current->size) * PAGESIZE - 1,
-                    current->size * (PAGESIZE / 1024),
-                    stat.present * (PAGESIZE / 1024),
-                    stat.readonly * (PAGESIZE / 1024),
-                    (current->used) ? "used" : "free");
+            pprintf(pf, "%08X %08X %8dK %8dK %8dK      %s\n",
+                pos * PAGESIZE,
+                (pos + current->size) * PAGESIZE - 1,
+                current->size * (PAGESIZE / 1024),
+                stat.present * (PAGESIZE / 1024),
+                stat.readonly * (PAGESIZE / 1024),
+                (current->used) ? "used" : "free");
         }
         pos += current->size;
         current = rmap + current->next;

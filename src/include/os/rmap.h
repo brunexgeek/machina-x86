@@ -43,6 +43,9 @@
 
 void kprintf(const char *fmt, ...);
 
+
+//#define RMAP_DEBUG
+
 /**
  * Resource mapping entry.
  */

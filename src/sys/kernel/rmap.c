@@ -70,7 +70,7 @@ void panic( const char *msg )
 #endif
 
 
-#ifndef NDEBUG
+#ifdef RMAP_DEBUG
 static void dump( struct rmap_t *rmap )
 {
     struct rmap_t *r = rmap + 1;
@@ -164,8 +164,6 @@ static inline struct rmap_t *krmap_split(
 
     // check if we have enough pages too split
     if (current->size < offset + size) return NULL;
-    // check if we'll use all pages
-    //if (offset == 0 && current->size == size) return current;
 
     after = current->size - offset - size;
 
@@ -247,7 +245,6 @@ int krmap_alloc_align(struct rmap_t *rmap, unsigned int size, unsigned int align
         {
             // calculates the free space before the next aligned offset
             before = offset % align;//align - (offset % align) - 1;
-            //printf("%d - (%d mod %d) = %d\n", align, offset, align, before);
             // check if we have enough space in the curent chunk
             if (current->size > before && current->size - before >= size)
             {
@@ -266,7 +263,7 @@ int krmap_alloc_align(struct rmap_t *rmap, unsigned int size, unsigned int align
         return 0;
     }
 
-    #ifndef NDEBUG
+    #ifdef RMAP_DEBUG
     if (align > 1)
         kprintf("Allocating %d pages at 0x%08x [ .align=%d .before=%d  .after=%d ] \n", size, offset+before, align, before, after);
     else
@@ -278,7 +275,7 @@ int krmap_alloc_align(struct rmap_t *rmap, unsigned int size, unsigned int align
     // increments the total number of mapped pages (don't include gaps)
     RMAP_TOTAL(rmap) += size;
 
-    #ifndef NDEBUG
+    #ifdef RMAP_DEBUG
     dump(rmap);
     #endif
 
@@ -327,7 +324,7 @@ void krmap_free( struct rmap_t *rmap, uint32_t offset, uint32_t size )
         return;
     }
 
-    #ifndef NDEBUG
+    #ifdef RMAP_DEBUG
     kprintf("Removing %d pages from 0x%08x [ .before=%d  .after=%d ] \n", size, offset, before, after);
     #endif
 
@@ -336,7 +333,7 @@ void krmap_free( struct rmap_t *rmap, uint32_t offset, uint32_t size )
     // decrements the total number of mapped pages (don't include gaps)
     RMAP_TOTAL(rmap) -= size;
 
-    #ifndef NDEBUG
+    #ifdef RMAP_DEBUG
     dump(rmap);
     #endif
 
@@ -355,10 +352,6 @@ int krmap_reserve(struct rmap_t *rmap, uint32_t offset, uint32_t size)
     register struct rmap_t *current, *prev;
     register uint32_t pos;
     uint32_t before, after;
-
-    #ifndef NDEBUG
-    kprintf("Reserving\n");
-    #endif
 
     // find first entry that fits
     current = rmap + 1;
@@ -388,7 +381,7 @@ int krmap_reserve(struct rmap_t *rmap, uint32_t offset, uint32_t size)
         return 1;
     }
 
-    #ifndef NDEBUG
+    #ifdef RMAP_DEBUG
     kprintf("Reserving %d pages from 0x%08x [ .before=%d  .after=%d ] \n", size, offset, before, after);
     #endif
 
@@ -397,7 +390,7 @@ int krmap_reserve(struct rmap_t *rmap, uint32_t offset, uint32_t size)
     // increments the total number of mapped pages (don't include gaps)
     RMAP_TOTAL(rmap) += size;
 
-    #ifndef NDEBUG
+    #ifdef RMAP_DEBUG
     dump(rmap);
     #endif
 
@@ -435,7 +428,7 @@ int krmap_status(struct rmap_t *rmap, unsigned int offset, unsigned int size)
     // increments the total number of mapped pages (don't include gaps)
     RMAP_TOTAL(rmap) += size;
 
-    #ifndef NDEBUG
+    #ifdef RMAP_DEBUG
     dump(rmap);
     #endif
 

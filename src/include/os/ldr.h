@@ -35,9 +35,6 @@
 #define LDR_H
 
 
-#define PFT_UMOD              (*((const uint32_t*)("UMOD")))
-
-
 #include <os/krnl.h>
 #include <os/pe.h>
 #include <os/procfs.h>

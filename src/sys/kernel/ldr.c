@@ -244,5 +244,5 @@ void init_kernel_modules() {
   register_proc_inode("umods", umods_proc, NULL);
 
   krnlmod = kmods.modules;
-  set_pageframe_tag(krnlmod->hmod, get_image_header(krnlmod->hmod)->optional.size_of_image, PFT_KMOD);
+  kpframe_set_tag(krnlmod->hmod, get_image_header(krnlmod->hmod)->optional.size_of_image, PFT_KMOD);
 }

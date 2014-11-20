@@ -39,6 +39,7 @@
 #include <os/trap.h>
 #include <os/pic.h>
 
+// TODO: move machine dependent code for "arch" directory
 
 #define TMR_CTRL        0x43    // I/O for control
 #define TMR_CNT0        0x40    // I/O for counter 0

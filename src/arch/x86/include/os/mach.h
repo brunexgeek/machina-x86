@@ -60,6 +60,9 @@ static inline void kmach_halt()
 }
 
 
+int cpuid_is_supported() __asm__("___cpuid_is_supported");
+
+
 static inline void kmach_cpuid(unsigned long reg, unsigned long values[4])
 {
     __asm__

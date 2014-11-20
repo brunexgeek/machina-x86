@@ -31,29 +31,24 @@
 // SUCH DAMAGE.
 //
 
-#ifndef KMEM_H
-#define KMEM_H
-
-
-#define PFT_KMEM              (*((const uint32_t*)("KMEM")))
-#define PFT_KMOD              (*((const uint32_t*)("KMOD")))
-#define PFT_SYS               (*((const uint32_t*)("SYS ")))
+#ifndef MACHINA_OS_KMEM_H
+#define MACHINA_OS_KMEM_H
 
 
 #include <os/krnl.h>
 #include <os/pdir.h>
 #include <os/syspage.h>
 #include <os/pframe.h>
-#include <rmap.h>
+#include <os/rmap.h>
 
 
-extern struct rmap *osvmap;
-extern struct rmap *kmodmap;
+//extern struct rmap *osvmap;
+//extern struct rmap *kmodmap;
 
-KERNELAPI void *alloc_pages(int pages, unsigned long tag);
-KERNELAPI void *alloc_pages_align(int pages, int align, unsigned long tag);
-KERNELAPI void *alloc_pages_linear(int pages, unsigned long tag);
-KERNELAPI void free_pages(void *addr, int pages);
+KERNELAPI void *kmem_alloc(int pages, uint8_t tag);
+KERNELAPI void *kmem_alloc_align(int pages, int align, uint8_t tag);
+KERNELAPI void *kmem_alloc_linear(int pages, uint8_t tag);
+KERNELAPI void kmem_free(void *addr, int pages);
 
 KERNELAPI void *iomap(unsigned long addr, int size);
 KERNELAPI void iounmap(void *addr, int size);
@@ -61,10 +56,11 @@ KERNELAPI void iounmap(void *addr, int size);
 void *alloc_module_mem(int pages);
 void free_module_mem(void *addr, int pages);
 
-int list_memmap(struct proc_file *pf, struct rmap *rmap, unsigned int startpos);
+int list_memmap(struct proc_file *pf, struct rmap_t *rmap, unsigned int startpos);
 int kmem_proc(struct proc_file *pf, void *arg);
 int kmodmem_proc(struct proc_file *pf, void *arg);
 
 void init_kmem();
 
-#endif
+
+#endif  // MACHINA_OS_KMEM_H

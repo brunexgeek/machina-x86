@@ -3,7 +3,9 @@
 //
 // Kernel memory page allocator
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -34,135 +36,153 @@
 #include <os/kmem.h>
 
 #define OSVMAP_PAGES 1
-#define OSVMAP_ENTRIES (OSVMAP_PAGES * PAGESIZE / sizeof(struct rmap))
+#define OSVMAP_ENTRIES (OSVMAP_PAGES * PAGESIZE / sizeof(struct rmap_t))
 
 #define KMODMAP_PAGES 1
-#define KMODMAP_ENTRIES (KMODMAP_PAGES * PAGESIZE / sizeof(struct rmap))
+#define KMODMAP_ENTRIES (KMODMAP_PAGES * PAGESIZE / sizeof(struct rmap_t))
 
-struct rmap *osvmap = (struct rmap *) OSVMAP_ADDRESS;
-struct rmap *kmodmap = (struct rmap *) KMODMAP_ADDRESS;
+struct rmap_t *osvmap = (struct rmap_t *) OSVMAP_ADDRESS;
+struct rmap_t *kmodmap = (struct rmap_t *) KMODMAP_ADDRESS;
 
-void *alloc_pages(int pages, unsigned long tag) {
-  char *vaddr;
-  int i;
-  unsigned long pfn;
 
-  if (tag == 0) tag = PFT_KMEM;
-  vaddr = (char *) PTOB(rmap_alloc(osvmap, pages));
-  for (i = 0; i < pages; i++) {
-    pfn = alloc_pageframe(tag);
-    kpage_map(vaddr + PTOB(i), pfn, PT_WRITABLE | PT_PRESENT);
-  }
-
-  //kprintf("alloc kmem %dK @ %p (%d KB free)\n", pages * (PAGESIZE / K), vaddr, freemem * (PAGESIZE / K));
-  return vaddr;
-}
-
-void *alloc_pages_align(int pages, int align, unsigned long tag)
+void *kmem_alloc( int pages, uint8_t tag )
 {
-  char *vaddr;
-  int i;
-  unsigned long pfn;
+    char *vaddr;
+    int i;
+    uint32_t index;
 
-  if (tag == 0) tag = PFT_KMEM;
-  vaddr = (char *) PTOB(rmap_alloc_align(osvmap, pages, align));
-  for (i = 0; i < pages; i++) {
-    pfn = alloc_pageframe(tag);
-    kpage_map(vaddr + PTOB(i), pfn, PT_WRITABLE | PT_PRESENT);
-  }
+    if (tag == 0) tag = PFT_KMEM;
+    vaddr = (char *) PTOB(krmap_alloc(osvmap, pages));
+    for (i = 0; i < pages; i++)
+    {
+        index = kpframe_alloc(tag);
+        kpage_map(vaddr + PTOB(i), index, PT_WRITABLE | PT_PRESENT);
+    }
 
-  //kprintf("alloc kmem %dK @ %p (align %dK, %d KB free)\n", pages * (PAGESIZE / K), vaddr, align * (PAGESIZE / K), freemem * (PAGESIZE / K));
-  return vaddr;
+    //kprintf("alloc kmem %dK @ %p (%d KB free)\n", pages * (PAGESIZE / K), vaddr, freemem * (PAGESIZE / K));
+    return vaddr;
 }
 
-void *alloc_pages_linear(int pages, unsigned long tag)
+
+void *kmem_alloc_align(int pages, int align, uint8_t tag)
 {
-  char *vaddr;
-  int i;
-  unsigned long pfn;
+    char *vaddr;
+    int i;
+    uint32_t index;
 
-  if (tag == 0) tag = PFT_KMEM;
-  pfn = alloc_linear_pageframes(pages, tag);
-  if (pfn == 0xFFFFFFFF) return 0;
-  vaddr = (char *) PTOB(rmap_alloc(osvmap, pages));
-  for (i = 0; i < pages; i++) {
-    kpage_map(vaddr + PTOB(i), pfn, PT_WRITABLE | PT_PRESENT);
-    pfn++;
-  }
+    if (tag == 0) tag = PFT_KMEM;
+    vaddr = (char *) PTOB(krmap_alloc_align(osvmap, pages, align));
+    for (i = 0; i < pages; i++)
+    {
+        index = kpframe_alloc(tag);
+        kpage_map(vaddr + PTOB(i), index, PT_WRITABLE | PT_PRESENT);
+    }
 
-  //kprintf("alloc kmem linear %dK @ %p (%d KB free)\n", pages * (PAGESIZE / K), vaddr, freemem * (PAGESIZE / K));
-
-  return vaddr;
+    //kprintf("alloc kmem %dK @ %p (align %dK, %d KB free)\n", pages * (PAGESIZE / K), vaddr, align * (PAGESIZE / K), freemem * (PAGESIZE / K));
+    return vaddr;
 }
 
-void free_pages(void *addr, int pages)
+
+void *kmem_alloc_linear( int pages, uint8_t tag )
 {
-  int i;
-  unsigned long pfn;
+    char *vaddr;
+    int i;
+    uint32_t index;
 
-  //kprintf("free kmem %dK @ %p\n", pages * PAGESIZE / K, addr);
+    if (tag == 0) tag = PFT_KMEM;
+    index = kpframe_alloc_linear(pages, tag);
+    if (index == INVALID_PFRAME) return NULL;
+    vaddr = (char *) PTOB(krmap_alloc(osvmap, pages));
+    for (i = 0; i < pages; i++)
+    {
+        kpage_map(vaddr + PTOB(i), index, PT_WRITABLE | PT_PRESENT);
+        index++;
+    }
 
-  for (i = 0; i < pages; i++) {
-    pfn = BTOP(virt2phys((char *) addr + PTOB(i)));
-    free_pageframe(pfn);
-    kpage_unmap((char *) addr + PTOB(i));
-  }
+    //kprintf("alloc kmem linear %dK @ %p (%d KB free)\n", pages * (PAGESIZE / K), vaddr, freemem * (PAGESIZE / K));
 
-  rmap_free(osvmap, BTOP(addr), pages);
+    return vaddr;
 }
 
-void *iomap(unsigned long addr, int size) {
-  char *vaddr;
-  int i;
-  int pages = PAGES(size);
 
-  vaddr = (char *) PTOB(rmap_alloc(osvmap, pages));
-  for (i = 0; i < pages; i++) {
-    kpage_map(vaddr + PTOB(i), BTOP(addr) + i, PT_WRITABLE | PT_PRESENT);
-  }
+void kmem_free( void *addr, int pages )
+{
+    int i;
+    unsigned long pfn;
 
-  return vaddr;
+    //kprintf("free kmem %dK @ %p\n", pages * PAGESIZE / K, addr);
+
+    for (i = 0; i < pages; i++)
+    {
+        pfn = BTOP(virt2phys((char *) addr + PTOB(i)));
+        kpframe_free(pfn);
+        kpage_unmap((char *) addr + PTOB(i));
+    }
+
+    krmap_free(osvmap, BTOP(addr), pages);
 }
+
+
+void *iomap(unsigned long addr, int size)
+{
+    char *vaddr;
+    int i;
+    int pages = PAGES(size);
+
+    vaddr = (char *) PTOB(krmap_alloc(osvmap, pages));
+    for (i = 0; i < pages; i++)
+        kpage_map(vaddr + PTOB(i), BTOP(addr) + i, PT_WRITABLE | PT_PRESENT);
+
+    return vaddr;
+}
+
 
 void iounmap(void *addr, int size) {
   int i;
   int pages = PAGES(size);
 
   for (i = 0; i < pages; i++) kpage_unmap((char *) addr + PTOB(i));
-  rmap_free(osvmap, BTOP(addr), pages);
+  krmap_free(osvmap, BTOP(addr), pages);
 }
 
-void *alloc_module_mem(int pages) {
-  char *vaddr;
-  int i;
-  unsigned long pfn;
 
-  vaddr = (char *) PTOB(rmap_alloc(kmodmap, pages));
-  for (i = 0; i < pages; i++) {
-    pfn = alloc_pageframe(PFT_KMOD);
-    kpage_map(vaddr + PTOB(i), pfn, PT_WRITABLE | PT_PRESENT);
-    memset(vaddr + PTOB(i), 0, PAGESIZE);
-  }
+void *alloc_module_mem( int pages )
+{
+    char *vaddr;
+    int i;
+    unsigned long pfn;
 
-  //kprintf("alloc mod mem %dK @ %p\n", pages * PAGESIZE / K, vaddr);
+    vaddr = (char *) PTOB(krmap_alloc(kmodmap, pages));
+    for (i = 0; i < pages; i++)
+    {
+        pfn = kpframe_alloc(PFT_KMOD);
+        kpage_map(vaddr + PTOB(i), pfn, PT_WRITABLE | PT_PRESENT);
+        memset(vaddr + PTOB(i), 0, PAGESIZE);
+    }
 
-  return vaddr;
+    //kprintf("alloc mod mem %dK @ %p\n", pages * PAGESIZE / K, vaddr);
+
+    return vaddr;
 }
 
-void free_module_mem(void *addr, int pages) {
-  int i;
-  unsigned long pfn;
 
-  //kprintf("free mod mem %dK @ %p\n", pages * PAGESIZE / K, addr);
+void free_module_mem(void *addr, int pages)
+{
+    int i;
+    unsigned long pfn;
 
-  for (i = 0; i < pages; i++) {
-    pfn = BTOP(virt2phys((char *) addr + PTOB(i)));
-    free_pageframe(pfn);
-    kpage_unmap((char *) addr + PTOB(i));
-  }
+    //kprintf("free mod mem %dK @ %p\n", pages * PAGESIZE / K, addr);
 
-  rmap_free(kmodmap, BTOP(addr), pages);
+    for (i = 0; i < pages; i++)
+    {
+        pfn = BTOP(virt2phys((char *) addr + PTOB(i)));
+        kpframe_free(pfn);
+        kpage_unmap((char *) addr + PTOB(i));
+    }
+
+    krmap_free(kmodmap, BTOP(addr), pages);
 }
+
 
 void init_kmem()
 {
@@ -170,67 +190,94 @@ void init_kmem()
     struct image_header *imghdr;
 
     // Allocate page frame for kernel heap resource map and map into syspages
-    pfn = alloc_pageframe(PFT_SYS);
+    pfn = kpframe_alloc(PFT_SYS);
     kpage_map(osvmap, pfn, PT_WRITABLE | PT_PRESENT);
 
     // Initialize resource map for kernel heap
-    rmap_init(osvmap, OSVMAP_ENTRIES);
+    krmap_init(osvmap, OSVMAP_ENTRIES);
 
     // Add kernel heap address space to osvmap
-    rmap_free(osvmap, BTOP(KHEAPBASE), BTOP(KHEAPSIZE));
+    krmap_free(osvmap, BTOP(KHEAPBASE), BTOP(KHEAPSIZE));
 
     // Allocate page frame for kernel module map and map into syspages
-    pfn = alloc_pageframe(PFT_SYS);
+    pfn = kpframe_alloc(PFT_SYS);
     kpage_map(kmodmap, pfn, PT_WRITABLE | PT_PRESENT);
 
     // Initialize resource map for kernel module area
-    rmap_init(kmodmap, KMODMAP_ENTRIES);
+    krmap_init(kmodmap, KMODMAP_ENTRIES);
 
     // Add kernel heap address space to kmodmap
     // TODO: fix this!
     //imghdr = get_image_header((hmodule_t) OSBASE);
-    //rmap_free(kmodmap, BTOP(OSBASE), BTOP(KMODSIZE));
-    //rmap_reserve(kmodmap, BTOP(OSBASE), BTOP(imghdr->optional.size_of_image));
+    //krmap_free(kmodmap, BTOP(OSBASE), BTOP(KMODSIZE));
+    //krmap_reserve(kmodmap, BTOP(OSBASE), BTOP(imghdr->optional.size_of_image));
 }
 
-int list_memmap(struct proc_file *pf, struct rmap *rmap, unsigned int startpos)
+int list_memmap(struct proc_file *pf, struct rmap_t *rmap, unsigned int startpos)
 {
-  struct rmap *r;
-  struct rmap *rlim;
-  unsigned int pos = startpos;
-  unsigned int total = 0;
-  struct pdirstat stat;
+    struct rmap_t *current;
+    unsigned int pos = 0;
+    unsigned int total = 0;
+    struct pdirstat stat;
 
-  pprintf(pf, "   start      end      size committed  readonly       gap\n");
-  pprintf(pf, "-------- -------- --------- --------- --------- ---------\n");
+    pprintf(pf, "   start      end      size committed  readonly    status\n");
+    pprintf(pf, "-------- -------- --------- --------- --------- ---------\n");
 
-  rlim = &rmap[rmap->offset];
-
-  for (r = &rmap[1]; r <= rlim; r++)  {
-    unsigned int size = r->offset - pos;
-
-    if (size > 0) {
-      pdir_stat((void *) (pos * PAGESIZE), size * PAGESIZE, &stat);
-      pprintf(pf, "%08X %08X %8dK %8dK %8dK %8dK\n",
-              pos * PAGESIZE,
-              r->offset * PAGESIZE - 1,
-              size * (PAGESIZE / 1024),
-              stat.present * (PAGESIZE / 1024),
-              stat.readonly * (PAGESIZE / 1024),
-              r->size * (PAGESIZE / 1024));
-
-      total += size;
+    current = rmap + 1;
+    while (current != rmap)
+    {
+        //if (pos >= startpos)
+        {
+            pdir_stat((void *) (pos * PAGESIZE), current->size * PAGESIZE, &stat);
+            pprintf(pf, "%08X %08X %8dK %8dK %8dK      %s\n",
+                pos * PAGESIZE,
+                (pos + current->size) * PAGESIZE - 1,
+                current->size * (PAGESIZE / 1024),
+                stat.present * (PAGESIZE / 1024),
+                stat.readonly * (PAGESIZE / 1024),
+                (current->used) ? "used" : "free");
+        }
+        pos += current->size;
+        current = rmap + current->next;
     }
-    pos = r->offset + r->size;
-  }
-  pprintf(pf, "Total: %dK\n", total * PAGESIZE / 1024);
-  return 0;
+
+    /*rlim = &rmap[rmap->offset];
+
+    for (r = rmap; r <= rlim; r++)
+    {
+        kprintf("entry[%d] = { offset = %d, size = %d }\n", (uint32_t)(r-rmap), r->offset, r->size);
+    }
+
+
+    for (r = &rmap[1]; r <= rlim; r++)
+    {
+        unsigned int size = r->offset - pos;
+
+        if (size > 0)
+        {
+            pdir_stat((void *) (pos * PAGESIZE), size * PAGESIZE, &stat);
+            pprintf(pf, "%08X %08X %8dK %8dK %8dK %8dK\n",
+                pos * PAGESIZE,
+                r->offset * PAGESIZE - 1,
+                size * (PAGESIZE / 1024),
+                stat.present * (PAGESIZE / 1024),
+                stat.readonly * (PAGESIZE / 1024),
+                r->size * (PAGESIZE / 1024));
+
+            total += size;
+        }
+        pos = r->offset + r->size;
+    }
+    pprintf(pf, "Total: %dK\n", total * PAGESIZE / 1024);*/
+    return 0;
 }
 
-int kmem_proc(struct proc_file *pf, void *arg) {
-  return list_memmap(pf, osvmap, BTOP(KHEAPBASE));
+int kmem_proc(struct proc_file *pf, void *arg)
+{
+    return list_memmap(pf, osvmap, BTOP(KHEAPBASE));
 }
 
-int kmodmem_proc(struct proc_file *pf, void *arg) {
-  return list_memmap(pf, kmodmap, BTOP(OSBASE));
+int kmodmem_proc(struct proc_file *pf, void *arg)
+{
+    return list_memmap(pf, kmodmap, BTOP(OSBASE));
 }

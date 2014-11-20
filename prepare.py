@@ -405,7 +405,7 @@ class MakefileGenerator:
 #
 
 generator = MakefileGenerator()
-generator.addVariable("override CFLAGS", "$(CFLAGS) -Wall -Werror-implicit-function-declaration -O0 -m32 -mtune=i686")
+generator.addVariable("override CFLAGS", "$(CFLAGS) -Wall -Werror=overflow -Werror-implicit-function-declaration -O0 -m32 -mtune=i686")
 generator.addVariable("LDFLAGS", "-m32 -mtune=i686")
 generator.addVariable("NASM", "build/tools/nasm")
 generator.addVariable("TARGET_MACHINE", "x86")
@@ -515,7 +515,7 @@ target[FIELD_SOURCES] = \
     "sys/kernel/fpu.c", \
     "sys/kernel/hndl.c", \
     "sys/kernel/iomux.c", \
-    #"sys/kernel/iop.c", \
+    "sys/kernel/rmap.c", \
     "sys/kernel/iovec.c", \
     "sys/kernel/kmalloc.c", \
     "sys/kernel/kmem.c", \
@@ -601,7 +601,6 @@ target[FIELD_SOURCES] = \
     "lib/libc/inifile.c", \
     "lib/libc/moddb.c", \
     "lib/libc/opts.c", \
-    "lib/libc/rmap.c", \
     "lib/libc/string.c", \
     "lib/libc/strtol.c", \
     "lib/libc/tcccrt.c", \

@@ -3,7 +3,9 @@
 //
 // Page frame database routines
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro
+// Copyright (C) 2002 Michael Ringgaard
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -42,44 +44,54 @@
 #define DMA_BUFFER_START 0x10000
 #define DMA_BUFFER_PAGES 16
 
-#define PFT_FREE              0x46524545 // FREE
-#define PFT_RAM               (*((const uint32_t*)("RAM ")))
-#define PFT_RESERVED          (*((const uint32_t*)("RESV")))
-#define PFT_MEM               (*((const uint32_t*)("MEM?")))
-#define PFT_NVS               (*((const uint32_t*)("NVS ")))
-#define PFT_ACPI              (*((const uint32_t*)("ACPI")))
+#define PFT_FREE              0x01 /// Available for allocation
+#define PFT_HTAB              0x02
+#define PFT_RESERVED          0x03 /// Reserved by system (according BIOS)
+#define PFT_MEM               0x04
+#define PFT_NVS               0x05 /// Non-volatile storage
+#define PFT_ACPI              0x06
+#define PFT_BAD               0x07
+#define PFT_PTAB              0x08
+#define PFT_DMA               0x09 /// DMA buffer
+#define PFT_PFDB              0x0A /// Page frame database
+#define PFT_SYS               0x0B
+#define PFT_TCB               0x0C
+#define PFT_BOOT              0x0D
+#define PFT_FMAP              0x0E
+#define PFT_STACK             0x0F /// Thread stack
+#define PFT_KMEM              0x10 /// Kernel allocated (heap) memory
+#define PFT_KMOD              0x11
+#define PFT_UMOD              0x12
+#define PFT_VM                0x13 /// Virtual memory
+#define PFT_HEAP              0x14
+#define PFT_TIB               0x15
+#define PFT_PEB               0x16
+
+#define INVALID_PFRAME        ((uint32_t)0xFFFFFFFF)
 
 
-struct pageframe
+struct page_frame_t
 {
-    unsigned long tag;
-    union
-    {
-        unsigned long locks;        // Number of locks
-        unsigned long size;         // Size/buckets for kernel pages
-        handle_t owner;             // Reference to owner for file maps
-        struct pageframe *next;     // Next free page frame for free pages
-    };
+    uint32_t linear : 1;   /// Indicates if frame begin a linear allocation
+    uint32_t tag    : 5;
+    uint32_t __resv : 2;
+    uint32_t next   : 24;  /// Index for next page frame (when in free list).
 };
 
-extern struct pageframe *pfdb;
 
-extern unsigned long freemem;
-extern unsigned long totalmem;
-extern unsigned long maxmem;
+KERNELAPI uint32_t kpframe_alloc( uint8_t tag );
+KERNELAPI uint32_t kpframe_alloc_linear( uint32_t pages, uint8_t tag );
+KERNELAPI void kpframe_free( uint32_t pfn );
+KERNELAPI void kpframe_set_tag( void *addr, uint32_t len, uint8_t tag );
+uint8_t kpframe_get_tag( void *vaddr );
+const char *kpframe_tag_name( uint8_t tag );
 
-KERNELAPI unsigned long alloc_pageframe(unsigned long tag);
-KERNELAPI unsigned long alloc_linear_pageframes(int pages, unsigned long tag);
-KERNELAPI void free_pageframe(unsigned long pfn);
-KERNELAPI void set_pageframe_tag(void *addr, unsigned int len, unsigned long tag);
-
-void tag2str(unsigned long tag, char *str);
 int memmap_proc(struct proc_file *pf, void *arg);
 int memusage_proc(struct proc_file *pf, void *arg);
 int memstat_proc(struct proc_file *pf, void *arg);
 int physmem_proc(struct proc_file *pf, void *arg);
 
-void init_pfdb();
+void kpframe_init();
 
 
 #endif  // MACHINA_OS_PFRAME_H

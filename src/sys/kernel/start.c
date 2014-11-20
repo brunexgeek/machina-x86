@@ -54,7 +54,6 @@
 #include <net/dhcp.h>
 #include <net/socket.h>
 #include <net/net.h>
-#include <os/loader.h>
 
 
 #ifdef BSD
@@ -387,8 +386,8 @@ void dummy_func( void *arg)
     while (1)
     {
         struct thread *t = kthread_self();
-        //kprintf("Thread %s\n", t->name);
-        kthread_yield();
+        kprintf("Thread %s\n", t->name);
+        kthread_wait(1);
     }
 }
 
@@ -416,7 +415,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     // initialize CPU
     init_cpu();
     // initialize page frame database
-    init_pfdb();
+    kpframe_init();
     // initialize page directory
     init_pdir();
     // initialize kernel heap
@@ -483,6 +482,28 @@ void init_net()
     register_ether_netifs();
 }
 
+
+void main_readFile( const char *fileName )
+{
+    struct file *tmp;
+    char buffer[16];
+    int ret;
+    ret = open(fileName, 0, S_IREAD, &tmp);
+    if (ret == 0)
+    {
+        kprintf("##########################\n## %s\n##########################\n", fileName);
+        int count = 1;
+        while (count != 0)
+        {
+            count = read(tmp, buffer, 15);
+            buffer[count] = 0;
+            kprintf("%s", buffer);
+        }
+        close(tmp);
+    }
+}
+
+
 void main(void *arg)
 {
     unsigned long *stacktop;
@@ -500,7 +521,7 @@ void main(void *arg)
     char *sconsole;
 
     // Allocate and initialize PEB
-    peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, 0x00504542 /* PEB */, NULL);
+    peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, PFT_PEB, NULL);
     if (!peb) panic("unable to allocate PEB");
     memset(peb, 0, PAGESIZE);
     peb->fast_syscalls_supported = (global_cpu.features & CPU_FEATURE_SEP) != 0;
@@ -550,7 +571,7 @@ void main(void *arg)
 
     // Initialize module loader
     //init_kernel_modules();
-console(NULL, NULL);
+    console(NULL, NULL);
 
     // Get os version info from kernel version resource
     /*get_version_value((hmodule_t) OSBASE, "ProductName", peb->osname, sizeof peb->osname);
@@ -570,7 +591,7 @@ console(NULL, NULL);
     }*/
 
     // Install device drivers
-    //install_drivers();
+    install_drivers();
 
     // Initialize network
     init_net();
@@ -587,6 +608,26 @@ console(NULL, NULL);
     if (halloc(&cons->iob.object) != 0) panic("unexpected stdin handle");
     if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
+
+    main_readFile("/proc/units");
+    main_readFile("/proc/memmap");
+    main_readFile("/proc/memusage");
+    main_readFile("/proc/memstat");
+    main_readFile("/proc/physmem");
+    //main_readFile("/proc/pdir");
+    main_readFile("/proc/virtmem");
+    main_readFile("/proc/kmem");
+    main_readFile("/proc/kmodmem");
+    main_readFile("/proc/kheap");
+    main_readFile("/proc/vmem");
+    main_readFile("/proc/cpu");
+    main_readFile("/proc/netif");
+
+    while (1)
+    {
+        kprintf("%s is waiting\n", kthread_self()->name);
+        kthread_wait(0);
+    }
 
     // Load kernel32.so in user address space
     imgbase = kloader_load(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);

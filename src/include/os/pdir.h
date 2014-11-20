@@ -77,16 +77,23 @@
 #define PTABIDX(vaddr) (((unsigned long) vaddr) >> 12)
 
 /**
- * Return the number of pages it's necessary to store the given amount of bytes.
+ * Returns number of pages it's necessary to store the given amount of bytes.
  */
 #define PAGES(x) (((unsigned long)(x) + (PAGESIZE - 1)) >> PAGESHIFT)
 
 /**
- * Return the page address which the given address is within.
+ * Returns page address which the given address is within.
  */
 #define PAGEADDR(x) ((unsigned long)(x) & ~(PAGESIZE - 1))
 
+/**
+ * Convert physical address to page index of the page frame database.
+ */
 #define PTOB(x) ((unsigned long)(x) << PAGESHIFT)
+
+/**
+ * Convert page index of the page frame database to physical address.
+ */
 #define BTOP(x) ((unsigned long)(x) >> PAGESHIFT)
 
 #define SET_PDE(vaddr, val) kmach_set_page_dir_entry(&pdir[PDEIDX(vaddr)], (val))

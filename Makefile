@@ -3,7 +3,7 @@
 TARGET_MACHINE := x86
 NASM := build/tools/nasm
 LDFLAGS := -m32 -mtune=i686
-override CFLAGS := $(CFLAGS) -Wall -Werror-implicit-function-declaration -O0 -m32 -mtune=i686
+override CFLAGS := $(CFLAGS) -Wall -Werror=overflow -Werror-implicit-function-declaration -O0 -m32 -mtune=i686
 
 help:
 	@echo "   all"
@@ -42,6 +42,7 @@ KERNEL32_SRC_FILES = \
 	sys/kernel/fpu.c \
 	sys/kernel/hndl.c \
 	sys/kernel/iomux.c \
+	sys/kernel/rmap.c \
 	sys/kernel/iovec.c \
 	sys/kernel/kmalloc.c \
 	sys/kernel/kmem.c \
@@ -123,7 +124,6 @@ KERNEL32_SRC_FILES = \
 	lib/libc/inifile.c \
 	lib/libc/moddb.c \
 	lib/libc/opts.c \
-	lib/libc/rmap.c \
 	lib/libc/string.c \
 	lib/libc/strtol.c \
 	lib/libc/tcccrt.c \

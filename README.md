@@ -10,10 +10,17 @@ Features
 
 - Operate in 32bits protected mode
 - Multi-thread support
-- Kernel serial output (redirect screen output)
+- Kernel output through serial port
 - Virtual memory and memory protection (read/write)
-- User mode
-- Kernel API for user applications
+- Kernel API (syscalls) for user mode applications
+- Bootable CD-ROM image
+
+
+Working in progrss
+----------------
+
+- Support for ELF32 binaries
+- Support for multiprocessing in user mode
 
 
 Supported hardware

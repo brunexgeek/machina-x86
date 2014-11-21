@@ -16,7 +16,7 @@ Features
 - Bootable CD-ROM image
 
 
-Working in progrss
+Working in progress
 ----------------
 
 - Support for ELF32 binaries

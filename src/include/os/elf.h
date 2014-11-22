@@ -152,15 +152,15 @@ typedef struct elf32_file_header_t
     uint16_t e_machine;         // Machine architecture
     uint32_t e_version;         // Object file version
     uint32_t e_entry;           // Entry point virtual address
-    uint32_t e_phoff;            // Program header table file offset
-    uint32_t e_shoff;            // Section header table file offset
+    uint32_t e_phoff;           // Program header table file offset
+    uint32_t e_shoff;           // Section header table file offset
     uint32_t e_flags;           // Processor-specific flags
-    uint16_t e_eh_size;           // ELF header size in bytes
-    uint16_t e_phentsize;     // Program header table entry size
-    uint16_t e_phnum;          // Program header table entry count
-    uint16_t e_shentsize;     // Section header table entry size
-    uint16_t e_shnum;          // Section header table entry count
-    uint16_t e_shstrndx;          // Section header string table index
+    uint16_t e_eh_size;         // ELF header size in bytes
+    uint16_t e_phentsize;       // Program header table entry size
+    uint16_t e_phnum;           // Program header table entry count
+    uint16_t e_shentsize;       // Section header table entry size
+    uint16_t e_shnum;           // Section header table entry count
+    uint16_t e_shstrndx;        // Section header string table index
 } elf32_file_header_t;
 
 

@@ -630,9 +630,9 @@ void main(void *arg)
     }
 
     // Load kernel32.so in user address space
-    imgbase = kloader_load(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
+    /*imgbase = kloader_load(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
     if (!imgbase) panic("unable to load kernel32.so");
-    /*imghdr = get_image_header(imgbase);
+    imghdr = get_image_header(imgbase);
     stack_reserve = 8 * 1024;//imghdr->optional.size_of_stack_reserve;
     stack_commit = 4 * 1024;//imghdr->optional.size_of_stack_commit;
     entrypoint = get_entrypoint(imgbase);

@@ -96,7 +96,7 @@ void bios_print_string(char *str);
 int bios_get_drive_params(int drive, int *cyls, int *heads, int *sects);
 int bios_read_disk(int drive, int cyl, int head, int sect, int nsect, void *buffer);
 int unzip(void *src, unsigned long srclen, void *dst, unsigned long dstlen, char *heap, int heapsize);
-void load_kernel();
+void kernel_load();
 
 
 void kprintf(const char *fmt,...) {
@@ -429,12 +429,12 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(void *hmo
     if ((bootdrive & 0xF0) == 0xF0)
     {
         copy_ramdisk(bootimg);
-        load_kernel(bootdrive);
+        kernel_load(bootdrive);
     }
     else
     {
         init_biosdisk();
-        load_kernel(bootdrive);
+        kernel_load(bootdrive);
     }
 
     // Set page directory (CR3) and enable paging (PG bit in CR0)

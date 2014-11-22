@@ -9,161 +9,45 @@ help:
 	@echo "   all"
 	@echo "   clean"
 	@echo "   $(KERNEL32_OUT_FILE) (kernel) "
-	@echo "   $(MKDFS_OUT_FILE) "
 	@echo "   $(OSLDRS_OUT_FILE) (osloader-stub) "
+	@echo "   $(MKDFS_OUT_FILE) "
+	@echo "   $(LIBKERNEL_OUT_FILE) "
 	@echo "   $(LIBC_OUT_FILE) (libc) "
+	@echo "   $(KRNLDBG32_OUT_FILE) (kernel-debug) "
 	@echo "   $(NETBOOT_OUT_FILE) (netboot) "
 	@echo "   $(CDEMBOOT_OUT_FILE) (cdemboot) "
-	@echo "   $(LIBKERNEL_OUT_FILE) "
+	@echo "   $(OSLDR_OUT_FILE) (osloader) "
 	@echo "   $(ISO_OUT_FILE) (iso) "
 	@echo "   $(DISKBOOT_OUT_FILE) (diskboot) "
-	@echo "   $(KRNLIMG32_OUT_FILE) (kernel-image) "
-	@echo "   $(OSLDR_OUT_FILE) (osloader) "
 	@echo "   $(OSLDRM_OUT_FILE) (osloader-main) "
 	@echo "   $(NASM_OUT_FILE) (nasm) "
 
-.PHONY: all clean kernel osloader-stub libc netboot cdemboot iso diskboot kernel-image osloader osloader-main nasm
+.PHONY: all clean kernel osloader-stub libc kernel-debug netboot cdemboot osloader iso diskboot osloader-main nasm
 
 #
 # Machina Kernel for x86 
 #
-KERNEL32_CFLAGS =  -g -O0 -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel $(CFLAGS)
-KERNEL32_LDFLAGS =  -nostdlib -Wl,-T,src/arch/x86/sys/kernel/kernel.lds $(LDFLAGS)
-KERNEL32_NFLAGS = $(NFLAGS)
-KERNEL32_OUT_DIR = build/machina/obj/kernel
-KERNEL32_OUT_FILE = $(KERNEL32_OUT_DIR)/kernel32.elf
-KERNEL32_SRC_DIR = src
-KERNEL32_SRC_FILES = \
-	sys/kernel/kdebug.c \
-	sys/kernel/buf.c \
-	sys/kernel/cpu.c \
-	sys/kernel/dbg.c \
-	sys/kernel/dev.c \
-	sys/kernel/fpu.c \
-	sys/kernel/hndl.c \
-	sys/kernel/iomux.c \
-	sys/kernel/rmap.c \
-	sys/kernel/iovec.c \
-	sys/kernel/kmalloc.c \
-	sys/kernel/kmem.c \
-	sys/kernel/loader.c \
-	sys/kernel/mach.c \
-	sys/kernel/object.c \
-	sys/kernel/pci.c \
-	sys/kernel/pdir.c \
-	sys/kernel/pframe.c \
-	sys/kernel/pic.c \
-	sys/kernel/pit.c \
-	sys/kernel/pnpbios.c \
-	sys/kernel/queue.c \
-	sys/kernel/sched.c \
-	arch/x86/sys/kernel/trap.c \
-	arch/x86/sys/kernel/trap.s \
-	arch/x86/sys/kernel/sched.c \
-	arch/x86/sys/kernel/sched.s \
-	arch/x86/sys/kernel/mach.s \
-	sys/kernel/start.c \
-	sys/kernel/syscall.c \
-	sys/kernel/timer.c \
-	sys/kernel/trap.c \
-	sys/kernel/user.c \
-	sys/kernel/vfs.c \
-	sys/kernel/virtio.c \
-	sys/kernel/vmi.c \
-	sys/kernel/vmm.c \
-	sys/dev/cons.c \
-	sys/dev/fd.c \
-	sys/dev/hd.c \
-	sys/dev/kbd.c \
-	sys/dev/klog.c \
-	sys/dev/null.c \
-	sys/dev/nvram.c \
-	sys/dev/ramdisk.c \
-	sys/dev/rnd.c \
-	sys/dev/serial.c \
-	sys/dev/smbios.c \
-	sys/dev/video.c \
-	sys/dev/virtioblk.c \
-	sys/dev/virtiocon.c \
-	sys/net/arp.c \
-	sys/net/dhcp.c \
-	sys/net/ether.c \
-	sys/net/icmp.c \
-	sys/net/inet.c \
-	sys/net/ipaddr.c \
-	sys/net/ip.c \
-	sys/net/loopif.c \
-	sys/net/netif.c \
-	sys/net/pbuf.c \
-	sys/net/raw.c \
-	sys/net/rawsock.c \
-	sys/net/socket.c \
-	sys/net/stats.c \
-	sys/net/tcp.c \
-	sys/net/tcp_input.c \
-	sys/net/tcp_output.c \
-	sys/net/tcpsock.c \
-	sys/net/udp.c \
-	sys/net/udpsock.c \
-	sys/fs/cdfs/cdfs.c \
-	sys/fs/devfs/devfs.c \
-	sys/fs/dfs/dfs.c \
-	sys/fs/dfs/dir.c \
-	sys/fs/dfs/file.c \
-	sys/fs/dfs/group.c \
-	sys/fs/dfs/inode.c \
-	sys/fs/dfs/super.c \
-	sys/fs/pipefs/pipefs.c \
-	sys/fs/procfs/procfs.c \
-	sys/fs/smbfs/smbcache.c \
-	sys/fs/smbfs/smbfs.c \
-	sys/fs/smbfs/smbproto.c \
-	sys/fs/smbfs/smbutil.c \
-	lib/libc/bitops.c \
-	lib/libc/ctype.c \
-	lib/libc/inifile.c \
-	lib/libc/moddb.c \
-	lib/libc/opts.c \
-	lib/libc/string.c \
-	lib/libc/strtol.c \
-	lib/libc/tcccrt.c \
-	lib/libc/time.c \
-	lib/libc/verinfo.c \
-	lib/libc/vsprintf.c
-KERNEL32_OBJ_DIR = build/machina/obj/kernel
-KERNEL32_OBJ_FILES = $(patsubst %,$(KERNEL32_OBJ_DIR)/%.o ,$(KERNEL32_SRC_FILES))
-
-$(KERNEL32_OBJ_FILES): | KERNEL32_OBJ_MKDIR
-
-KERNEL32_OBJ_MKDIR:
-	@mkdir -p build/machina/obj/kernel
-	@mkdir -p build/machina/obj/kernel/sys/fs/smbfs
-	@mkdir -p build/machina/obj/kernel/sys/fs/pipefs
-	@mkdir -p build/machina/obj/kernel/lib/libc
-	@mkdir -p build/machina/obj/kernel/sys/fs/dfs
-	@mkdir -p build/machina/obj/kernel/sys/net
-	@mkdir -p build/machina/obj/kernel/sys/kernel
-	@mkdir -p build/machina/obj/kernel/sys/dev
-	@mkdir -p build/machina/obj/kernel/arch/x86/sys/kernel
-	@mkdir -p build/machina/obj/kernel/sys/fs/procfs
-	@mkdir -p build/machina/obj/kernel/sys/fs/cdfs
-	@mkdir -p build/machina/obj/kernel/sys/fs/devfs
-
-$(KERNEL32_OBJ_DIR)/%.c.o: $(KERNEL32_SRC_DIR)/%.c
-	@echo -e '\x1b[34;1mCompiling $< \x1b[0m'
-	$(CC) $(KERNEL32_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
-
-$(KERNEL32_OBJ_DIR)/%.s.o: $(KERNEL32_SRC_DIR)/%.s
-	@echo -e '\x1b[34;1mCompiling $<\x1b[0m'
-	$(CC) -x assembler-with-cpp $(KERNEL32_CFLAGS) -c $< -o $@
-
-KERNEL32_CLEAN :
-	@rm -f $(KERNEL32_OBJ_FILES)
-
-$(KERNEL32_OUT_FILE) kernel :  $(KERNEL32_OBJ_FILES)
+KERNEL32_OUT_DIR = build/install/boot
+KERNEL32_OUT_FILE = $(KERNEL32_OUT_DIR)/kernel32.so
+$(KERNEL32_OUT_FILE) kernel : kernel-debug 
 	@echo -e '\x1b[34;1mBuilding Machina Kernel for x86\x1b[0m'
 	@mkdir -p $(KERNEL32_OUT_DIR)
-	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(KERNEL32_LDFLAGS) $(KERNEL32_OBJ_FILES) -o $(KERNEL32_OUT_FILE)
+	objcopy -O elf32-i386 -j .text -j .rodata -j .bss -j .data $(KRNLDBG32_OUT_FILE) $(KERNEL32_OUT_FILE)
+
+
+#
+# Machina OS Loader Stub 
+#
+OSLDRS_NFLAGS = $(NFLAGS) -f bin
+OSLDRS_OUT_DIR = build/machina/osloader
+OSLDRS_OUT_FILE = $(OSLDRS_OUT_DIR)/osloader-stub.bin
+OSLDRS_SRC_FILES = \
+	src/arch/x86/sys/osloader/stub.asm
+
+$(OSLDRS_OUT_FILE) osloader-stub : $(NASM_OUT_FILE) 
+	@echo -e '\x1b[34;1mBuilding Machina OS Loader Stub\x1b[0m'
+	@mkdir -p $(OSLDRS_OUT_DIR)
+	$(NASM) $(OSLDRS_NFLAGS) $(OSLDRS_SRC_FILES) -o $(OSLDRS_OUT_FILE)
 
 
 #
@@ -210,18 +94,70 @@ $(MKDFS_OUT_FILE) :  $(MKDFS_OBJ_FILES)
 
 
 #
-# Machina OS Loader Stub 
+# Machina Kernel Library for x86 
 #
-OSLDRS_NFLAGS = $(NFLAGS) -f bin
-OSLDRS_OUT_DIR = build/machina/obj/osloader
-OSLDRS_OUT_FILE = $(OSLDRS_OUT_DIR)/osloader-stub.bin
-OSLDRS_SRC_FILES = \
-	src/arch/x86/sys/osloader/stub.asm
+LIBKERNEL_CFLAGS =  -I src/include -D OS_LIB $(CFLAGS)
+LIBKERNEL_LDFLAGS =  -shared -entry _start@12 -fixed 0x7FF00000 -nostdlib $(LDFLAGS)
+LIBKERNEL_NFLAGS = $(NFLAGS)
+LIBKERNEL_OUT_DIR = build/install/boot
+LIBKERNEL_OUT_FILE = $(LIBKERNEL_OUT_DIR)/machina.so
+LIBKERNEL_SRC_DIR = src
+LIBKERNEL_SRC_FILES = \
+	sys/os/critsect.c \
+	sys/os/environ.c \
+	sys/os/heap.c \
+	sys/os/netdb.c \
+	sys/os/os.c \
+	sys/os/resolv.c \
+	sys/os/signal.c \
+	sys/os/sntp.c \
+	sys/os/sysapi.c \
+	sys/os/syserr.c \
+	sys/os/syslog.c \
+	sys/os/thread.c \
+	sys/os/tls.c \
+	sys/os/userdb.c \
+	lib/libc/bitops.c \
+	lib/libc/crypt.c \
+	lib/libc/ctype.c \
+	lib/libc/fcvt.c \
+	lib/libc/inifile.c \
+	lib/libc/moddb.c \
+	lib/libc/opts.c \
+	lib/libc/strftime.c \
+	lib/libc/string.c \
+	lib/libc/strtol.c \
+	lib/libc/tcccrt.c \
+	lib/libc/time.c \
+	lib/libc/verinfo.c \
+	lib/libc/vsprintf.c \
+	lib/libc/math/modf.asm
+LIBKERNEL_OBJ_DIR = build/machina/obj/machina
+LIBKERNEL_OBJ_FILES = $(patsubst %,$(LIBKERNEL_OBJ_DIR)/%.o ,$(LIBKERNEL_SRC_FILES))
 
-$(OSLDRS_OUT_FILE) osloader-stub : $(NASM_OUT_FILE) 
-	@echo -e '\x1b[34;1mBuilding Machina OS Loader Stub\x1b[0m'
-	@mkdir -p $(OSLDRS_OUT_DIR)
-	$(NASM) $(OSLDRS_NFLAGS) $(OSLDRS_SRC_FILES) -o $(OSLDRS_OUT_FILE)
+$(LIBKERNEL_OBJ_FILES): | LIBKERNEL_OBJ_MKDIR
+
+LIBKERNEL_OBJ_MKDIR:
+	@mkdir -p build/machina/obj/machina
+	@mkdir -p build/machina/obj/machina/lib/libc/math
+	@mkdir -p build/machina/obj/machina/sys/os
+	@mkdir -p build/machina/obj/machina/lib/libc
+
+$(LIBKERNEL_OBJ_DIR)/%.c.o: $(LIBKERNEL_SRC_DIR)/%.c
+	@echo -e '\x1b[34;1mCompiling $< \x1b[0m'
+	$(CC) $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+
+$(LIBKERNEL_OBJ_DIR)/%.asm.o: $(LIBKERNEL_SRC_DIR)/%.asm
+	@echo -e '\x1b[34;1mCompiling $<\x1b[0m'
+	$(NASM) $(LIBKERNEL_NFLAGS) $< -o $@
+
+LIBKERNEL_CLEAN :
+	@rm -f $(LIBKERNEL_OBJ_FILES)
+
+$(LIBKERNEL_OUT_FILE) :  $(LIBKERNEL_OBJ_FILES)
+	@echo -e '\x1b[34;1mBuilding Machina Kernel Library for x86\x1b[0m'
+	@mkdir -p $(LIBKERNEL_OUT_DIR)
+	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(LIBKERNEL_LDFLAGS) $(LIBKERNEL_OBJ_FILES) -o $(LIBKERNEL_OUT_FILE)
 
 
 #
@@ -345,6 +281,148 @@ $(LIBC_OUT_FILE) libc : $(NASM_OUT_FILE) build/tools/ar  $(LIBC_OBJ_FILES)
 
 
 #
+# Machina Kernel for x86 with Debug Symbols 
+#
+KRNLDBG32_CFLAGS =  -g -O0 -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel $(CFLAGS)
+KRNLDBG32_LDFLAGS =  -nostdlib -Wl,-T,src/arch/x86/sys/kernel/kernel.lds $(LDFLAGS)
+KRNLDBG32_NFLAGS = $(NFLAGS)
+KRNLDBG32_OUT_DIR = build/machina/kernel
+KRNLDBG32_OUT_FILE = $(KRNLDBG32_OUT_DIR)/kernel32-dbg.so
+KRNLDBG32_SRC_DIR = src
+KRNLDBG32_SRC_FILES = \
+	sys/kernel/kdebug.c \
+	sys/kernel/buf.c \
+	sys/kernel/cpu.c \
+	sys/kernel/dbg.c \
+	sys/kernel/dev.c \
+	sys/kernel/fpu.c \
+	sys/kernel/hndl.c \
+	sys/kernel/iomux.c \
+	sys/kernel/rmap.c \
+	sys/kernel/iovec.c \
+	sys/kernel/kmalloc.c \
+	sys/kernel/kmem.c \
+	sys/kernel/loader.c \
+	sys/kernel/mach.c \
+	sys/kernel/object.c \
+	sys/kernel/pci.c \
+	sys/kernel/pdir.c \
+	sys/kernel/pframe.c \
+	sys/kernel/pic.c \
+	sys/kernel/pit.c \
+	sys/kernel/pnpbios.c \
+	sys/kernel/queue.c \
+	sys/kernel/sched.c \
+	arch/x86/sys/kernel/trap.c \
+	arch/x86/sys/kernel/trap.s \
+	arch/x86/sys/kernel/sched.c \
+	arch/x86/sys/kernel/sched.s \
+	arch/x86/sys/kernel/mach.s \
+	sys/kernel/start.c \
+	sys/kernel/syscall.c \
+	sys/kernel/timer.c \
+	sys/kernel/trap.c \
+	sys/kernel/user.c \
+	sys/kernel/vfs.c \
+	sys/kernel/virtio.c \
+	sys/kernel/vmi.c \
+	sys/kernel/vmm.c \
+	sys/dev/cons.c \
+	sys/dev/fd.c \
+	sys/dev/hd.c \
+	sys/dev/kbd.c \
+	sys/dev/klog.c \
+	sys/dev/null.c \
+	sys/dev/nvram.c \
+	sys/dev/ramdisk.c \
+	sys/dev/rnd.c \
+	sys/dev/serial.c \
+	sys/dev/smbios.c \
+	sys/dev/video.c \
+	sys/dev/virtioblk.c \
+	sys/dev/virtiocon.c \
+	sys/net/arp.c \
+	sys/net/dhcp.c \
+	sys/net/ether.c \
+	sys/net/icmp.c \
+	sys/net/inet.c \
+	sys/net/ipaddr.c \
+	sys/net/ip.c \
+	sys/net/loopif.c \
+	sys/net/netif.c \
+	sys/net/pbuf.c \
+	sys/net/raw.c \
+	sys/net/rawsock.c \
+	sys/net/socket.c \
+	sys/net/stats.c \
+	sys/net/tcp.c \
+	sys/net/tcp_input.c \
+	sys/net/tcp_output.c \
+	sys/net/tcpsock.c \
+	sys/net/udp.c \
+	sys/net/udpsock.c \
+	sys/fs/cdfs/cdfs.c \
+	sys/fs/devfs/devfs.c \
+	sys/fs/dfs/dfs.c \
+	sys/fs/dfs/dir.c \
+	sys/fs/dfs/file.c \
+	sys/fs/dfs/group.c \
+	sys/fs/dfs/inode.c \
+	sys/fs/dfs/super.c \
+	sys/fs/pipefs/pipefs.c \
+	sys/fs/procfs/procfs.c \
+	sys/fs/smbfs/smbcache.c \
+	sys/fs/smbfs/smbfs.c \
+	sys/fs/smbfs/smbproto.c \
+	sys/fs/smbfs/smbutil.c \
+	lib/libc/bitops.c \
+	lib/libc/ctype.c \
+	lib/libc/inifile.c \
+	lib/libc/moddb.c \
+	lib/libc/opts.c \
+	lib/libc/string.c \
+	lib/libc/strtol.c \
+	lib/libc/tcccrt.c \
+	lib/libc/time.c \
+	lib/libc/verinfo.c \
+	lib/libc/vsprintf.c
+KRNLDBG32_OBJ_DIR = build/machina/obj/kernel
+KRNLDBG32_OBJ_FILES = $(patsubst %,$(KRNLDBG32_OBJ_DIR)/%.o ,$(KRNLDBG32_SRC_FILES))
+
+$(KRNLDBG32_OBJ_FILES): | KRNLDBG32_OBJ_MKDIR
+
+KRNLDBG32_OBJ_MKDIR:
+	@mkdir -p build/machina/obj/kernel
+	@mkdir -p build/machina/obj/kernel/sys/fs/smbfs
+	@mkdir -p build/machina/obj/kernel/sys/fs/pipefs
+	@mkdir -p build/machina/obj/kernel/lib/libc
+	@mkdir -p build/machina/obj/kernel/sys/fs/dfs
+	@mkdir -p build/machina/obj/kernel/sys/net
+	@mkdir -p build/machina/obj/kernel/sys/kernel
+	@mkdir -p build/machina/obj/kernel/sys/dev
+	@mkdir -p build/machina/obj/kernel/arch/x86/sys/kernel
+	@mkdir -p build/machina/obj/kernel/sys/fs/procfs
+	@mkdir -p build/machina/obj/kernel/sys/fs/cdfs
+	@mkdir -p build/machina/obj/kernel/sys/fs/devfs
+
+$(KRNLDBG32_OBJ_DIR)/%.c.o: $(KRNLDBG32_SRC_DIR)/%.c
+	@echo -e '\x1b[34;1mCompiling $< \x1b[0m'
+	$(CC) $(KRNLDBG32_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+
+$(KRNLDBG32_OBJ_DIR)/%.s.o: $(KRNLDBG32_SRC_DIR)/%.s
+	@echo -e '\x1b[34;1mCompiling $<\x1b[0m'
+	$(CC) -x assembler-with-cpp $(KRNLDBG32_CFLAGS) -c $< -o $@
+
+KRNLDBG32_CLEAN :
+	@rm -f $(KRNLDBG32_OBJ_FILES)
+
+$(KRNLDBG32_OUT_FILE) kernel-debug :  $(KRNLDBG32_OBJ_FILES)
+	@echo -e '\x1b[34;1mBuilding Machina Kernel for x86 with Debug Symbols\x1b[0m'
+	@mkdir -p $(KRNLDBG32_OUT_DIR)
+	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(KRNLDBG32_LDFLAGS) $(KRNLDBG32_OBJ_FILES) -o $(KRNLDBG32_OUT_FILE)
+
+
+#
 # Machina PXE Stage 1 Bootloader 
 #
 NETBOOT_NFLAGS = $(NFLAGS) -f bin
@@ -375,70 +453,15 @@ $(CDEMBOOT_OUT_FILE) cdemboot : $(NASM_OUT_FILE)
 
 
 #
-# Machina Kernel Library for x86 
+# Machina OS Loader 
 #
-LIBKERNEL_CFLAGS =  -I src/include -D OS_LIB $(CFLAGS)
-LIBKERNEL_LDFLAGS =  -shared -entry _start@12 -fixed 0x7FF00000 -nostdlib $(LDFLAGS)
-LIBKERNEL_NFLAGS = $(NFLAGS)
-LIBKERNEL_OUT_DIR = build/install/boot
-LIBKERNEL_OUT_FILE = $(LIBKERNEL_OUT_DIR)/kernel32.so
-LIBKERNEL_SRC_DIR = src
-LIBKERNEL_SRC_FILES = \
-	sys/os/critsect.c \
-	sys/os/environ.c \
-	sys/os/heap.c \
-	sys/os/netdb.c \
-	sys/os/os.c \
-	sys/os/resolv.c \
-	sys/os/signal.c \
-	sys/os/sntp.c \
-	sys/os/sysapi.c \
-	sys/os/syserr.c \
-	sys/os/syslog.c \
-	sys/os/thread.c \
-	sys/os/tls.c \
-	sys/os/userdb.c \
-	lib/libc/bitops.c \
-	lib/libc/crypt.c \
-	lib/libc/ctype.c \
-	lib/libc/fcvt.c \
-	lib/libc/inifile.c \
-	lib/libc/moddb.c \
-	lib/libc/opts.c \
-	lib/libc/strftime.c \
-	lib/libc/string.c \
-	lib/libc/strtol.c \
-	lib/libc/tcccrt.c \
-	lib/libc/time.c \
-	lib/libc/verinfo.c \
-	lib/libc/vsprintf.c \
-	lib/libc/math/modf.asm
-LIBKERNEL_OBJ_DIR = build/machina/obj/kernel32
-LIBKERNEL_OBJ_FILES = $(patsubst %,$(LIBKERNEL_OBJ_DIR)/%.o ,$(LIBKERNEL_SRC_FILES))
-
-$(LIBKERNEL_OBJ_FILES): | LIBKERNEL_OBJ_MKDIR
-
-LIBKERNEL_OBJ_MKDIR:
-	@mkdir -p build/machina/obj/kernel32
-	@mkdir -p build/machina/obj/kernel32/lib/libc/math
-	@mkdir -p build/machina/obj/kernel32/sys/os
-	@mkdir -p build/machina/obj/kernel32/lib/libc
-
-$(LIBKERNEL_OBJ_DIR)/%.c.o: $(LIBKERNEL_SRC_DIR)/%.c
-	@echo -e '\x1b[34;1mCompiling $< \x1b[0m'
-	$(CC) $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
-
-$(LIBKERNEL_OBJ_DIR)/%.asm.o: $(LIBKERNEL_SRC_DIR)/%.asm
-	@echo -e '\x1b[34;1mCompiling $<\x1b[0m'
-	$(NASM) $(LIBKERNEL_NFLAGS) $< -o $@
-
-LIBKERNEL_CLEAN :
-	@rm -f $(LIBKERNEL_OBJ_FILES)
-
-$(LIBKERNEL_OUT_FILE) : $(NASM_OUT_FILE)  $(LIBKERNEL_OBJ_FILES)
-	@echo -e '\x1b[34;1mBuilding Machina Kernel Library for x86\x1b[0m'
-	@mkdir -p $(LIBKERNEL_OUT_DIR)
-	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(LIBKERNEL_LDFLAGS) $(LIBKERNEL_OBJ_FILES) -o $(LIBKERNEL_OUT_FILE)
+OSLDR_OUT_DIR = build/install/boot
+OSLDR_OUT_FILE = $(OSLDR_OUT_DIR)/osloader.bin
+$(OSLDR_OUT_FILE) osloader : osloader-stub osloader-main 
+	@echo -e '\x1b[34;1mBuilding Machina OS Loader\x1b[0m'
+	@mkdir -p $(OSLDR_OUT_DIR)
+	objcopy -O binary -j .text -j .rodata -j .bss -j .data --set-section-flags .bss=alloc,load,contents $(OSLDRM_OUT_FILE) $(OSLDRM_OUT_FILE).bin
+	cat $(OSLDRS_OUT_FILE) $(OSLDRM_OUT_FILE).bin > $(OSLDR_OUT_FILE)
 
 
 #
@@ -446,10 +469,12 @@ $(LIBKERNEL_OUT_FILE) : $(NASM_OUT_FILE)  $(LIBKERNEL_OBJ_FILES)
 #
 ISO_OUT_DIR = build
 ISO_OUT_FILE = $(ISO_OUT_DIR)/machina.iso
-$(ISO_OUT_FILE) iso : $(CDEMBOOT_OUT_FILE) $(OSLDR_OUT_FILE) $(MKDFS_OUT_FILE) kernel-image 
+$(ISO_OUT_FILE) iso : $(CDEMBOOT_OUT_FILE) $(OSLDR_OUT_FILE) $(MKDFS_OUT_FILE) kernel 
 	@echo -e '\x1b[34;1mBuilding Machina CD image\x1b[0m'
 	@mkdir -p $(ISO_OUT_DIR)
-	build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE) -k $(KRNLIMG32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs
+	mkdir -p build/install/dev
+	mkdir -p build/install/proc
+	build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE) -k $(KERNEL32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs
 	genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install
 
 
@@ -469,35 +494,12 @@ $(DISKBOOT_OUT_FILE) diskboot : $(NASM_OUT_FILE)
 
 
 #
-# Machina Kernel Image for x86 
-#
-KRNLIMG32_OUT_DIR = build/install/boot
-KRNLIMG32_OUT_FILE = $(KRNLIMG32_OUT_DIR)/kernel32.bin
-$(KRNLIMG32_OUT_FILE) kernel-image : $(KERNEL32_OUT_FILE) 
-	@echo -e '\x1b[34;1mBuilding Machina Kernel Image for x86\x1b[0m'
-	@mkdir -p $(KRNLIMG32_OUT_DIR)
-	objcopy -O binary -j .text -j .rodata -j .bss -j .data --set-section-flags .bss=alloc,load,contents $(KERNEL32_OUT_FILE) $(KRNLIMG32_OUT_FILE)
-
-
-#
-# Machina OS Loader 
-#
-OSLDR_OUT_DIR = build/install/boot
-OSLDR_OUT_FILE = $(OSLDR_OUT_DIR)/osloader.bin
-$(OSLDR_OUT_FILE) osloader : $(NASM_OUT_FILE) $(OSLDRM_OUT_FILE) 
-	@echo -e '\x1b[34;1mBuilding Machina OS Loader\x1b[0m'
-	@mkdir -p $(OSLDR_OUT_DIR)
-	objcopy -O binary -j .text -j .rodata -j .bss -j .data --set-section-flags .bss=alloc,load,contents $(OSLDRM_OUT_FILE) $(OSLDRM_OUT_FILE).bin
-	cat $(OSLDRS_OUT_FILE) $(OSLDRM_OUT_FILE).bin > $(OSLDR_OUT_FILE)
-
-
-#
 # Machina OS Loader Main 
 #
 OSLDRM_CFLAGS =  -D OSLDR -D KERNEL -I src/include -masm=intel -nostdlib $(CFLAGS)
 OSLDRM_LDFLAGS =  -Wl,-e,start -Wl,-T,src/arch/x86/sys/osloader/osloader.lds -nostdlib $(LDFLAGS)
 OSLDRM_NFLAGS = $(NFLAGS)
-OSLDRM_OUT_DIR = build/machina/obj/osloader
+OSLDRM_OUT_DIR = build/machina/osloader
 OSLDRM_OUT_FILE = $(OSLDRM_OUT_DIR)/osloader-main.elf
 OSLDRM_SRC_DIR = src
 OSLDRM_SRC_FILES = \
@@ -604,5 +606,5 @@ $(NASM_OUT_FILE) nasm :  $(NASM_OBJ_FILES)
 	@mkdir -p $(NASM_OUT_DIR)
 	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
 
-all: $(KERNEL32_OUT_FILE) $(MKDFS_OUT_FILE) $(OSLDRS_OUT_FILE) $(LIBC_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(ISO_OUT_FILE) $(DISKBOOT_OUT_FILE) $(KRNLIMG32_OUT_FILE) $(OSLDR_OUT_FILE) $(OSLDRM_OUT_FILE) $(NASM_OUT_FILE) 
+all: $(KERNEL32_OUT_FILE) $(OSLDRS_OUT_FILE) $(MKDFS_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(LIBC_OUT_FILE) $(KRNLDBG32_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(OSLDR_OUT_FILE) $(ISO_OUT_FILE) $(DISKBOOT_OUT_FILE) $(OSLDRM_OUT_FILE) $(NASM_OUT_FILE) 
 

@@ -371,5 +371,10 @@ KERNELAPI void init_task(struct task *task);
 KERNELAPI int queue_task(struct task_queue *tq, struct task *task, taskproc_t proc, void *arg);
 
 
+int init_user_thread(struct thread *t, void *entrypoint);
+int allocate_user_stack(struct thread *t, unsigned long stack_reserve, unsigned long stack_commit);
+void kthread_mark_running();
+
+
 #endif  // __ASSEMBLER__
 #endif  // MACHINA_SCHED_H

@@ -3,7 +3,7 @@
 //
 // Kernel loader
 //
-// Copyright (C) 2002 Bruno Ribeiro. All rights reserved.
+// Copyright (C) 2014 Bruno Ribeiro. All rights reserved.
 // Copyright (C) 2002 Michael Ringgaard. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,8 @@
 #include <os/dfs.h>
 #include <os/pe.h>
 #include <os/dev.h>
+#include <os/elf.h>
+
 
 void kprintf(const char *fmt,...);
 void panic(char *msg);
@@ -57,7 +59,119 @@ char gsect[SECTORSIZE];
 char isect[SECTORSIZE];
 blkno_t blockdir[1024];
 
-void load_kernel(int bootdrv)
+
+/**
+ * Read an ELF32 from the memory and expand it for execution.
+ */
+void kernel_load_elf32( void *image, char **start, uint32_t *size )
+{
+    elf32_file_header_t *header = (elf32_file_header_t*)image;
+    elf32_sect_header_t *sheader;
+    elf32_sect_header_t *first = NULL;
+    uint32_t total = 0;
+    int i;
+    char *ptr, *memory;
+    #ifndef NDEBUG
+    const char *stringTable = NULL;
+    #endif
+
+    // check the ELF32 signature
+    if (header->e_ident[0] != 0x7F || header->e_ident[1] != 0x45 ||
+        header->e_ident[2] != 0x4C || header->e_ident[3] != 0x46)
+        panic("Invalid ELF32 kernel!");
+
+    sheader = (elf32_sect_header_t*) ((uint8_t*)image + header->e_shoff);
+
+    #ifndef NDEBUG
+    // look for the string table
+    for (i = 0; i < header->e_shnum; ++i)
+    {
+        if (sheader[i].sh_type == SHT_STRTAB)
+        {
+            stringTable = (char*)image + sheader[i].sh_offset;
+            break;
+        }
+    }
+    kprintf("Name            Type Address    Size       Align\n");
+    for (i = 0; i < header->e_shnum; ++i)
+    {
+        kprintf("%-15s %04d 0x%08p 0x%08x 0x%04x\n",
+            stringTable + sheader[i].sh_name,
+            sheader[i].sh_type,
+            sheader[i].sh_addr,
+            sheader[i].sh_size,
+            sheader[i].sh_addr_align );
+    }
+    #endif
+
+    // compute the amount of memory necessary to expand the kernel
+    for (i = 0; i < header->e_shnum; ++i)
+    {
+        if (sheader[i].sh_type == SHT_PROGBITS)
+        {
+            if (total != 0)
+                panic("Invalid Kernel ELF32 layout!");
+            if (first == NULL) first = sheader + i;
+        }
+        else
+        if (sheader[i].sh_type == SHT_NOBITS)
+        {
+            if (total != 0)
+                panic("Invalid Kernel ELF32 layout!");
+            total = sheader[i].sh_addr + sheader[i].sh_size;
+        }
+        else
+            continue;
+    }
+    if (first == NULL) panic("Invalid Kernel ELF32 layout!");
+    total -= first->sh_addr;
+    *size = total;
+    kprintf("This kernel requires %d bytes\n", total);
+
+    // allocate memory to the kernel
+    memory = heap_alloc(PAGES(total));
+
+    // copy the content of each section
+    #ifndef NDEBUG
+    kprintf("Expanding image at [0x%p] to [0x%p]\n", image, memory);
+    kprintf("Action Type     Size       From       To\n");
+    kprintf("------ -------- ---------- ---------- ----------\n");
+    #endif
+    for (i = 0, ptr = memory; i < header->e_shnum; ++i)
+    {
+        if (sheader[i].sh_type == SHT_PROGBITS)
+        {
+            ptr =  sheader[i].sh_addr - first->sh_addr + memory;
+
+            #ifndef NDEBUG
+            kprintf("Copy   PROGBITS 0x%08x 0x%p 0x%p\n",
+                sheader[i].sh_size,
+                sheader[i].sh_offset,
+                ptr - memory);
+            #endif
+            memcpy(ptr, image + sheader[i].sh_offset, sheader[i].sh_size);
+        }
+        else
+        if (sheader[i].sh_type == SHT_NOBITS)
+        {
+            ptr =  sheader[i].sh_addr - first->sh_addr + memory;
+
+            #ifndef NDEBUG
+            kprintf("Clear  NOBITS   0x%08x N/A        0x%p\n",
+                sheader[i].sh_size,
+                sheader[i].sh_offset,
+                ptr - memory);
+            #endif
+            memset(ptr, 0, sheader[i].sh_size);
+        }
+    }
+
+    *start = memory;
+    *size = total;
+}
+
+
+void kernel_load( int bootdrv )
 {
     struct master_boot_record *mbr;
     struct superblock *sb;
@@ -66,23 +180,20 @@ void load_kernel(int bootdrv)
     int blocksize;
     int blks_per_sect;
     int kernelsize;
-    int kernelpages;
-    char *kerneladdr;
-    struct dos_header *doshdr;
-    struct image_header *imghdr;
+    int kernelPages;
+    char *imageAddress;
     char *addr;
+    uint32_t finalSize;
+    char *finalAddress;
     blkno_t blkno;
     int i;
     int j;
     pte_t *pt;
-    int imgpages;
     int start;
     char *label;
     struct boot_sector *bootsect;
 
-    //kprintf("Loading kernel\n");
-
-    // Determine active boot partition if booting from harddisk
+    // determine active boot partition if booting from harddisk
     if (bootdrv & 0x80 && (bootdrv & 0xF0) != 0xF0)
     {
         mbr = (struct master_boot_record *) bsect;
@@ -97,13 +208,13 @@ void load_kernel(int bootdrv)
         label = bootsect->label;
         if (label[0] == 'S' && label[1] == 'A' && label[2] == 'N' && label[3] == 'O' && label[4] == 'S')
         {
-            // Disk does not have a partition table
+            // disk does not have a partition table
             start = 0;
             bootpart = -1;
         }
         else
         {
-            // Find active partition
+            // find active partition
             bootpart = -1;
             for (i = 0; i < 4; i++)
             {
@@ -123,27 +234,27 @@ void load_kernel(int bootdrv)
         bootpart = 0;
     }
 
-    // Read super block from boot device
+    // read super block from boot device
     sb = (struct superblock *) ssect;
     if (boot_read(sb, SECTORSIZE, 1 + start) != SECTORSIZE)
     {
         panic("unable to read super block from boot device");
     }
 
-    // Check signature and version
+    // check signature and version
     if (sb->signature != DFS_SIGNATURE) panic("invalid DFS signature");
     if (sb->version != DFS_VERSION) panic("invalid DFS version");
     blocksize = 1 << sb->log_block_size;
     blks_per_sect =  blocksize / SECTORSIZE;
 
-    // Read first group descriptor
+    // read first group descriptor
     group = (struct groupdesc *) gsect;
     if (boot_read(group, SECTORSIZE, sb->groupdesc_table_block * blks_per_sect + start) != SECTORSIZE)
     {
         panic("unable to read group descriptor from boot device");
     }
 
-    // Read inode for kernel
+    // read inode for kernel
     inode = (struct inodedesc *) isect;
     if (boot_read(isect, SECTORSIZE, group->inode_table_block * blks_per_sect + start) != SECTORSIZE)
     {
@@ -151,23 +262,24 @@ void load_kernel(int bootdrv)
     }
     inode += DFS_INODE_KRNL;
 
-    // Calculate kernel size
+    // calculate kernel size
     kernelsize = (int) inode->size;
-    kernelpages = PAGES(kernelsize);
-    kprintf("[DEBUG] loaded kernel at 0x%lx (%d KiB)\n", OSBASE, kernelsize / 1024);
+    kernelPages = PAGES(kernelsize);
+    kprintf("[DEBUG] loading kernel at 0x%lx (%d KiB)\n", OSBASE, kernelsize / 1024);
 
-    // Allocate page table for kernel
-    if (kernelpages > PTES_PER_PAGE) panic("kernel too big");
+    // allocate page table for kernel
+    if (kernelPages > PTES_PER_PAGE) panic("kernel too big");
     pt = (pte_t *) heap_alloc(1);
     pdir[PDEIDX(OSBASE)] = (unsigned long) pt | PT_PRESENT | PT_WRITABLE;
 
-    // Allocate pages for kernel
-    kerneladdr = heap_alloc(kernelpages);
+    // allocate pages for boot image
+    imageAddress = heap_alloc(kernelPages);
+    // TODO: release image memory
 
-    // Read kernel from boot device
+    // read boot image from boot device
     if (inode->depth == 0)
     {
-        addr = kerneladdr;
+        addr = imageAddress;
         for (i = 0; i < (int) inode->blocks; i++)
         {
             if (boot_read(addr, blocksize, inode->blockdir[i] * blks_per_sect + start) != blocksize)
@@ -180,7 +292,7 @@ void load_kernel(int bootdrv)
     else
     if (inode->depth == 1)
     {
-        addr = kerneladdr;
+        addr = imageAddress;
         blkno = 0;
         for (i = 0; i < DFS_TOPBLOCKDIR_SIZE; i++)
         {
@@ -210,25 +322,11 @@ void load_kernel(int bootdrv)
         panic("unsupported inode depth");
     }
 
-    // Determine entry point for kernel
-    /*doshdr = (struct dos_header *) kerneladdr;
-    imghdr = (struct image_header *) (kerneladdr + doshdr->e_lfanew);
-    krnlentry = imghdr->optional.address_of_entry_point + OSBASE;
+    // process the image as ELF binary
+    kernel_load_elf32(imageAddress, &finalAddress, &finalSize);
+    kernelPages = PAGES(finalSize);
 
-    // Allocate pages for .data section
-    imgpages = PAGES(imghdr->optional.size_of_image);
-    heap_alloc(imgpages - kernelpages);
-
-    // Relocate resource data and clear uninitialized data
-    if (imghdr->header.number_of_sections == 4) {
-    struct image_section_header *data = &imghdr->sections[2];
-    struct image_section_header *rsrc = &imghdr->sections[3];
-    memcpy(kerneladdr + rsrc->virtual_address, kerneladdr + rsrc->pointer_to_raw_data, rsrc->size_of_raw_data);
-    memset(kerneladdr + data->virtual_address + data->size_of_raw_data, 0, data->virtual_size - data->size_of_raw_data);
-    }*/
-
-    // Map kernel into vitual address space
-    for (i = 0; i < /*imgpages*/kernelpages; i++) pt[i] = (unsigned long) (kerneladdr + i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
-
-    //kprintf("Kernel loaded 0x%8x\n", *((unsigned int *)kerneladdr));
+    // map kernel into vitual address space
+    for (i = 0; i < kernelPages; i++)
+        pt[i] = (unsigned long) (finalAddress + i * PAGESIZE) | PT_PRESENT | PT_WRITABLE;
 }

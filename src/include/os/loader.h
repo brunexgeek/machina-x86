@@ -1,10 +1,9 @@
 //
-// krnl.h
+// loader.c
 //
-// Main kernel include file
+// Library and executable loader
 //
-// Copyright (C) 2013 Bruno Ribeiro.
-// Copyright (C) 2002 Michael Ringgaard.
+// Copyright (C) 2014 Bruno Ribeiro.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -33,63 +32,28 @@
 // SUCH DAMAGE.
 //
 
-#ifndef MACHINA_OS_KRNL_H
-#define MACHINA_OS_KRNL_H
+#ifndef MACHINA_OS_LOADER_H
+#define MACHINA_OS_LOADER_H
 
 
-#define KERNELAPI
+#define PFT_UMOD              (*((const uint32_t*)("UMOD")))
 
 
-#define debug_info(...)   ( kprintf("[INFO ] [%s:%d] ", __FILE__, __LINE__), kprintf(__VA_ARGS__) )
-#define debug_error(...)  ( kprintf("[ERROR] [%s:%d] ", __FILE__, __LINE__), kprintf(__VA_ARGS__) )
+#include <stdint.h>
 
 
-#include <os/config.h>
-#include <os.h>
-
-#include <sys/types.h>
-#include <stddef.h>
-#include <stdarg.h>
-#include <string.h>
-#include <time.h>
-
-#include <bitops.h>
-#include <inifile.h>
-#include <verinfo.h>
-#include <os/mach.h>
-#include <os/syspage.h>
-#include <os/object.h>
-#include <os/klog.h>
-#include <os/procfs.h>
+struct module_t
+{
+    uint32_t handle;
+    const char *name;
+    const char *path;
+    uint32_t flags;
+    struct module_t *next;
+    struct module_t *prev;
+};
 
 
-// start.c
-
-KERNELAPI extern dev_t bootdev;
-#ifndef OSLDR
-KERNELAPI extern char krnlopts[KRNLOPTS_LEN];
-#endif
-KERNELAPI extern struct section *krnlcfg;
-KERNELAPI extern struct peb *peb;
-KERNELAPI void panic(char *msg);
-KERNELAPI int license();
-
-KERNELAPI void stop(int mode);
+void *kloader_load( char *filename, uint8_t isUserspace );
 
 
-
-// opts.c
-
-char *get_option(char *opts, char *name, char *buffer, int size, char *defval);
-int get_num_option(char *opts, char *name, int defval);
-
-// strtol.c
-
-unsigned long strtoul(const char *nptr, char **endptr, int ibase);
-
-// vsprintf.c
-
-int vsprintf(char *buf, const char *fmt, va_list args);
-int sprintf(char *buf, const char *fmt, ...);
-
-#endif  // MACHINA_OS_KRNL_H
+#endif  // MACHINA_OS_LOADER_H

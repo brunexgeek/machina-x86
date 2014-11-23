@@ -491,17 +491,17 @@ target[FIELD_SOURCES] = \
     "vfs.c" ]
 generator.addTarget(target);
 #
-# Machina Kernel for x86
+# Machina Kernel for x86 with Debug Symbols
 #
 target = {}
-target[FIELD_NAME] = "kernel"
-target[FIELD_DESCRIPTION] = "Machina Kernel for x86"
-target[FIELD_PREFFIX] = "KERNEL32"
+target[FIELD_NAME] = "kernel-debug"
+target[FIELD_DESCRIPTION] = "Machina Kernel for x86 with Debug Symbols"
+target[FIELD_PREFFIX] = "KRNLDBG32"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-g -O0 -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel"
 target[FIELD_LDFLAGS] = "-nostdlib -Wl,-T,src/arch/x86/sys/kernel/kernel.lds"
-target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/kernel"
-target[FIELD_OUTPUT_FILE] = "kernel32.elf"
+target[FIELD_OUTPUT_DIRECTORY] = "build/machina/kernel"
+target[FIELD_OUTPUT_FILE] = "kernel32-dbg.so"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
@@ -519,7 +519,7 @@ target[FIELD_SOURCES] = \
     "sys/kernel/iovec.c", \
     "sys/kernel/kmalloc.c", \
     "sys/kernel/kmem.c", \
-    "sys/kernel/ldr.c", \
+    "sys/kernel/loader.c", \
     "sys/kernel/mach.c", \
     "sys/kernel/object.c", \
     "sys/kernel/pci.c", \
@@ -609,18 +609,18 @@ target[FIELD_SOURCES] = \
     "lib/libc/vsprintf.c" ]
 generator.addTarget(target);
 #
-# Machina Kernel Image for x86
+# Machina Kernel for x86
 #
 target = {}
-target[FIELD_NAME] = "kernel-image"
-target[FIELD_DESCRIPTION] = "Machina Kernel Image for x86"
-target[FIELD_PREFFIX] = "KRNLIMG32"
-target[FIELD_DEPENDENCIES] = ["$(KERNEL32_OUT_FILE)"]
+target[FIELD_NAME] = "kernel"
+target[FIELD_DESCRIPTION] = "Machina Kernel for x86"
+target[FIELD_PREFFIX] = "KERNEL32"
+target[FIELD_DEPENDENCIES] = ["kernel-debug"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
-target[FIELD_OUTPUT_FILE] = "kernel32.bin"
+target[FIELD_OUTPUT_FILE] = "kernel32.so"
 target[FIELD_COMMANDS] = [
-    "objcopy -O binary -j .text -j .rodata -j .bss -j .data --set-section-flags" \
-    " .bss=alloc,load,contents $(KERNEL32_OUT_FILE) $(KRNLIMG32_OUT_FILE)" ]
+    "objcopy -O elf32-i386 -j .text -j .rodata -j .bss -j .data" \
+    " $(KRNLDBG32_OUT_FILE) $(KERNEL32_OUT_FILE)" ]
 generator.addTarget(target);
 #
 # Machina Kernel Library for x86
@@ -631,10 +631,10 @@ target[FIELD_PREFFIX] = "LIBKERNEL"
 target[FIELD_TYPE] = BIN_DYNAMIC
 target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
 target[FIELD_LDFLAGS] = "-shared -entry _start@12 -fixed 0x7FF00000 -nostdlib"
-target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
+target[FIELD_DEPENDENCIES] = []
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
-target[FIELD_OUTPUT_FILE] = "kernel32.so"
-target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel32"
+target[FIELD_OUTPUT_FILE] = "machina.so"
+target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/machina"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
     ["sys/os/critsect.c", \
@@ -820,7 +820,7 @@ target[FIELD_PREFFIX] = "OSLDRS"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_NFLAGS] = "-f bin"
 target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
-target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/osloader"
+target[FIELD_OUTPUT_DIRECTORY] = "build/machina/osloader"
 target[FIELD_OUTPUT_FILE] = "osloader-stub.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_SOURCE_DIRECTORY] = "src"
@@ -838,7 +838,7 @@ target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-D OSLDR -D KERNEL -I src/include -masm=intel -nostdlib"
 target[FIELD_LDFLAGS] = "-Wl,-e,start -Wl,-T,src/arch/x86/sys/osloader/osloader.lds -nostdlib" #-Wl,-Ttext,0x90800"
 target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)", "$(OSLDRS_OUT_FILE)"]
-target[FIELD_OUTPUT_DIRECTORY] = "build/machina/obj/osloader"
+target[FIELD_OUTPUT_DIRECTORY] = "build/machina/osloader"
 target[FIELD_OUTPUT_FILE] = "osloader-main.elf"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
 target[FIELD_SOURCE_DIRECTORY] = "src"
@@ -857,7 +857,7 @@ target = {}
 target[FIELD_NAME] = "osloader"
 target[FIELD_DESCRIPTION] = "Machina OS Loader"
 target[FIELD_PREFFIX] = "OSLDR"
-target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)", "$(OSLDRM_OUT_FILE)"]
+target[FIELD_DEPENDENCIES] = ["osloader-stub", "osloader-main"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "osloader.bin"
 target[FIELD_COMMANDS] = [
@@ -873,12 +873,14 @@ target = {}
 target[FIELD_NAME] = "iso"
 target[FIELD_DESCRIPTION] = "Machina CD image"
 target[FIELD_PREFFIX] = "ISO"
-target[FIELD_DEPENDENCIES] = ["$(CDEMBOOT_OUT_FILE)", "$(OSLDR_OUT_FILE)", "$(MKDFS_OUT_FILE)", "kernel-image"]
+target[FIELD_DEPENDENCIES] = ["$(CDEMBOOT_OUT_FILE)", "$(OSLDR_OUT_FILE)", "$(MKDFS_OUT_FILE)", "kernel"]
 target[FIELD_OUTPUT_DIRECTORY] = "build"
 target[FIELD_OUTPUT_FILE] = "machina.iso"
 target[FIELD_COMMANDS] = [
+    "mkdir -p build/install/dev", \
+    "mkdir -p build/install/proc", \
     "build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE)" \
-    " -k $(KRNLIMG32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
+    " -k $(KERNEL32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
     "genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install" ]
 generator.addTarget(target);
 

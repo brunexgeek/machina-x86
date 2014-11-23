@@ -400,7 +400,7 @@ static struct binding *find_binding(struct unit *unit) {
 
 static int initialize_driver(struct unit *unit, char *driverstr)
 {
-    char *buf;
+   /* char *buf;
     char *p;
     char *modname;
     char *entryname;
@@ -435,7 +435,7 @@ static int initialize_driver(struct unit *unit, char *driverstr)
         opts = NULL;
     }
 
-    hmod = load(modname, 0);
+    hmod = kloader_load(modname, 0);
     if (!hmod)
     {
         kprintf(KERN_ERR "dev: unable to load module %s\n", modname);
@@ -462,7 +462,7 @@ static int initialize_driver(struct unit *unit, char *driverstr)
         return rc;
     }
 
-    kfree(buf);
+    kfree(buf);*/
     return 0;
 }
 

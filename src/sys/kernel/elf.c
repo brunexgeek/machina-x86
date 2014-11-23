@@ -3,169 +3,348 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <dlfcn.h>
-#include "../../include/os/elf.h"
+#include <os/elf.h>
 
 
-void printk(const char* msg)
+static const uint8_t ELF32_MAGIC[] =
 {
-    fputs(msg, stderr);
-}
+    0x7f, 0x45, 0x4c, 0x46,  //  0x7f, 'E', 'L', 'F'
+    0x01,                    //  Only 32-bit objects.
+    0x01,                    //  Only LSB data.
+    0x01                     //  Only ELF version 1.
+};
 
-int is_image_valid(elf32_file_header_t *hdr)
+
+static const char *ELF32_RELOCS[] =
 {
-    return 1;
-}
+    "R_386_NONE",
+    "R_386_32",
+    "R_386_PC32",
+    "R_386_GOT32",
+    "R_386_PLT32",
+    "R_386_COPY",
+    "R_386_GLOB_DAT",
+    "R_386_JMP_SLOT",
+    "R_386_RELATIVE"
+};
 
-static void *resolve(const char* sym)
+#define ELF32_RELOCS_COUNT   ( sizeof(ELF32_RELOCS) / sizeof(char*) )
+
+#define kprintf printf
+
+
+static void *elf32_resolve( const char* sym )
 {
     static void *handle = NULL;
-    /*if (handle == NULL)
-    {
-        handle = dlopen("c.so", RTLD_NOW);
-        printf("libc.so == %p\n", handle);
-        if (handle == NULL) perror("Fuuu");
-    }*/
-    void *result = dlsym(handle, sym);
-    printf("%s = %p\n", sym, result);
-    return result;
+
+    return dlsym(handle, sym);
 }
 
-void relocate(elf32_sect_header_t* shdr, const elf32_symb_t* syms, const char* strings, const char* src, char* dst)
+
+static uint32_t elf32_relocateSymbol(
+    char* image,
+    const elf32_symb_t *symbol,
+    elf32_relc_t *reloc,
+    char *stringTable,
+    uint32_t bias )
 {
-    elf32_relc_t* rel = (elf32_relc_t*)(src + shdr->sh_offset);
-    int j;
-    for(j = 0; j < shdr->sh_size / sizeof(elf32_relc_t); j += 1)
+    uint32_t address;
+    uint32_t *field;
+    const char* symbolName;
+
+    switch(ELF32_R_TYPE(reloc->r_info))
     {
-        const char* sym = strings + syms[ELF32_R_SYM(rel[j].r_info)].st_name;
-        switch(ELF32_R_TYPE(rel[j].r_info))
+        case R_386_JMP_SLOT:
+        case R_386_GLOB_DAT:
+            // check if the current symbol is inside the binary file
+            if (symbol->st_value != 0)
+                address = (uint32_t)image + symbol->st_value;
+            else
+            {
+                symbolName = stringTable + symbol->st_name;
+                address = (uint32_t)elf32_resolve(symbolName);
+            }
+            break;
+        case R_386_32:
+            address = (uint32_t)image + symbol->st_value;
+            break;
+        case R_386_PC32:
+            field = (uint32_t*)(image + reloc->r_offset);
+            // check if the current symbol is inside the binary file
+            if (symbol->st_value != 0)
+            {
+                address =  *(uint32_t*)field;
+                address = (int32_t)address + ((int32_t)image + symbol->st_value);
+                address = (int32_t)address - (int32_t)field;
+            }
+            else
+            {
+                symbolName = stringTable + symbol->st_name;
+                address =  *(uint32_t*)field;
+                address = (int32_t)address + (int32_t)elf32_resolve(symbolName);
+                address = (int32_t)address - (int32_t)field;
+            }
+            break;
+        case R_386_RELATIVE:
+            field = (uint32_t*)(image + reloc->r_offset);
+            address = (uint32_t)image + *field;
+            break;
+        default:
+            printf("Unsupported relocation type 0x%x\n", ELF32_R_TYPE(reloc->r_info));
+            address = 0;
+    }
+
+    return address;
+}
+
+
+void elf32_relocate(
+    char *start,
+    char *image,
+    elf32_file_header_t *header,
+    elf32_symb_t *dynTable,
+    char *stringTable,
+    uint32_t bias )
+{
+    elf32_sect_header_t *sheader;
+    elf32_relc_t *rheader;
+    int i, j;
+    const elf32_symb_t *symbol;
+    uint32_t *slot;
+
+    // perform the relocation
+    sheader = (elf32_sect_header_t*)(start + header->e_shoff);
+    for(i = 0; i < header->e_shnum; ++i)
+    {
+        if (sheader[i].sh_type != SHT_REL) continue;
+
+        // iterate through the relocation table
+        rheader = (elf32_relc_t*)(start + sheader[i].sh_offset);
+        for (j = 0; j < (sheader[i].sh_size / sizeof(elf32_relc_t)); ++j)
         {
-            case R_386_JMP_SLOT:
-            case R_386_GLOB_DAT:
-                *(uint32_t*)(dst + rel[j].r_offset) = (uint32_t)resolve(sym);
-                break;
+            // get current symbol and relocation slot
+            symbol = dynTable + ELF32_R_SYM(rheader[j].r_info);
+            slot = (uint32_t*)(rheader[j].r_offset - bias + image);
+            // relocate the symbol
+            *slot = elf32_relocateSymbol(image, symbol, rheader + j, stringTable, bias);
+
+            printf("Relocated   .slot=%8p   .type=%-14s   .base=%8p   .target=%08x   %s\n",
+                slot,
+                (ELF32_R_TYPE(rheader[j].r_info) < ELF32_RELOCS_COUNT)?
+                    ELF32_RELOCS[ELF32_R_TYPE(rheader[j].r_info)] : "OTHER",
+                image,
+                *slot,
+                stringTable + symbol->st_name );
         }
     }
 }
 
-void* find_symbol(
-    const char* name,
-    elf32_sect_header_t* shdr,
-    const char* strings,
-    const char* src,
-    char* dst)
+
+
+void* elf32_findSymbol(
+    char *start,
+    char *image,
+    const char* name  )
 {
-    elf32_symb_t* syms = (elf32_symb_t*)(src + shdr->sh_offset);
-    int i;
-    for(i = 0; i < shdr->sh_size / sizeof(elf32_symb_t); i += 1) {
-        if (strcmp(name, strings + syms[i].st_name) == 0) {
-            return dst + syms[i].st_value;
+    elf32_file_header_t *header;
+    elf32_sect_header_t *sheader;
+    elf32_symb_t *symbol;
+    char *stringTable;
+    uint32_t bias = 0xFFFFFFFF;
+    int i, j;
+
+    header = (elf32_file_header_t *) start;
+
+    // look for tables
+    sheader = (elf32_sect_header_t *)(start + header->e_shoff);
+    for (i = 0; i < header->e_shnum; ++i)
+    {
+        // compute the bias (will be greater than zero only for ET_EXEC)
+        if (sheader[i].sh_type == SHT_PROGBITS && bias == 0xFFFFFFFF)
+            bias = sheader[i].sh_addr - sheader[i].sh_offset;
+
+        if (sheader[i].sh_type == SHT_STRTAB)
+            stringTable = start + sheader[i].sh_offset;
+    }
+    if (stringTable == NULL) return NULL;
+
+    // look for the symbol
+    for (i = 0; i < header->e_shnum; ++i)
+    {
+        if (sheader[i].sh_type != SHT_SYMTAB/* && sheader[i].sh_type != SHT_DYNSYM*/) continue;
+
+        /*if (sheader[i].sh_type == SHT_SYMTAB)
+            printf("Looking at SYMTAB\n");
+        else
+            printf("Looking at DYNSYM\n");*/
+
+        symbol = (elf32_symb_t*)(start + sheader[i].sh_offset);
+        for (j = 0; j < sheader[i].sh_size / sizeof(elf32_symb_t); ++j)
+        {
+            //printf("%s == %s?\n", name, stringTable + symbol[j].st_name);
+            if (strcmp(name, stringTable + symbol[j].st_name) == 0)
+            {
+                //printf("bias = 0x%08X\n", bias);
+                return image - bias + symbol[j].st_value;
+            }
         }
     }
+
     return NULL;
 }
 
+
+uint32_t elf32_getImageSize( elf32_prog_header_t *pheader, uint16_t count )
+{
+    uint32_t size, addr, i;
+    uint32_t bias = 0xFFFFFFFF;
+
+    for(i = 0, size = 0; i < count; ++i)
+    {
+        if(pheader[i].p_type != PT_LOAD) continue;
+        if (bias == 0xFFFFFFFF) bias = pheader[i].p_paddr;
+        size = pheader[i].p_memsz;
+        addr = pheader[i].p_paddr;
+    }
+
+    return addr - bias + size;
+}
+
+
 void *elf32_load(
-    char *elf_start,
+    char *start,
     unsigned int size )
 {
-    elf32_file_header_t *hdr     = NULL;
-    elf32_prog_header_t *phdr    = NULL;
-    elf32_sect_header_t *shdr    = NULL;
-    elf32_symb_t *syms    = NULL;
-    char *strings = NULL;
-    char *start   = NULL;
-    char *taddr   = NULL;
-    void *entry   = NULL;
+    elf32_file_header_t *header;
+    elf32_prog_header_t *pheader;
+    elf32_sect_header_t *sheader;
+    elf32_symb_t *dynTable = NULL;
+    char *stringTable = NULL;
+    char *source;
+    char *destination;
+    char *image;
     int i = 0;
-    char *exec = NULL;
+    size_t bias = 0xFFFFFFFF;
+    uint32_t imageSize;
 
-    hdr = (elf32_file_header_t *) elf_start;
+    header = (elf32_file_header_t *) start;
 
-    if(!is_image_valid(hdr))
+    // check ELF header
+    if(memcmp(header->e_ident, ELF32_MAGIC, sizeof(ELF32_MAGIC)) != 0)
     {
-        printk("image_load:: invalid ELF image\n");
-        return 0;
+        kprintf("image_load:: invalid ELF image\n");
+        return NULL;
+    }
+    // check if supported ELF type (until we have processes, only share-library is supported)
+    if (/*header->e_type != ET_EXEC &&*/ header->e_type != ET_DYN)
+    {
+        kprintf("Unsupported ELF type\n");
+        return NULL;
+    }
+    // check if supported machine
+    if (header->e_machine != EM_386)
+    {
+        kprintf("Unsupported machine\n");
+        return NULL;
     }
 
-    exec = mmap(NULL, size, PROT_READ | PROT_WRITE | PROT_EXEC,
-                      MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    // allocate memory for ELF32 image
+    pheader = (elf32_prog_header_t *)(start + header->e_phoff);
+    imageSize = elf32_getImageSize(pheader, header->e_phnum);
+    image = mmap(NULL, imageSize, PROT_READ | PROT_WRITE | PROT_EXEC,
+        MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    if (image == NULL)
+    {
+        kprintf("Error allocating memory\n");
+        return NULL;
+    }
+    memset(image, 0, imageSize);
+    printf("ELF32 image requires %d bytes\n", imageSize);
 
-    if(!exec) {
-        printk("image_load:: error allocating memory\n");
-        return 0;
+    // copy every ELF segments
+    for(i = 0; i < header->e_phnum; ++i)
+    {
+        // validate segment information
+        if (pheader[i].p_type != PT_LOAD || pheader[i].p_filesz == 0) continue;
+        if (pheader[i].p_filesz > pheader[i].p_memsz)
+        {
+            kprintf("ELF32 segment file size can not be greater than in memory\n");
+            goto ESCAPE;
+        }
+        // compute the bias (will be greater than zero only for ET_EXEC)
+        if (bias == 0xFFFFFFFF) bias = pheader[i].p_vaddr;
+        // copy data from program section to ELF32 image
+        source = start + pheader[i].p_offset;
+        destination = image + pheader[i].p_vaddr - bias;
+        if (destination + pheader[i].p_filesz > image + imageSize)
+        {
+            kprintf("Not enough space for program segment\n");
+            goto ESCAPE;
+        }
+        printf("Loading segment with %d bytes to 0x%p\n",  pheader[i].p_memsz, destination);
+        memcpy(destination, source, pheader[i].p_filesz);
     }
 
-    // Start with clean memory.
-    memset(exec,0x0,size);
-
-    phdr = (elf32_prog_header_t *)(elf_start + hdr->e_phoff);
-
-    for(i=0; i < hdr->e_phnum; ++i) {
-            if(phdr[i].p_type != PT_LOAD) {
-                    continue;
-            }
-            if(phdr[i].p_filesz > phdr[i].p_memsz) {
-                    printk("image_load:: p_filesz > p_memsz\n");
-                    munmap(exec, size);
-                    return 0;
-            }
-            if(!phdr[i].p_filesz) {
-                    continue;
-            }
-
-            // p_filesz can be smaller than p_memsz,
-            // the difference is zeroe'd out.
-            start = elf_start + phdr[i].p_offset;
-            taddr = phdr[i].p_vaddr + exec;
-            memcpy(taddr,start,phdr[i].p_filesz);
-
-            if(!(phdr[i].p_flags & PF_W)) {
-                    // Read-only.
-                    mprotect((unsigned char *) taddr,
-                              phdr[i].p_memsz,
-                              PROT_READ);
-            }
-
-            if(phdr[i].p_flags & PF_X) {
-                    // Executable.
-                    mprotect((unsigned char *) taddr,
-                            phdr[i].p_memsz,
-                            PROT_EXEC);
-            }
-    }
-
-    shdr = (elf32_sect_header_t *)(elf_start + hdr->e_shoff);
-
-    for(i=0; i < hdr->e_shnum; ++i) {
-        if (shdr[i].sh_type == SHT_DYNSYM) {
-            syms = (elf32_symb_t*)(elf_start + shdr[i].sh_offset);
-            strings = elf_start + shdr[shdr[i].sh_link].sh_offset;
-            entry = find_sym("main", shdr + i, strings, elf_start, exec);
+    // look for symbol table and string table
+    sheader = (elf32_sect_header_t *)(start + header->e_shoff);
+    for (i = 0; i < header->e_shnum; ++i)
+    {
+        // check if current entry is dynamic symbol table
+        if (sheader[i].sh_type == SHT_DYNSYM)
+        {
+            dynTable = (elf32_symb_t*)(start + sheader[i].sh_offset);
+            stringTable = start + sheader[sheader[i].sh_link].sh_offset;
+            printf("String table at 0x%p\n", stringTable);
             break;
         }
     }
+    if (stringTable == NULL || dynTable == NULL) return NULL;
 
-    for(i=0; i < hdr->e_shnum; ++i) {
-        if (shdr[i].sh_type == SHT_REL) {
-            relocate(shdr + i, syms, strings, elf_start, exec);
-        }
+    // relocate internal and external symbols
+    elf32_relocate(start, image, header, dynTable, stringTable, bias);
+
+    // protect program segments
+    for (i = 0; i < header->e_phnum; ++i)
+    {
+        if (pheader[i].p_type != PT_LOAD || pheader[i].p_filesz == 0) continue;
+
+        source = pheader[i].p_vaddr - bias + image;
+        // check if read-only segment
+        if ((pheader[i].p_flags & PF_W) == 0)
+            mprotect((unsigned char *) source, pheader[i].p_memsz, PROT_READ);
+        // check if executable segment
+        if (pheader[i].p_flags & PF_X)
+            mprotect((unsigned char *) source, pheader[i].p_memsz, PROT_EXEC);
     }
 
-   return entry;
-
-}/* image_load */
+    return image;
+ESCAPE:
+    munmap(image, size);
+    return NULL;
+}
 
 
 int main(int argc, char** argv, char** envp)
 {
-    int (*ptr)(int, char **, char**);
+    int (*ptr)(int,int);
     static char buf[1048576];
+    size_t readed;
+    char *image;
+
     FILE* elf = fopen(argv[1], "rb");
-    fread(buf, sizeof buf, 1, elf);
-    ptr = elf32_load(buf, sizeof buf);
-    printf("Executing...");
+    readed = fread(buf, 1, sizeof(buf), elf);
+    printf("Read %d bytes from '%s'\n", readed, argv[1]);
+
+    image = elf32_load(buf, readed);
+
+    ptr = elf32_findSymbol(buf, image, "entry");
+    printf("Executing entry point function at %p...\n", ptr);
     fflush(stdout);
     if (ptr != NULL)
-        printf("Returns %d\n", ptr(argc,argv, envp) );
+    {
+        printf("0x%08X at 0x%8p\n", *(uint32_t*)ptr, ptr);
+        int result = ptr(5, 3);
+        printf("Returned %d\n", result);
+    }
     return 0;
 }

@@ -54,6 +54,7 @@
 #include <net/dhcp.h>
 #include <net/socket.h>
 #include <net/net.h>
+#include <os/sched.h>
 
 
 #ifdef BSD
@@ -483,7 +484,7 @@ void init_net()
 }
 
 
-void main_readFile( const char *fileName )
+void main_readFile( char *fileName )
 {
     struct file *tmp;
     char buffer[16];
@@ -500,6 +501,16 @@ void main_readFile( const char *fileName )
             kprintf("%s", buffer);
         }
         close(tmp);
+    }
+}
+
+
+void main_userThreadProc( int a, int b, int c)
+{
+    while (1)
+    {
+        kprintf("user thread %s is waiting\n", kthread_self()->name);
+        kthread_wait(0);
     }
 }
 
@@ -623,26 +634,23 @@ void main(void *arg)
     main_readFile("/proc/cpu");
     main_readFile("/proc/netif");
 
-    while (1)
-    {
-        kprintf("%s is waiting\n", kthread_self()->name);
-        kthread_wait(0);
-    }
-
     // Load kernel32.so in user address space
     /*imgbase = kloader_load(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);
     if (!imgbase) panic("unable to load kernel32.so");
     imghdr = get_image_header(imgbase);
     stack_reserve = 8 * 1024;//imghdr->optional.size_of_stack_reserve;
     stack_commit = 4 * 1024;//imghdr->optional.size_of_stack_commit;
-    entrypoint = get_entrypoint(imgbase);
+    //entrypoint = get_entrypoint(imgbase);
+    entrypoint = main_userThreadProc;
 
     // Initialize initial user thread
-    if (init_user_thread(t, entrypoint) < 0) panic("unable to initialize initial user thread");
-    if (allocate_user_stack(t, stack_reserve, stack_commit) < 0) panic("unable to allocate stack for initial user thread");
+    if (init_user_thread(t, entrypoint) < 0)
+        panic("unable to initialize initial user thread");
+    if (allocate_user_stack(t, stack_reserve, stack_commit) < 0)
+        panic("unable to allocate stack for initial user thread");
     t->hndl = halloc(&t->object);
     hprotect(t->hndl);
-    mark_thread_running();
+    kthread_mark_running();
 
     kprintf(KERN_INFO "mem: %dMB total, %dKB used, %dKB free, %dKB reserved\n",
     maxmem * PAGESIZE / (1024 * 1024),
@@ -656,7 +664,7 @@ void main(void *arg)
     *(--stacktop) = (unsigned long) imgbase;
     *(--stacktop) = 0;
 
-    // Jump into user mode
+    // jump into user mode
     __asm__
     (
         "mov eax, %3;"
@@ -673,8 +681,8 @@ void main(void *arg)
         "IRETD;"
         :
         : "i" (SEL_UDATA), "i" (SEL_UTEXT), "i" (SEL_RPL3), "m" (stacktop), "m" (entrypoint)
-    );
-kprintf("## %s %d\n", __FILE__, __LINE__);*/
+    );*/
+
     while (1)
     {
         kprintf("%s is waiting\n", kthread_self()->name);

@@ -52,13 +52,14 @@ extern uint32_t freeCount;         // from 'pframe.c'
 extern uint32_t usableCount;       // from 'pframe.c'
 
 
-static int valid_range(void *addr, int size) {
-  int pages = PAGES(size);
+static int valid_range(void *addr, int size)
+{
+    int pages = PAGES(size);
 
-  if ((unsigned long) addr < VMEM_START) return 0;
-  if (KERNELSPACE((unsigned long) addr + pages * PAGESIZE)) return 0;
-  if (krmap_status(vmap, BTOP(addr), pages) != 1) return 0;
-  return 1;
+    if ((unsigned long) addr < VMEM_START) return 0;
+    if (KERNELSPACE((unsigned long) addr + pages * PAGESIZE)) return 0;
+    if (krmap_get_status(vmap, BTOP(addr), pages) != 1) return 0;
+    return 1;
 }
 
 static unsigned long pte_flags_from_protect(int protect) {
@@ -159,10 +160,13 @@ static int save_file_page(struct filemap *fm, void *addr) {
   return 0;
 }*/
 
-void init_vmm() {
-  vmap = (struct rmap_t *) kmalloc(VMAP_ENTRIES * sizeof(struct rmap_t));
-  krmap_init(vmap, VMAP_ENTRIES);
-  krmap_free(vmap, BTOP(VMEM_START), BTOP(OSBASE - VMEM_START));
+
+void kvmm_initialize()
+{
+    vmap = (struct rmap_t *) kmalloc(VMAP_ENTRIES * sizeof(struct rmap_t));
+    if (krmap_initialize(vmap, VMAP_ENTRIES) != 0)
+        panic("Error initializing virtual memory map");
+    krmap_free(vmap, BTOP(VMEM_START), BTOP(OSBASE - VMEM_START));
 }
 
 /**
@@ -220,7 +224,7 @@ void *vmalloc(
         }
         else
         {
-            if (krmap_reserve(vmap, BTOP(address), pages))
+            if (krmap_reserve(vmap, BTOP(address), pages) != 0)
             {
                 if (result) *result = -ENOMEM;
                 return NULL;
@@ -289,7 +293,7 @@ void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off6
       return NULL;
     }
   } else {
-    if (krmap_reserve(vmap, BTOP(addr), pages)) {
+    if (krmap_reserve(vmap, BTOP(addr), pages) != 0) {
       if (rc) *rc = -ENOMEM;
       return NULL;
     }
@@ -539,8 +543,9 @@ int fetch_page(void *addr) {
   return 0;
 }*/
 
-int vmem_proc(struct proc_file *pf, void *arg) {
-  return list_memmap(pf, vmap, BTOP(VMEM_START));
+int vmem_proc(struct proc_file *pf, void *arg)
+{
+    return list_memmap(pf, vmap, BTOP(VMEM_START));
 }
 
 int mem_sysinfo(struct meminfo *info)

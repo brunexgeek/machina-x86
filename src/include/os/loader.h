@@ -36,7 +36,7 @@
 #define MACHINA_OS_LOADER_H
 
 
-#define PFT_UMOD              (*((const uint32_t*)("UMOD")))
+//#define PFT_UMOD              (*((const uint32_t*)("UMOD")))
 
 
 #include <stdint.h>

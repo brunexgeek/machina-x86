@@ -146,7 +146,8 @@ void iounmap(void *addr, int size) {
 }
 
 
-void *alloc_module_mem( int pages )
+void *kmem_alloc_module(
+    int pages )
 {
     char *vaddr;
     int i;
@@ -184,27 +185,26 @@ void free_module_mem(void *addr, int pages)
 }
 
 
-void init_kmem()
+void kmem_initialize()
 {
     int pfn;
     struct image_header *imghdr;
 
-    // Allocate page frame for kernel heap resource map and map into syspages
+    // allocate page frame for kernel heap resource map and map into syspages
     pfn = kpframe_alloc(PFT_SYS);
     kpage_map(osvmap, pfn, PT_WRITABLE | PT_PRESENT);
-
-    // Initialize resource map for kernel heap
-    krmap_init(osvmap, OSVMAP_ENTRIES);
-
-    // Add kernel heap address space to osvmap
+    // initialize resource map for kernel heap
+    if (krmap_initialize(osvmap, OSVMAP_ENTRIES) != 0)
+        panic("Error initializing kernel heap map");
+    // add kernel heap address space to osvmap
     krmap_free(osvmap, BTOP(KHEAPBASE), BTOP(KHEAPSIZE));
 
-    // Allocate page frame for kernel module map and map into syspages
+    // allocate page frame for kernel module map and map into syspages
     pfn = kpframe_alloc(PFT_SYS);
     kpage_map(kmodmap, pfn, PT_WRITABLE | PT_PRESENT);
-
-    // Initialize resource map for kernel module area
-    krmap_init(kmodmap, KMODMAP_ENTRIES);
+    // initialize resource map for kernel module area
+    if (krmap_initialize(kmodmap, KMODMAP_ENTRIES) != 0)
+        panic("Error initializing kernel modules heap map");
 
     // Add kernel heap address space to kmodmap
     // TODO: fix this!
@@ -217,7 +217,6 @@ int list_memmap(struct proc_file *pf, struct rmap_t *rmap, unsigned int startpos
 {
     struct rmap_t *current;
     unsigned int pos = 0;
-    unsigned int total = 0;
     struct pdirstat stat;
 
     pprintf(pf, "   start      end      size committed  readonly    status\n");
@@ -240,6 +239,9 @@ int list_memmap(struct proc_file *pf, struct rmap_t *rmap, unsigned int startpos
         pos += current->size;
         current = rmap + current->next;
     }
+
+    krmap_get_entry_count(rmap, &pos);
+    pprintf(pf, "Mapping fragments: %d of %d\n", pos, rmap->next);
 
     /*rlim = &rmap[rmap->offset];
 

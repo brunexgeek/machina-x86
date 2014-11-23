@@ -45,6 +45,8 @@
 //extern struct rmap *osvmap;
 //extern struct rmap *kmodmap;
 
+void kmem_initialize();
+
 KERNELAPI void *kmem_alloc(int pages, uint8_t tag);
 KERNELAPI void *kmem_alloc_align(int pages, int align, uint8_t tag);
 KERNELAPI void *kmem_alloc_linear(int pages, uint8_t tag);
@@ -53,14 +55,12 @@ KERNELAPI void kmem_free(void *addr, int pages);
 KERNELAPI void *iomap(unsigned long addr, int size);
 KERNELAPI void iounmap(void *addr, int size);
 
-void *alloc_module_mem(int pages);
+void *kmem_alloc_module(int pages);
 void free_module_mem(void *addr, int pages);
 
 int list_memmap(struct proc_file *pf, struct rmap_t *rmap, unsigned int startpos);
 int kmem_proc(struct proc_file *pf, void *arg);
 int kmodmem_proc(struct proc_file *pf, void *arg);
-
-void init_kmem();
 
 
 #endif  // MACHINA_OS_KMEM_H

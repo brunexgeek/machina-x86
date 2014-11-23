@@ -1,10 +1,9 @@
 //
 // rmap.h
 //
-// Routines for working with a resource map
+// Routines for resource mapping
 //
-// Copyright (C) 2013-2014 Bruno Ribeiro.
-// All rights reserved.
+// Copyright (C) 2024 Bruno Ribeiro. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -37,7 +36,7 @@
 
 
 #define RMAP_TOTAL(rmptr)     ( (rmap)->size )
-#define RMAP_MAX_ENTRIES      (1048576)
+#define RMAP_MAX_ENTRIES      (0xFFFF)
 
 #include <stdint.h>
 
@@ -51,15 +50,20 @@ void kprintf(const char *fmt, ...);
  */
 struct rmap_t
 {
-    /// Number of pages (used or free) in the chunk
+    /**
+     * Number of pages (used or free) in the chunk.
+     */
     uint32_t size;
-    /// Indicate if the chunck is in use
+
+    /**
+     * Index of the next chunk. If the last chunk, this value should be zero.
+     */
     uint16_t next;
+
     /**
      * Indicate if the chunk information is about allocated pages.
      */
     uint16_t used;
-
 };
 
 
@@ -67,12 +71,37 @@ struct rmap_t
 extern "C" {
 #endif
 
-void krmap_init(struct rmap_t *r, unsigned int size);
-int krmap_alloc(struct rmap_t *rmap, unsigned int size);
-int krmap_alloc_align(struct rmap_t *rmap, unsigned int size, unsigned int align);
-void krmap_free(struct rmap_t *rmap, unsigned int offset, unsigned int size);
-int krmap_reserve(struct rmap_t *rmap, unsigned int offset, unsigned int size);
-int krmap_status(struct rmap_t *rmap, unsigned int offset, unsigned int size);
+int krmap_initialize(
+    struct rmap_t *r,
+    uint32_t size);
+
+uint32_t krmap_alloc(
+    struct rmap_t *rmap,
+    uint32_t size);
+
+uint32_t krmap_alloc_align(
+    struct rmap_t *rmap,
+    uint32_t size,
+    uint32_t align );
+
+int krmap_free(
+    struct rmap_t *rmap,
+    uint32_t offset,
+    uint32_t size );
+
+int krmap_reserve(
+    struct rmap_t *rmap,
+    uint32_t offset,
+    uint32_t size );
+
+int krmap_get_status(
+    struct rmap_t *rmap,
+    uint32_t offset,
+    uint32_t size);
+
+int krmap_get_entry_count(
+    struct rmap_t *rmap,
+    uint32_t *count );
 
 #ifdef  __cplusplus
 }

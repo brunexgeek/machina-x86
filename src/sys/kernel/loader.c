@@ -89,7 +89,7 @@ void *kloader_load( char *filename, uint8_t isUserspace )
     }
     else
     {
-        image = (uint8_t*) alloc_module_mem(PAGES(size));
+        image = (uint8_t*) kmem_alloc_module(PAGES(size));
         if (image) memset(image, 0, PAGES(size) * PAGESIZE);
     }
     if (image == NULL)

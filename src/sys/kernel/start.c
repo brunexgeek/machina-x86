@@ -420,11 +420,11 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     // initialize page directory
     init_pdir();
     // initialize kernel heap
-    init_kmem();
+    kmem_initialize();
     // initialize kernel allocator
     init_malloc();
     // initialize virtual memory manager
-    init_vmm();
+    kvmm_initialize();
     // flush tlb
     kmach_flushtlb();
 
@@ -492,7 +492,7 @@ void main_readFile( char *fileName )
     ret = open(fileName, 0, S_IREAD, &tmp);
     if (ret == 0)
     {
-        kprintf("##########################\n## %s\n##########################\n", fileName);
+        kprintf("\n\n##########################\n## %s\n##########################\n", fileName);
         int count = 1;
         while (count != 0)
         {

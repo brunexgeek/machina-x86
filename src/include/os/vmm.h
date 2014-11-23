@@ -39,7 +39,7 @@
 
 extern struct rmap_t *vmap;
 
-void init_vmm();
+void kvmm_initialize();
 
 KERNELAPI void *vmalloc(void *addr, unsigned long size, int type, int protect, uint8_t tag, int *rc);
 KERNELAPI void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off64_t offset, int *rc);

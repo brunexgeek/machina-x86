@@ -47,9 +47,8 @@
 
 struct rmap_t *vmap;
 
-extern struct page_frame_t *pfdb;  // from 'pframe.c'
 extern uint32_t freeCount;         // from 'pframe.c'
-extern uint32_t usableCount;       // from 'pframe.c'
+extern uint32_t useableCount;      // from 'pframe.c'
 
 
 static int valid_range(void *addr, int size)
@@ -257,7 +256,7 @@ void *vmalloc(
             else
             {
                 // allocate a new page and map it to the address
-                pfn = kpframe_alloc(tag);
+                pfn = kpframe_alloc(1, tag);
                 if (pfn == 0xFFFFFFFF)
                 {
                     if (result) *result = -ENOMEM;
@@ -504,7 +503,7 @@ int guard_page_handler(void *addr) {
   if (addr < t->tib->stacklimit || addr >= t->tib->stacktop) return -EFAULT;
   if (t->tib->stacklimit <= t->tib->stackbase) return -EFAULT;
 
-  pfn = kpframe_alloc(PFT_STACK);
+  pfn = kpframe_alloc(1, PFT_STACK);
   if (pfn == 0xFFFFFFFF) return -ENOMEM;
 
   t->tib->stacklimit = (char *) t->tib->stacklimit - PAGESIZE;
@@ -558,7 +557,7 @@ int mem_sysinfo(struct meminfo *info)
     //rlim = &vmap[vmap->offset];
     //for (r = &vmap[1]; r <= rlim; r++) free += r->size;
 
-    info->physmem_total = usableCount * PAGESIZE;
+    info->physmem_total = useableCount * PAGESIZE;
     info->physmem_avail = freeCount * PAGESIZE;
     info->virtmem_total = OSBASE - VMEM_START;
     info->virtmem_avail = free * PAGESIZE;

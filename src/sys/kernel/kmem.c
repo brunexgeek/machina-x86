@@ -55,7 +55,7 @@ void *kmem_alloc( int pages, uint8_t tag )
     vaddr = (char *) PTOB(krmap_alloc(osvmap, pages));
     for (i = 0; i < pages; i++)
     {
-        index = kpframe_alloc(tag);
+        index = kpframe_alloc(1, tag);
         kpage_map(vaddr + PTOB(i), index, PT_WRITABLE | PT_PRESENT);
     }
 
@@ -74,7 +74,7 @@ void *kmem_alloc_align(int pages, int align, uint8_t tag)
     vaddr = (char *) PTOB(krmap_alloc_align(osvmap, pages, align));
     for (i = 0; i < pages; i++)
     {
-        index = kpframe_alloc(tag);
+        index = kpframe_alloc(1, tag);
         kpage_map(vaddr + PTOB(i), index, PT_WRITABLE | PT_PRESENT);
     }
 
@@ -90,7 +90,7 @@ void *kmem_alloc_linear( int pages, uint8_t tag )
     uint32_t index;
 
     if (tag == 0) tag = PFT_KMEM;
-    index = kpframe_alloc_linear(pages, tag);
+    index = kpframe_alloc(pages, tag);
     if (index == INVALID_PFRAME) return NULL;
     vaddr = (char *) PTOB(krmap_alloc(osvmap, pages));
     for (i = 0; i < pages; i++)
@@ -156,7 +156,7 @@ void *kmem_alloc_module(
     vaddr = (char *) PTOB(krmap_alloc(kmodmap, pages));
     for (i = 0; i < pages; i++)
     {
-        pfn = kpframe_alloc(PFT_KMOD);
+        pfn = kpframe_alloc(1, PFT_KMOD);
         kpage_map(vaddr + PTOB(i), pfn, PT_WRITABLE | PT_PRESENT);
         memset(vaddr + PTOB(i), 0, PAGESIZE);
     }
@@ -191,7 +191,7 @@ void kmem_initialize()
     struct image_header *imghdr;
 
     // allocate page frame for kernel heap resource map and map into syspages
-    pfn = kpframe_alloc(PFT_SYS);
+    pfn = kpframe_alloc(1, PFT_SYS);
     kpage_map(osvmap, pfn, PT_WRITABLE | PT_PRESENT);
     // initialize resource map for kernel heap
     if (krmap_initialize(osvmap, OSVMAP_ENTRIES) != 0)
@@ -200,7 +200,7 @@ void kmem_initialize()
     krmap_free(osvmap, BTOP(KHEAPBASE), BTOP(KHEAPSIZE));
 
     // allocate page frame for kernel module map and map into syspages
-    pfn = kpframe_alloc(PFT_SYS);
+    pfn = kpframe_alloc(1, PFT_SYS);
     kpage_map(kmodmap, pfn, PT_WRITABLE | PT_PRESENT);
     // initialize resource map for kernel module area
     if (krmap_initialize(kmodmap, KMODMAP_ENTRIES) != 0)

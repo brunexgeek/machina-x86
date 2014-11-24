@@ -41,7 +41,7 @@
 pte_t *pdir = (pte_t *) PAGEDIR_ADDRESS; // Page directory
 pte_t *ptab = (pte_t *) PTBASE;          // Page tables
 
-extern struct page_frame_t *pfdb;
+extern uint16_t *frameArray_;
 
 void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags)
 {
@@ -51,7 +51,7 @@ void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags)
         //kprintf("Creating page table for 0x%08x (idx: %d)\n", vaddr, PDEIDX(vaddr));
         unsigned long pdfn;
 
-        pdfn = kpframe_alloc(PFT_PTAB);
+        pdfn = kpframe_alloc(1, PFT_PTAB);
         if (USERSPACE(vaddr))
         {
             SET_PDE(vaddr, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE | PT_USER);
@@ -283,7 +283,8 @@ int virtmem_proc(struct proc_file *pf, void *arg) {
       vaddr += PTES_PER_PAGE * PAGESIZE;
     } else {
       pte_t pte = GET_PTE(vaddr);
-      unsigned long tag = pfdb[pte >> PT_PFNSHIFT].tag;
+      //unsigned long tag = pfdb[pte >> PT_PFNSHIFT].tag;
+      unsigned long tag = PFRAME_GET_TAG( pte >> PT_PFNSHIFT );
 
       if (pte & PT_PRESENT) {
         if (start == NULL)  {

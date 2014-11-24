@@ -43,11 +43,14 @@
 #define MAX_MEMTYPES             (4)
 
 uint32_t freeCount;              /// Number of free frames
-uint32_t usableCount;            /// Number of usable frames
-uint32_t pfdbSize;               /// Number of frames in PFDB/memory
+uint32_t useableCount;           /// Number of usable frames
+uint32_t frameCount;             /// Number of frames in PFDB/memory
 
-struct page_frame_t *pfdb;       /// Base pointer for PFDB
-struct page_frame_t *freeFrame;  /// Pointer to the next free frame at PFDB
+
+/**
+ * Pointer to frame array.
+ */
+uint16_t *frameArray_;
 
 
 static const char *MEMTYPE_NAMES[] =
@@ -104,77 +107,36 @@ static struct
 void panic(char *msg);
 
 
-uint32_t kpframe_alloc( uint8_t tag )
+/**
+ * Allocate a memory frame.
+ * @return Index of the allocated frame or 0xFFFFFFFF otherwise.
+ */
+uint32_t kpframe_alloc(
+    uint32_t count,
+    uint8_t tag )
 {
-    register struct page_frame_t *frame;
+    register uint32_t i, j;
 
-    if (freeFrame == NULL) panic("out of memory");
-
-    frame = freeFrame;
-    freeFrame = &pfdb[frame->next];
-    freeCount--;
-
-    frame->tag = tag;
-    frame->next = 0;
-
-    return frame - pfdb;
-}
-
-
-uint32_t kpframe_alloc_linear( uint32_t pages, uint8_t tag )
-{
-    register struct page_frame_t *current;
-    struct page_frame_t *previous;
-    uint32_t index;
-
-    if (pages == 0) return INVALID_PFRAME;
-    if (pages == 1) return kpframe_alloc(tag);
+    if (count == 0) return INVALID_PFRAME;
+    if (tag == PFT_FREE) panic("Can not allocate with tag PFT_FREE");
 
     // check if we have enough free memory
-    if (freeCount < pages) return INVALID_PFRAME;
-
-    previous = NULL;
-    current = freeFrame;
-    while (current)
+    if (freeCount < count) return INVALID_PFRAME;
+    // find some region with available frames
+    for (i = 0; i < frameCount; ++i)
     {
-        index = current - pfdb;
-        // check if it's possible allocate linear pages from the current frame
-        if (current - pfdb + pages < pfdbSize)
+        if (PFRAME_GET_TAG(i) != PFT_FREE) continue;
+        // check if current region has enough frames
+        for (j = 0; j < count && PFRAME_GET_TAG(i+j) == PFT_FREE; ++j);
+        if (j == count)
         {
-            int n;
-
-            // ensure that all page frames is free and linear
-            for (n = 0; n < pages; n++)
-            {
-                if (current[n].tag != PFT_FREE) break;
-                if (n != 0 && current[n - 1].next != index + n) break;
-            }
-
-            if (n == pages)
-            {
-                // remove the pages from free list
-                if (previous)
-                {
-                    previous->next = current[pages - 1].next;
-                }
-                else
-                {
-                    freeFrame = pfdb + current[pages - 1].next;
-                }
-                // update the tag for each frame
-                for (n = 0; n < pages; n++)
-                {
-                    current[n].tag = tag;
-                    current[n].next = 0;
-                }
-
-                freeCount -= pages;
-                return current - pfdb;
-            }
+            // reserve frames with given tag
+            for (j = 0; j < count; ++j)
+                PFRAME_SET_TAG(i+j, tag);
+            // decrease the used frames counter
+            freeCount -= count;
+            return i;
         }
-
-        previous = current;
-        current = &pfdb[current->next];
     }
 
     return INVALID_PFRAME;
@@ -183,15 +145,9 @@ uint32_t kpframe_alloc_linear( uint32_t pages, uint8_t tag )
 
 void kpframe_free( uint32_t index )
 {
-    struct page_frame_t *frame;
+    if (index >= frameCount) return;
 
-    if (index >= pfdbSize) return;
-
-    frame = pfdb + index;
-    frame->tag = PFT_FREE;
-    frame->next = freeFrame - pfdb;
-
-    freeFrame = frame;
+    PFRAME_SET_TAG(index, PFT_FREE);
     freeCount++;
 }
 
@@ -205,15 +161,19 @@ void kpframe_set_tag( void *vaddr, uint32_t len, uint8_t tag )
     while (ptr < end)
     {
         index = virt2phys(ptr) >> PAGESHIFT;
-        pfdb[index].tag = tag;
+        PFRAME_SET_TAG(index, tag);
         ptr += PAGESIZE;
+        if (tag == PFT_FREE)
+            freeCount++;
+        else
+            freeCount--;
     }
 }
 
 
 uint8_t kpframe_get_tag( void *vaddr )
 {
-    return pfdb[virt2phys(vaddr) << PAGESHIFT].tag;
+    return PFRAME_GET_TAG(virt2phys(vaddr) << PAGESHIFT);
 }
 
 
@@ -258,9 +218,9 @@ int memusage_proc(struct proc_file *pf, void *arg)
 
     memset(counters, 0, sizeof(counters));
 
-    for (n = 0; n < pfdbSize; n++)
+    for (n = 0; n < frameCount; n++)
     {
-        uint8_t tag = pfdb[n].tag;
+        uint8_t tag = PFRAME_GET_TAG(n);
         if (tag < MAX_PFT)
             counters[tag]++;
     }
@@ -279,9 +239,9 @@ int memusage_proc(struct proc_file *pf, void *arg)
 int memstat_proc(struct proc_file *pf, void *arg)
 {
     pprintf(pf, "Total     %8d MiB\nUsed      %8d KiB\nFree      %8d KiB\nReserved  %8d KiB\n",
-        pfdbSize * PAGESIZE / (1024 * 1024),
-        (usableCount - freeCount) * PAGESIZE / 1024,
-        freeCount * PAGESIZE / 1024, (pfdbSize - usableCount) * PAGESIZE / 1024);
+        frameCount * PAGESIZE / (1024 * 1024),
+        (useableCount - freeCount) * PAGESIZE / 1024,
+        freeCount * PAGESIZE / 1024, (frameCount - useableCount) * PAGESIZE / 1024);
 
     return 0;
 }
@@ -302,7 +262,7 @@ int physmem_proc(struct proc_file *pf, void *arg)
 
     pprintf(pf, "\n\n");
 
-    for (n = 0; n < pfdbSize; n++)
+    for (n = 0; n < frameCount; n++)
     {
         if (n % 64 == 0)
         {
@@ -315,8 +275,13 @@ int physmem_proc(struct proc_file *pf, void *arg)
             pprintf(pf, "%08X ", PTOB(n));
         }
 
-        tag = pfdb[n].tag;
+        tag = PFRAME_GET_TAG(n);
         if (tag != PFT_FREE) keep = 1;
+        if (tag > MAX_PFT)
+        {
+            kprintf("tag = %d\n", tag);
+            panic("Fuuu");
+        }
         if (PFT_NAMES[tag].symbol == NULL)
             pprintf(pf, "?");
         else
@@ -328,14 +293,13 @@ int physmem_proc(struct proc_file *pf, void *arg)
 }
 
 
-void kpframe_init()
+void kpframe_initialize()
 {
     unsigned long heap;
     unsigned long pfdbpages;
     unsigned long i, j;
     unsigned long memend;
     pte_t *pt;
-    struct page_frame_t *pf;
     struct memmap *memmap;
 
     // register page directory
@@ -344,11 +308,11 @@ void kpframe_init()
     // calculates number of pages needed for page frame database
     memend = syspage->ldrparams.memend;
     heap = syspage->ldrparams.heapend;
-    pfdbpages = PAGES((memend / PAGESIZE) * sizeof(struct page_frame_t));
+    pfdbpages = PAGES((memend / PAGESIZE) * sizeof(uint16_t));
     if ((pfdbpages + 2) * PAGESIZE + heap >= memend) panic("not enough memory for page table database");
-    kprintf("[DEBUG] PFDB requires %d pages\n", pfdbpages);
+    kprintf("[DEBUG] PFDB requires %d pages to map %d KiB\n", pfdbpages, memend / 1024);
     // intialize page tables for mapping the largest possible PFDB into kernel space
-    // (for a machine with 4GB of physical RAM we need 1048 pages for PFDB)
+    // (for a machine with 4GB of physical RAM we need 524 pages for PFDB)
     kmach_set_page_dir_entry(&pdir[PDEIDX(PFDBBASE)], heap | PT_PRESENT | PT_WRITABLE);
     pt = (pte_t *) heap;
     heap += PAGESIZE;
@@ -362,12 +326,13 @@ void kpframe_init()
     }
 
     // initialize page frame database
-    pfdbSize = syspage->ldrparams.memend / PAGESIZE;
-    usableCount = 0;
+    frameCount = syspage->ldrparams.memend / PAGESIZE;
+    useableCount = 0;
     freeCount = 0;
-    pfdb = (struct page_frame_t *) PFDBBASE;
-    memset(pfdb, 0, pfdbpages * PAGESIZE);
-    for (i = 0; i < pfdbSize; i++) pfdb[i].tag = PFT_BAD;
+    frameArray_ = (uint16_t *) PFDBBASE;
+    memset(frameArray_, 0, pfdbpages * PAGESIZE);
+    for (i = 0; i < frameCount; i++) PFRAME_SET_TAG(i, PFT_BAD);
+
     // add all memory from memory map to PFDB
     memmap = &syspage->bootparams.memmap;
     for (i = 0; i < (unsigned long) memmap->count; i++)
@@ -375,42 +340,33 @@ void kpframe_init()
         uint32_t first = (uint32_t) memmap->entry[i].addr / PAGESIZE;
         uint32_t last = first + (uint32_t) memmap->entry[i].size / PAGESIZE;
 
-        if (first >= pfdbSize) continue;
-        if (last >= pfdbSize) last = pfdbSize;
+        if (first >= frameCount) continue;
+        if (last > frameCount) last = frameCount;
 
         if (memmap->entry[i].type == MEMTYPE_RAM)
         {
-            for (j = first; j < last; j++) pfdb[j].tag = PFT_FREE;
-            usableCount += (last - first);
+            for (j = first; j < last; j++) PFRAME_SET_TAG(j, PFT_FREE);
+            useableCount += (last - first);
         }
         else
         if (memmap->entry[i].type == MEMTYPE_RESERVED)
         {
-            for (j = first; j < last; j++) pfdb[j].tag = PFT_RESERVED;
+            for (j = first; j < last; j++) PFRAME_SET_TAG(j, PFT_RESERVED);
         }
     }
     // reserve physical page 0 for BIOS
-    pfdb[0].tag = PFT_RESERVED;
-    usableCount--;
+    PFRAME_SET_TAG(0, PFT_RESERVED);
+    useableCount--;
     // add interval [heapstart:heap] to PFDB as page table pages
-    for (i = syspage->ldrparams.heapstart / PAGESIZE; i < heap / PAGESIZE; i++) pfdb[i].tag = PFT_PTAB;
+    for (i = syspage->ldrparams.heapstart / PAGESIZE; i < heap / PAGESIZE; i++) PFRAME_SET_TAG(i, PFT_PTAB);
     // reserve DMA buffers at 0x10000 (used by floppy driver)
-    for (i = DMA_BUFFER_START / PAGESIZE; i < DMA_BUFFER_START / PAGESIZE + DMA_BUFFER_PAGES; i++) pfdb[i].tag = PFT_DMA;
+    for (i = DMA_BUFFER_START / PAGESIZE; i < DMA_BUFFER_START / PAGESIZE + DMA_BUFFER_PAGES; i++) PFRAME_SET_TAG(i, PFT_DMA);
     // fixup tags for PFDB, syspage and intial TCB
-    kpframe_set_tag(pfdb, pfdbpages * PAGESIZE, PFT_PFDB);
+    kpframe_set_tag(frameArray_, pfdbpages * PAGESIZE, PFT_PFDB);
     kpframe_set_tag(syspage, PAGESIZE, PFT_SYS);
     kpframe_set_tag(kthread_self(), TCBSIZE, PFT_TCB);
     kpframe_set_tag((void *) INITRD_ADDRESS, syspage->ldrparams.initrd_size, PFT_BOOT);
-    // insert all free pages into free list
-    pf = pfdb + pfdbSize;
-    do {
-        pf--;
-
-        if (pf->tag == PFT_FREE)
-        {
-            pf->next = (uint32_t)(freeFrame - pfdb);
-            freeFrame = pf;
-            freeCount++;
-        }
-    } while (pf > pfdb);
+    // update the amount of free frames
+    for (i = 0; i < frameCount; i++)
+        if (PFRAME_GET_TAG(i) == PFT_FREE) freeCount++;
 }

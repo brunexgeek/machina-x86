@@ -481,7 +481,7 @@ struct bufpool *init_buffer_pool(dev_t devno, int poolsize, int bufsize, void (*
   memset(pool->bufbase, 0, sizeof(struct buf) * poolsize);
 
   // Allocate data buffers
-  pool->database = (char *) kmalloc_tag(poolsize * bufsize, 0x43414348 /* CACH */);
+  pool->database = (char *) kmalloc_tag(poolsize * bufsize, PFT_CACHE);
   if (pool->database == NULL) {
     kfree(pool->bufbase);
     kfree(pool);

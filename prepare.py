@@ -18,8 +18,8 @@ FIELD_DEPENDENCIES = "FIELD_DEPENDENCIES"
 FIELD_NFLAGS = "FIELD_NFLAGS"
 FIELD_COMMANDS = "FIELD_COMMANDS"
 
-COLOR_BLUE="\\x1b[34;1m"
-COLOR_RESET="\\x1b[0m"
+COLOR_BLUE="$(COLOR_BLUE)"
+COLOR_RESET="$(COLOR_RESET)"
 
 
 BIN_DYNAMIC = 1
@@ -212,7 +212,7 @@ class CMakefileTarget(MakefileTarget):
 
         # target to clean de compilation
         print self._toVarName("CLEAN"), ":"
-        print "\t@rm -f", self._toVar("OBJ_FILES")
+        print "\trm -f", self._toVar("OBJ_FILES"), self._toVar("OUT_FILE")
         print
 
         # choose the main target name
@@ -270,6 +270,11 @@ class AsmMakefileTarget(MakefileTarget):
         for index in range(len(self.target[FIELD_SOURCES])-1):
             print "\t", self.target[FIELD_SOURCE_DIRECTORY] + "/" + self.target[FIELD_SOURCES][index], "\\"
         print "\t", self.target[FIELD_SOURCE_DIRECTORY] + "/" + self.target[FIELD_SOURCES][len(self.target[FIELD_SOURCES])-1]
+        print
+
+        # target to clean de compilation
+        print self._toVarName("CLEAN"), ":"
+        print "\trm -f", self._toVar("OBJ_FILES"), self._toVar("OUT_FILE")
         print
 
         # choose the main target name
@@ -358,6 +363,15 @@ class MakefileGenerator:
         print "#!/bin/make -f"
         print
 
+        # include the code for interactive shell detection
+        print "INTERACTIVE:=$(shell [ -t 0 ] && echo 1)"
+        print """
+            ifdef INTERACTIVE
+                COLOR_BLUE=\\x1b[34;1m
+                COLOR_RESET=\\x1b[0m
+            else
+                COLOR_BLUE=\\#\\#\\#
+            endif"""
         # print the variables
         for name, value in self.variables.iteritems():
             print name, ":=", value
@@ -396,7 +410,12 @@ class MakefileGenerator:
         for key, current in self.targets.iteritems():
             print MakefileTarget.toVar("OUT_FILE", current),
         print "\n"
-
+        # create the "clean" target
+        print "clean:",
+        for key, current in self.targets.iteritems():
+            if FIELD_COMMANDS not in current:
+                print MakefileTarget.toVarName("CLEAN", current),
+        print "\n"
 
 
 
@@ -405,7 +424,7 @@ class MakefileGenerator:
 #
 
 generator = MakefileGenerator()
-generator.addVariable("override CFLAGS", "$(CFLAGS) -Wall -Werror=overflow -Werror-implicit-function-declaration -O0 -m32 -mtune=i686")
+generator.addVariable("override CFLAGS", "$(CFLAGS) -Wall -Werror=overflow -Werror-implicit-function-declaration -m32 -mtune=i686")
 generator.addVariable("LDFLAGS", "-m32 -mtune=i686")
 generator.addVariable("NASM", "build/tools/nasm")
 generator.addVariable("TARGET_MACHINE", "x86")
@@ -498,7 +517,7 @@ target[FIELD_NAME] = "kernel-debug"
 target[FIELD_DESCRIPTION] = "Machina Kernel for x86 with Debug Symbols"
 target[FIELD_PREFFIX] = "KRNLDBG32"
 target[FIELD_TYPE] = BIN_EXECUTABLE
-target[FIELD_CFLAGS] = "-g -O0 -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel"
+target[FIELD_CFLAGS] = "-g -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel"
 target[FIELD_LDFLAGS] = "-nostdlib -Wl,-T,src/arch/x86/sys/kernel/kernel.lds"
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/kernel"
 target[FIELD_OUTPUT_FILE] = "kernel32-dbg.so"
@@ -881,7 +900,7 @@ target[FIELD_COMMANDS] = [
     "mkdir -p build/install/proc", \
     "build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE)" \
     " -k $(KERNEL32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs", \
-    "genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install" ]
+    "genisoimage -J -quiet -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install" ]
 generator.addTarget(target);
 
 # Driver for NIC 3C905C

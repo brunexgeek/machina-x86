@@ -44,6 +44,10 @@
 #define DMA_BUFFER_START 0x10000
 #define DMA_BUFFER_PAGES 16
 
+/*
+ * Physical frame tags.
+ */
+
 #define PFT_FREE              0x01 /// Available for allocation
 #define PFT_HTAB              0x02
 #define PFT_RESERVED          0x03 /// Reserved by system (according BIOS)
@@ -66,20 +70,26 @@
 #define PFT_HEAP              0x14
 #define PFT_TIB               0x15
 #define PFT_PEB               0x16
+#define PFT_CACHE             0x17
 
 #define INVALID_PFRAME        ((uint32_t)0xFFFFFFFF)
 
+#define PFRAME_GET_TAG(index) \
+    ( frameArray_[index] & 0x00FF )
 
-struct page_frame_t
-{
-    uint32_t linear : 1;   /// Indicates if frame begin a linear allocation
-    uint32_t tag    : 5;
-    uint32_t __resv : 2;
-    uint32_t next   : 24;  /// Index for next page frame (when in free list).
-};
+#define PFRAME_SET_TAG(index,value) \
+    { *(uint8_t*)(frameArray_ + index) = (value) & 0x00FF; }
 
+#define PFRAME_GET_EXTRA(index) \
+    ( (frameArray_[index] & 0xFF00) >> 0x08 )
 
-KERNELAPI uint32_t kpframe_alloc( uint8_t tag );
+#define PFRAME_SET_EXTRA(index,value) \
+    { *((uint8_t*)(frameArray_ + index) + 1) = (value) & 0x00FF; }
+
+KERNELAPI uint32_t kpframe_alloc(
+    uint32_t count,
+    uint8_t tag );
+
 KERNELAPI uint32_t kpframe_alloc_linear( uint32_t pages, uint8_t tag );
 KERNELAPI void kpframe_free( uint32_t pfn );
 KERNELAPI void kpframe_set_tag( void *addr, uint32_t len, uint8_t tag );
@@ -91,7 +101,7 @@ int memusage_proc(struct proc_file *pf, void *arg);
 int memstat_proc(struct proc_file *pf, void *arg);
 int physmem_proc(struct proc_file *pf, void *arg);
 
-void kpframe_init();
+void kpframe_initialize();
 
 
 #endif  // MACHINA_OS_PFRAME_H

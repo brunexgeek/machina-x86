@@ -1,9 +1,17 @@
 #!/bin/make -f
 
+INTERACTIVE:=$(shell [ -t 0 ] && echo 1)
+
+            ifdef INTERACTIVE
+                COLOR_BLUE=\x1b[34;1m
+                COLOR_RESET=\x1b[0m
+            else
+                COLOR_BLUE=\#\#\#
+            endif
 TARGET_MACHINE := x86
 NASM := build/tools/nasm
 LDFLAGS := -m32 -mtune=i686
-override CFLAGS := $(CFLAGS) -Wall -Werror=overflow -Werror-implicit-function-declaration -O0 -m32 -mtune=i686
+override CFLAGS := $(CFLAGS) -Wall -Werror=overflow -Werror-implicit-function-declaration -m32 -mtune=i686
 
 help:
 	@echo "   all"
@@ -30,7 +38,7 @@ help:
 KERNEL32_OUT_DIR = build/install/boot
 KERNEL32_OUT_FILE = $(KERNEL32_OUT_DIR)/kernel32.so
 $(KERNEL32_OUT_FILE) kernel : kernel-debug 
-	@echo -e '\x1b[34;1mBuilding Machina Kernel for x86\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina Kernel for x86$(COLOR_RESET)'
 	@mkdir -p $(KERNEL32_OUT_DIR)
 	objcopy -O elf32-i386 -j .text -j .rodata -j .bss -j .data $(KRNLDBG32_OUT_FILE) $(KERNEL32_OUT_FILE)
 
@@ -44,8 +52,11 @@ OSLDRS_OUT_FILE = $(OSLDRS_OUT_DIR)/osloader-stub.bin
 OSLDRS_SRC_FILES = \
 	src/arch/x86/sys/osloader/stub.asm
 
+OSLDRS_CLEAN :
+	rm -f $(OSLDRS_OBJ_FILES) $(OSLDRS_OUT_FILE)
+
 $(OSLDRS_OUT_FILE) osloader-stub : $(NASM_OUT_FILE) 
-	@echo -e '\x1b[34;1mBuilding Machina OS Loader Stub\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina OS Loader Stub$(COLOR_RESET)'
 	@mkdir -p $(OSLDRS_OUT_DIR)
 	$(NASM) $(OSLDRS_NFLAGS) $(OSLDRS_SRC_FILES) -o $(OSLDRS_OUT_FILE)
 
@@ -81,14 +92,14 @@ MKDFS_OBJ_MKDIR:
 	@mkdir -p build/linux/obj/utils/dfs
 
 $(MKDFS_OBJ_DIR)/%.c.o: $(MKDFS_SRC_DIR)/%.c
-	@echo -e '\x1b[34;1mCompiling $< \x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $< $(COLOR_RESET)'
 	$(CC) $(MKDFS_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 MKDFS_CLEAN :
-	@rm -f $(MKDFS_OBJ_FILES)
+	rm -f $(MKDFS_OBJ_FILES) $(MKDFS_OUT_FILE)
 
 $(MKDFS_OUT_FILE) :  $(MKDFS_OBJ_FILES)
-	@echo -e '\x1b[34;1mBuilding MKDFS Tool for GNU/Linux\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building MKDFS Tool for GNU/Linux$(COLOR_RESET)'
 	@mkdir -p $(MKDFS_OUT_DIR)
 	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(MKDFS_LDFLAGS) $(MKDFS_OBJ_FILES) -o $(MKDFS_OUT_FILE)
 
@@ -144,18 +155,18 @@ LIBKERNEL_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/machina/lib/libc
 
 $(LIBKERNEL_OBJ_DIR)/%.c.o: $(LIBKERNEL_SRC_DIR)/%.c
-	@echo -e '\x1b[34;1mCompiling $< \x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $< $(COLOR_RESET)'
 	$(CC) $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(LIBKERNEL_OBJ_DIR)/%.asm.o: $(LIBKERNEL_SRC_DIR)/%.asm
-	@echo -e '\x1b[34;1mCompiling $<\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $<$(COLOR_RESET)'
 	$(NASM) $(LIBKERNEL_NFLAGS) $< -o $@
 
 LIBKERNEL_CLEAN :
-	@rm -f $(LIBKERNEL_OBJ_FILES)
+	rm -f $(LIBKERNEL_OBJ_FILES) $(LIBKERNEL_OUT_FILE)
 
 $(LIBKERNEL_OUT_FILE) :  $(LIBKERNEL_OBJ_FILES)
-	@echo -e '\x1b[34;1mBuilding Machina Kernel Library for x86\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina Kernel Library for x86$(COLOR_RESET)'
 	@mkdir -p $(LIBKERNEL_OUT_DIR)
 	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(LIBKERNEL_LDFLAGS) $(LIBKERNEL_OBJ_FILES) -o $(LIBKERNEL_OUT_FILE)
 
@@ -260,22 +271,22 @@ LIBC_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/libc/lib/libc
 
 $(LIBC_OBJ_DIR)/%.c.o: $(LIBC_SRC_DIR)/%.c
-	@echo -e '\x1b[34;1mCompiling $< \x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $< $(COLOR_RESET)'
 	$(CC) $(LIBC_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(LIBC_OBJ_DIR)/%.s.o: $(LIBC_SRC_DIR)/%.s
-	@echo -e '\x1b[34;1mCompiling $<\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $<$(COLOR_RESET)'
 	$(CC) -x assembler-with-cpp $(LIBC_CFLAGS) -c $< -o $@
 
 $(LIBC_OBJ_DIR)/%.asm.o: $(LIBC_SRC_DIR)/%.asm
-	@echo -e '\x1b[34;1mCompiling $<\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $<$(COLOR_RESET)'
 	$(NASM) $(LIBC_NFLAGS) $< -o $@
 
 LIBC_CLEAN :
-	@rm -f $(LIBC_OBJ_FILES)
+	rm -f $(LIBC_OBJ_FILES) $(LIBC_OUT_FILE)
 
 $(LIBC_OUT_FILE) libc : $(NASM_OUT_FILE) build/tools/ar  $(LIBC_OBJ_FILES)
-	@echo -e '\x1b[34;1mBuilding Machina Standard C Library for x86\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina Standard C Library for x86$(COLOR_RESET)'
 	@mkdir -p $(LIBC_OUT_DIR)
 	$(AR) -s -m $(LIBC_OUT_FILE) $(LIBC_OBJ_FILES)
 
@@ -283,7 +294,7 @@ $(LIBC_OUT_FILE) libc : $(NASM_OUT_FILE) build/tools/ar  $(LIBC_OBJ_FILES)
 #
 # Machina Kernel for x86 with Debug Symbols 
 #
-KRNLDBG32_CFLAGS =  -g -O0 -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel $(CFLAGS)
+KRNLDBG32_CFLAGS =  -g -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel $(CFLAGS)
 KRNLDBG32_LDFLAGS =  -nostdlib -Wl,-T,src/arch/x86/sys/kernel/kernel.lds $(LDFLAGS)
 KRNLDBG32_NFLAGS = $(NFLAGS)
 KRNLDBG32_OUT_DIR = build/machina/kernel
@@ -406,18 +417,18 @@ KRNLDBG32_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/kernel/sys/fs/devfs
 
 $(KRNLDBG32_OBJ_DIR)/%.c.o: $(KRNLDBG32_SRC_DIR)/%.c
-	@echo -e '\x1b[34;1mCompiling $< \x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $< $(COLOR_RESET)'
 	$(CC) $(KRNLDBG32_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(KRNLDBG32_OBJ_DIR)/%.s.o: $(KRNLDBG32_SRC_DIR)/%.s
-	@echo -e '\x1b[34;1mCompiling $<\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $<$(COLOR_RESET)'
 	$(CC) -x assembler-with-cpp $(KRNLDBG32_CFLAGS) -c $< -o $@
 
 KRNLDBG32_CLEAN :
-	@rm -f $(KRNLDBG32_OBJ_FILES)
+	rm -f $(KRNLDBG32_OBJ_FILES) $(KRNLDBG32_OUT_FILE)
 
 $(KRNLDBG32_OUT_FILE) kernel-debug :  $(KRNLDBG32_OBJ_FILES)
-	@echo -e '\x1b[34;1mBuilding Machina Kernel for x86 with Debug Symbols\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina Kernel for x86 with Debug Symbols$(COLOR_RESET)'
 	@mkdir -p $(KRNLDBG32_OUT_DIR)
 	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(KRNLDBG32_LDFLAGS) $(KRNLDBG32_OBJ_FILES) -o $(KRNLDBG32_OUT_FILE)
 
@@ -431,8 +442,11 @@ NETBOOT_OUT_FILE = $(NETBOOT_OUT_DIR)/netboot.bin
 NETBOOT_SRC_FILES = \
 	src/arch/x86/boot/netboot.asm
 
+NETBOOT_CLEAN :
+	rm -f $(NETBOOT_OBJ_FILES) $(NETBOOT_OUT_FILE)
+
 $(NETBOOT_OUT_FILE) netboot : $(NASM_OUT_FILE) 
-	@echo -e '\x1b[34;1mBuilding Machina PXE Stage 1 Bootloader\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina PXE Stage 1 Bootloader$(COLOR_RESET)'
 	@mkdir -p $(NETBOOT_OUT_DIR)
 	$(NASM) $(NETBOOT_NFLAGS) $(NETBOOT_SRC_FILES) -o $(NETBOOT_OUT_FILE)
 
@@ -446,8 +460,11 @@ CDEMBOOT_OUT_FILE = $(CDEMBOOT_OUT_DIR)/cdemboot.bin
 CDEMBOOT_SRC_FILES = \
 	src/arch/x86/boot/cdemboot.asm
 
+CDEMBOOT_CLEAN :
+	rm -f $(CDEMBOOT_OBJ_FILES) $(CDEMBOOT_OUT_FILE)
+
 $(CDEMBOOT_OUT_FILE) cdemboot : $(NASM_OUT_FILE) 
-	@echo -e '\x1b[34;1mBuilding Machina CD-ROM Stage 1 Bootloader\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina CD-ROM Stage 1 Bootloader$(COLOR_RESET)'
 	@mkdir -p $(CDEMBOOT_OUT_DIR)
 	$(NASM) $(CDEMBOOT_NFLAGS) $(CDEMBOOT_SRC_FILES) -o $(CDEMBOOT_OUT_FILE)
 
@@ -458,7 +475,7 @@ $(CDEMBOOT_OUT_FILE) cdemboot : $(NASM_OUT_FILE)
 OSLDR_OUT_DIR = build/install/boot
 OSLDR_OUT_FILE = $(OSLDR_OUT_DIR)/osloader.bin
 $(OSLDR_OUT_FILE) osloader : osloader-stub osloader-main 
-	@echo -e '\x1b[34;1mBuilding Machina OS Loader\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina OS Loader$(COLOR_RESET)'
 	@mkdir -p $(OSLDR_OUT_DIR)
 	objcopy -O binary -j .text -j .rodata -j .bss -j .data --set-section-flags .bss=alloc,load,contents $(OSLDRM_OUT_FILE) $(OSLDRM_OUT_FILE).bin
 	cat $(OSLDRS_OUT_FILE) $(OSLDRM_OUT_FILE).bin > $(OSLDR_OUT_FILE)
@@ -470,12 +487,12 @@ $(OSLDR_OUT_FILE) osloader : osloader-stub osloader-main
 ISO_OUT_DIR = build
 ISO_OUT_FILE = $(ISO_OUT_DIR)/machina.iso
 $(ISO_OUT_FILE) iso : $(CDEMBOOT_OUT_FILE) $(OSLDR_OUT_FILE) $(MKDFS_OUT_FILE) kernel 
-	@echo -e '\x1b[34;1mBuilding Machina CD image\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina CD image$(COLOR_RESET)'
 	@mkdir -p $(ISO_OUT_DIR)
 	mkdir -p build/install/dev
 	mkdir -p build/install/proc
 	build/tools/mkdfs -d build/install/BOOTIMG.BIN -b $(CDEMBOOT_OUT_FILE) -l $(OSLDR_OUT_FILE) -k $(KERNEL32_OUT_FILE) -c 1024 -C 1440 -I 8192 -i -f -K rootdev=cd0,rootfs=cdfs
-	genisoimage -J -f -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install
+	genisoimage -J -quiet -c BOOTCAT.BIN -b BOOTIMG.BIN -o $(ISO_OUT_FILE) build/install
 
 
 #
@@ -487,8 +504,11 @@ DISKBOOT_OUT_FILE = $(DISKBOOT_OUT_DIR)/diskboot.bin
 DISKBOOT_SRC_FILES = \
 	src/arch/x86/boot/boot.asm
 
+DISKBOOT_CLEAN :
+	rm -f $(DISKBOOT_OBJ_FILES) $(DISKBOOT_OUT_FILE)
+
 $(DISKBOOT_OUT_FILE) diskboot : $(NASM_OUT_FILE) 
-	@echo -e '\x1b[34;1mBuilding Machina Stage 1 Bootloader\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina Stage 1 Bootloader$(COLOR_RESET)'
 	@mkdir -p $(DISKBOOT_OUT_DIR)
 	$(NASM) $(DISKBOOT_NFLAGS) $(DISKBOOT_SRC_FILES) -o $(DISKBOOT_OUT_FILE)
 
@@ -520,18 +540,18 @@ OSLDRM_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/osloader/lib/libc
 
 $(OSLDRM_OBJ_DIR)/%.c.o: $(OSLDRM_SRC_DIR)/%.c
-	@echo -e '\x1b[34;1mCompiling $< \x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $< $(COLOR_RESET)'
 	$(CC) $(OSLDRM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 $(OSLDRM_OBJ_DIR)/%.asm.o: $(OSLDRM_SRC_DIR)/%.asm
-	@echo -e '\x1b[34;1mCompiling $<\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $<$(COLOR_RESET)'
 	$(NASM) $(OSLDRM_NFLAGS) $< -o $@
 
 OSLDRM_CLEAN :
-	@rm -f $(OSLDRM_OBJ_FILES)
+	rm -f $(OSLDRM_OBJ_FILES) $(OSLDRM_OUT_FILE)
 
 $(OSLDRM_OUT_FILE) osloader-main : $(NASM_OUT_FILE) $(OSLDRS_OUT_FILE)  $(OSLDRM_OBJ_FILES)
-	@echo -e '\x1b[34;1mBuilding Machina OS Loader Main\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building Machina OS Loader Main$(COLOR_RESET)'
 	@mkdir -p $(OSLDRM_OUT_DIR)
 	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(OSLDRM_LDFLAGS) $(OSLDRM_OBJ_FILES) -o $(OSLDRM_OUT_FILE)
 
@@ -595,16 +615,18 @@ NASM_OBJ_MKDIR:
 	@mkdir -p build/linux/obj/bin/nasm/output
 
 $(NASM_OBJ_DIR)/%.c.o: $(NASM_SRC_DIR)/%.c
-	@echo -e '\x1b[34;1mCompiling $< \x1b[0m'
+	@echo -e '$(COLOR_BLUE)Compiling $< $(COLOR_RESET)'
 	$(CC) $(NASM_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
 
 NASM_CLEAN :
-	@rm -f $(NASM_OBJ_FILES)
+	rm -f $(NASM_OBJ_FILES) $(NASM_OUT_FILE)
 
 $(NASM_OUT_FILE) nasm :  $(NASM_OBJ_FILES)
-	@echo -e '\x1b[34;1mBuilding NASM x86 Assembler for GNU/Linux\x1b[0m'
+	@echo -e '$(COLOR_BLUE)Building NASM x86 Assembler for GNU/Linux$(COLOR_RESET)'
 	@mkdir -p $(NASM_OUT_DIR)
 	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
 
 all: $(KERNEL32_OUT_FILE) $(OSLDRS_OUT_FILE) $(MKDFS_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(LIBC_OUT_FILE) $(KRNLDBG32_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(OSLDR_OUT_FILE) $(ISO_OUT_FILE) $(DISKBOOT_OUT_FILE) $(OSLDRM_OUT_FILE) $(NASM_OUT_FILE) 
+
+clean: OSLDRS_CLEAN MKDFS_CLEAN LIBKERNEL_CLEAN LIBC_CLEAN KRNLDBG32_CLEAN NETBOOT_CLEAN CDEMBOOT_CLEAN DISKBOOT_CLEAN OSLDRM_CLEAN NASM_CLEAN 
 

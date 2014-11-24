@@ -17,10 +17,22 @@ Features
 
 
 Working in progress
-----------------
+-------------------
 
 - Support for ELF32 binaries
 - Support for multiprocessing in user mode
+
+
+Roadmap
+-------
+
+- Standard C library
+- Graphic mode CLI
+- Port to ARMv6 machines (e.g. Raspberry Pi)
+- Support for PAE (Physical Address Extension)
+- Support for UEFI
+- Support for multi-core CPUs
+- OS API for GPU parallel computing
 
 
 Supported hardware

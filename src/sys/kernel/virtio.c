@@ -3,7 +3,9 @@
 //
 // Interface to virtual I/O devices (virtio)
 //
-// Copyright (C) 2011 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2011 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -168,7 +170,7 @@ int virtio_queue_init(struct virtio_queue *vq, struct virtio_device *vd, int ind
   vq->callback = callback;
 
   // Activate the queue
-  outpd(vd->iobase + VIRTIO_PCI_QUEUE_PFN, BTOP(virt2phys(vq->vring.desc)));
+  outpd(vd->iobase + VIRTIO_PCI_QUEUE_PFN, BTOP(kpage_virt2phys(vq->vring.desc)));
 
   return 0;
 }
@@ -191,14 +193,14 @@ int virtio_enqueue(struct virtio_queue *vq, struct scatterlist sg[], unsigned in
   head = vq->free_head;
   for (i = vq->free_head; out; i = vq->vring.desc[i].next, out--) {
     vq->vring.desc[i].flags = VRING_DESC_F_NEXT;
-    vq->vring.desc[i].addr = virt2phys(sg->data);
+    vq->vring.desc[i].addr = kpage_virt2phys(sg->data);
     vq->vring.desc[i].len = sg->size;
     tail = i;
     sg++;
   }
   for (; in; i = vq->vring.desc[i].next, in--) {
     vq->vring.desc[i].flags = VRING_DESC_F_NEXT | VRING_DESC_F_WRITE;
-    vq->vring.desc[i].addr = virt2phys(sg->data);
+    vq->vring.desc[i].addr = kpage_virt2phys(sg->data);
     vq->vring.desc[i].len = sg->size;
     tail = i;
     sg++;

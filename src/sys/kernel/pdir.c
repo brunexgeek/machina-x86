@@ -3,8 +3,9 @@
 //
 // Page directory management
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -38,320 +39,404 @@
 #include <os/pframe.h>
 #include <os/vmm.h>
 
-pte_t *pdir = (pte_t *) PAGEDIR_ADDRESS; // Page directory
-pte_t *ptab = (pte_t *) PTBASE;          // Page tables
-
-extern uint16_t *frameArray_;
-
-void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags)
-{
-    // allocate page table if not already done
-    if ((GET_PDE(vaddr) & PT_PRESENT) == 0)
-    {
-        //kprintf("Creating page table for 0x%08x (idx: %d)\n", vaddr, PDEIDX(vaddr));
-        unsigned long pdfn;
-
-        pdfn = kpframe_alloc(1, PFT_PTAB);
-        if (USERSPACE(vaddr))
-        {
-            SET_PDE(vaddr, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE | PT_USER);
-        }
-        else
-        {
-            SET_PDE(vaddr, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE);
-        }
-
-        memset(ptab + PDEIDX(vaddr) * PTES_PER_PAGE, 0, PAGESIZE);
-        kmach_register_page_table(pdfn);
-    }
-
-    // map page frame into address space
-    SET_PTE(vaddr, PTOB(pfn) | flags);
-}
-
-
-void kpage_unmap(void *vaddr)
-{
-    SET_PTE(vaddr, 0);
-    kmach_invlpage(vaddr);
-}
-
-
-unsigned long virt2phys(void *vaddr)
-{
-    return ((GET_PTE(vaddr) & PT_PFNMASK) + PGOFF(vaddr));
-}
-
-
-unsigned long virt2pfn(void *vaddr)
-{
-    return BTOP(GET_PTE(vaddr) & PT_PFNMASK);
-}
-
-
-pte_t kpage_get_flags(void *vaddr)
-{
-    return GET_PTE(vaddr) & PT_FLAGMASK;
-}
-
-
-void kpage_set_flags(void *vaddr, unsigned long flags)
-{
-    SET_PTE(vaddr, (GET_PTE(vaddr) & PT_PFNMASK) | flags);
-    kmach_invlpage(vaddr);
-}
 
 /**
- * Return a non-zero value if the given virtual address it's mapped to a page.
+ * Pointer to page directory.
  */
-int kpage_is_mapped(void *vaddr)
-{
-    if ((GET_PDE(vaddr) & PT_PRESENT) == 0) return 0;
-    if ((GET_PTE(vaddr) & PT_PRESENT) == 0) return 0;
-    return 1;
-}
+pte_t *pdir = (pte_t *) PAGEDIR_ADDRESS;
 
 /**
- * Return a non-zero value if the given virtual address it's mapped to a page table.
+ * Pointer to pabe tables.
  */
-int kpage_is_directory_mapped(void *vaddr)
+pte_t *ptab = (pte_t *) PTBASE;
+
+/**
+ * Pointer to frame array (dynamically allocated).
+ *
+ * @remarks Defined at @ref pframe.c
+ */
+extern uint16_t *frameArray;
+
+
+void kpage_initialize()
 {
-    return (GET_PDE(vaddr) & PT_PRESENT) != 0;
-}
-
-void kpage_unguard(void *vaddr)
-{
-    SET_PTE(vaddr, (GET_PTE(vaddr) & ~PT_GUARD) | PT_USER);
-    kmach_invlpage(vaddr);
-}
-
-void kpage_clear_dirty(void *vaddr)
-{
-    SET_PTE(vaddr, GET_PTE(vaddr) & ~PT_DIRTY);
-    kmach_invlpage(vaddr);
-}
-
-int mem_access(void *vaddr, int size, pte_t access)
-{
-  unsigned long addr;
-  unsigned long next;
-  pte_t pte;
-
-  addr = (unsigned long) vaddr;
-  next = (addr & ~PAGESIZE) + PAGESIZE;
-  while (1) {
-    if ((GET_PDE(addr) & PT_PRESENT) == 0) return 0;
-    pte = GET_PTE(addr);
-    if ((pte & access) != access) {
-      /*if (pte & PT_FILE) {
-        if (fetch_page((void *) PAGEADDR(addr)) < 0) return 0;
-        if ((GET_PTE(addr) & access) != access) return 0;
-      } else*/ {
-        return 0;
-      }
-    }
-
-    size -= next - addr;
-    if (size <= 0) break;
-    addr = next;
-    next += PAGESIZE;
-  }
-
-  return 1;
-}
-
-int str_access(char *s, pte_t access) {
-  pte_t pte;
-
-  while (1) {
-    if ((GET_PDE(s) & PT_PRESENT) == 0) return 0;
-    pte = GET_PTE(s);
-    if ((pte & access) != access) {
-      /*if (pte & PT_FILE) {
-        if (fetch_page((void *) PAGEADDR(s)) < 0) return 0;
-        if ((GET_PTE(s) & access) != access) return 0;
-      } else*/ {
-        return 0;
-      }
-    }
-
-    while (1) {
-      if (!*s) return 1;
-      s++;
-      if (PGOFF(s) == 0) break;
-    }
-  }
-}
-
-void init_pdir()
-{
-    unsigned long i;
+    uint32_t i;
 
     // Clear identity mapping of the first 4 MB made by the os loader
     for (i = 0; i < PTES_PER_PAGE; i++) SET_PTE(PTOB(i), 0);
 }
 
-int pdir_proc(struct proc_file *pf, void *arg) {
-  char *vaddr;
-  pte_t pte;
-  int lines = 0;
 
-  int ma = 0;
-  int us = 0;
-  int su = 0;
-  int ro = 0;
-  int rw = 0;
-  int ac = 0;
-  int dt = 0;
-  int gd = 0;
-  int fi = 0;
+void kpage_map(
+    void *vaddress,
+    uint32_t frame,
+    uint32_t flags )
+{
+    // allocate page table if not already done
+    if ((GET_PDE(vaddress) & PT_PRESENT) == 0)
+    {
+        //kprintf("Creating page table for 0x%08x (idx: %d)\n", vaddress, PDEIDX(vaddress));
+        uint32_t pdfn;
 
-  pprintf(pf, "virtaddr physaddr flags\n");
-  pprintf(pf, "-------- -------- ------\n");
-
-  vaddr = NULL;
-  while (1) {
-    if ((GET_PDE(vaddr) & PT_PRESENT) == 0) {
-      vaddr += PTES_PER_PAGE * PAGESIZE;
-    } else {
-      pte = GET_PTE(vaddr);
-      if (pte & PT_PRESENT) {
-        ma++;
-
-        if (pte & PT_WRITABLE) {
-          rw++;
-        } else {
-          ro++;
+        pdfn = kpframe_alloc(1, PFT_PTAB);
+        if (USERSPACE(vaddress))
+        {
+            SET_PDE(vaddress, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE | PT_USER);
+        }
+        else
+        {
+            SET_PDE(vaddress, PTOB(pdfn) | PT_PRESENT | PT_WRITABLE);
         }
 
-        if (pte & PT_USER) {
-          us++;
-        } else {
-          su++;
+        memset(ptab + PDEIDX(vaddress) * PTES_PER_PAGE, 0, PAGESIZE);
+        kmach_register_page_table(frame);
+    }
+
+    // map page frame into address space
+    SET_PTE(vaddress, PTOB(frame) | flags);
+}
+
+
+void kpage_unmap(
+    void *vaddress )
+{
+    SET_PTE(vaddress, 0);
+    kmach_invlpage(vaddress);
+}
+
+
+uint32_t kpage_virt2phys(
+    void *vaddress )
+{
+    return ((GET_PTE(vaddress) & PT_PFNMASK) + PGOFF(vaddress));
+}
+
+
+uint32_t kpage_virt2frame(
+    void *vaddress )
+{
+    return BTOP(GET_PTE(vaddress) & PT_PFNMASK);
+}
+
+
+pte_t kpage_get_flags(
+    void *vaddress )
+{
+    return GET_PTE(vaddress) & PT_FLAGMASK;
+}
+
+
+void kpage_set_flags(
+    void *vaddress,
+    uint32_t flags )
+{
+    SET_PTE(vaddress, (GET_PTE(vaddress) & PT_PFNMASK) | flags);
+    kmach_invlpage(vaddress);
+}
+
+
+/**
+ * Return a non-zero value if the given virtual address it's mapped to a page.
+ */
+int kpage_is_mapped(
+    void *vaddress )
+{
+    if ((GET_PDE(vaddress) & PT_PRESENT) == 0) return 0;
+    if ((GET_PTE(vaddress) & PT_PRESENT) == 0) return 0;
+    return 1;
+}
+
+
+/**
+ * Return a non-zero value if the given virtual address it's mapped to a page table.
+ */
+int kpage_is_directory_mapped(
+    void *vaddress )
+{
+    return (GET_PDE(vaddress) & PT_PRESENT) != 0;
+}
+
+
+void kpage_unguard(
+    void *vaddress )
+{
+    SET_PTE(vaddress, (GET_PTE(vaddress) & ~PT_GUARD) | PT_USER);
+    kmach_invlpage(vaddress);
+}
+
+
+void kpage_clear_dirty(
+    void *vaddress )
+{
+    SET_PTE(vaddress, GET_PTE(vaddress) & ~PT_DIRTY);
+    kmach_invlpage(vaddress);
+}
+
+
+int mem_access(
+    void *vaddress,
+    int size,
+    pte_t access)
+{
+    uint32_t addr;
+    uint32_t next;
+    pte_t pte;
+
+    addr = (uint32_t) vaddress;
+    next = (addr & ~PAGESIZE) + PAGESIZE;
+    while (1)
+    {
+        if ((GET_PDE(vaddress) & PT_PRESENT) == 0) return 0;
+        pte = GET_PTE(vaddress);
+        if ((pte & access) != access)
+        {
+            /*if (pte & PT_FILE)
+            {
+                if (fetch_page((void *) PAGEADDR(addr)) < 0) return 0;
+                if ((GET_PTE(addr) & access) != access) return 0;
+            }
+            else*/
+            {
+                return 0;
+            }
         }
 
-        if (pte & PT_ACCESSED) ac++;
-        if (pte & PT_DIRTY) dt++;
-        if (pte & PT_GUARD) gd++;
-        if (pte & PT_FILE) fi++;
+        size -= next - addr;
+        if (size <= 0) break;
+        addr = next;
+        next += PAGESIZE;
+    }
 
-        pprintf(pf, "%08x %08x %c%c%c%c%c%c\n",
-                vaddr, PAGEADDR(pte),
+    return 1;
+}
+
+
+int str_access(
+    char *s,
+    pte_t access)
+{
+    pte_t pte;
+
+    while (1)
+    {
+        if ((GET_PDE(s) & PT_PRESENT) == 0) return 0;
+        pte = GET_PTE(s);
+        if ((pte & access) != access) {
+            /*if (pte & PT_FILE)
+            {
+                if (fetch_page((void *) PAGEADDR(s)) < 0) return 0;
+                if ((GET_PTE(s) & access) != access) return 0;
+            }
+            else*/
+            {
+                return 0;
+            }
+        }
+
+        while (1)
+        {
+            if (!*s) return 1;
+            s++;
+            if (PGOFF(s) == 0) break;
+        }
+    }
+}
+
+
+int proc_pdir(
+    struct proc_file *pf,
+    void *arg )
+{
+    char *vaddress;
+    pte_t pte;
+
+    int ma = 0;
+    int us = 0;
+    int su = 0;
+    int ro = 0;
+    int rw = 0;
+    int ac = 0;
+    int dt = 0;
+    int gd = 0;
+    int fi = 0;
+
+    pprintf(pf, "virtaddr physaddr flags\n");
+    pprintf(pf, "-------- -------- ------\n");
+
+    vaddress = NULL;
+    while (1)
+    {
+        if ((GET_PDE(vaddress) & PT_PRESENT) == 0) {
+            vaddress += PTES_PER_PAGE * PAGESIZE;
+    }
+    else
+    {
+        pte = GET_PTE(vaddress);
+        if (pte & PT_PRESENT)
+        {
+            ma++;
+
+            if (pte & PT_WRITABLE)
+                rw++;
+            else
+                ro++;
+
+            if (pte & PT_USER)
+                us++;
+            else
+                su++;
+
+            if (pte & PT_ACCESSED) ac++;
+            if (pte & PT_DIRTY) dt++;
+            if (pte & PT_GUARD) gd++;
+            if (pte & PT_FILE) fi++;
+
+            pprintf(pf, "%08x %08x %c%c%c%c%c%c\n",
+                vaddress, PAGEADDR(pte),
                 (pte & PT_WRITABLE) ? 'w' : 'r',
                 (pte & PT_USER) ? 'u' : 's',
                 (pte & PT_ACCESSED) ? 'a' : ' ',
                 (pte & PT_DIRTY) ? 'd' : ' ',
                 (pte & PT_GUARD) ? 'g' : ' ',
                 (pte & PT_FILE) ? 'f' : ' ');
-      }
+        }
 
-      vaddr += PAGESIZE;
+        vaddress += PAGESIZE;
     }
 
-    if (!vaddr) break;
-  }
+    if (!vaddress) break;
+    }
 
-  pprintf(pf, "\ntotal:%d usr:%d sys:%d rw: %d ro: %d acc: %d dirty: %d guard:%d file:%d\n", ma, us, su, rw, ro, ac, dt, gd, fi);
-  return 0;
+    pprintf(pf, "\ntotal:%d usr:%d sys:%d rw: %d ro: %d acc: %d dirty: %d guard:%d file:%d\n", ma, us, su, rw, ro, ac, dt, gd, fi);
+    return 0;
 }
 
-static print_virtmem(struct proc_file *pf, char *start, char *end, unsigned long tag)
+
+static void kpage_print_virtmem(
+    struct proc_file *output,
+    char *start,
+    char *end,
+    uint32_t tag )
 {
     const char *name;
     name = kpframe_tag_name(tag);
-    pprintf(pf, "%08x %08x %8dK %-4s\n", start, end - 1, (end - start) / 1024, name);
+    pprintf(output, "%08x %08x %8dK %-4s\n", start, end - 1, (end - start) / 1024, name);
 }
 
-int virtmem_proc(struct proc_file *pf, void *arg) {
-  char *vaddr;
-  char *start;
-  unsigned long curtag;
-  int total = 0;
 
-  pprintf(pf, "start    end           size type\n");
-  pprintf(pf, "-------- -------- --------- ----\n");
+int proc_virtmem(
+    struct proc_file *output,
+    void *arg)
+{
+    char *vaddress;
+    char *start;
+    uint32_t curtag;
+    int total = 0;
 
-  start = vaddr = NULL;
-  curtag = 0;
-  while (1) {
-    if ((GET_PDE(vaddr) & PT_PRESENT) == 0) {
-      if (start != NULL) {
-        print_virtmem(pf, start, vaddr, curtag);
-        start = NULL;
-      }
+    pprintf(output, "start    end           size type\n");
+    pprintf(output, "-------- -------- --------- ----\n");
 
-      vaddr += PTES_PER_PAGE * PAGESIZE;
-    } else {
-      pte_t pte = GET_PTE(vaddr);
-      //unsigned long tag = pfdb[pte >> PT_PFNSHIFT].tag;
-      unsigned long tag = PFRAME_GET_TAG( pte >> PT_PFNSHIFT );
+    start = vaddress = NULL;
+    curtag = 0;
+    while (1)
+    {
+        if ((GET_PDE(vaddress) & PT_PRESENT) == 0)
+        {
+            if (start != NULL)
+            {
+                kpage_print_virtmem(output, start, vaddress, curtag);
+                start = NULL;
+            }
 
-      if (pte & PT_PRESENT) {
-        if (start == NULL)  {
-          start = vaddr;
-          curtag = tag;
-        } else if (tag != curtag) {
-          print_virtmem(pf, start, vaddr, curtag);
-          start = vaddr;
-          curtag = tag;
+            vaddress += PTES_PER_PAGE * PAGESIZE;
+        }
+        else
+        {
+            pte_t pte = GET_PTE(vaddress);
+            //uint32_t tag = pfdb[pte >> PT_PFNSHIFT].tag;
+            uint32_t tag = PFRAME_GET_TAG( pte >> PT_PFNSHIFT );
+
+            if (pte & PT_PRESENT)
+            {
+                if (start == NULL)
+                {
+                    start = vaddress;
+                    curtag = tag;
+                }
+                else
+                if (tag != curtag)
+                {
+                    kpage_print_virtmem(output, start, vaddress, curtag);
+                    start = vaddress;
+                    curtag = tag;
+                }
+
+                total += PAGESIZE;
+            }
+            else
+            {
+                if (start != NULL)
+                {
+                    kpage_print_virtmem(output, start, vaddress, curtag);
+                    start = NULL;
+                }
+            }
+
+            vaddress += PAGESIZE;
         }
 
-        total += PAGESIZE;
-      } else {
-        if (start != NULL) {
-          print_virtmem(pf, start, vaddr, curtag);
-          start = NULL;
-        }
-      }
-
-      vaddr += PAGESIZE;
+        if (!vaddress) break;
     }
 
-    if (!vaddr) break;
-  }
+    if (start) kpage_print_virtmem(output, start, vaddress, curtag);
+    pprintf(output, "total             %8dK\n", total / 1024);
 
-  if (start) print_virtmem(pf, start, vaddr, curtag);
-  pprintf(pf, "total             %8dK\n", total / 1024);
-
-  return 0;
+    return 0;
 }
 
-int pdir_stat(void *addr, int len, struct pdirstat *buf) {
-  char *vaddr;
-  char *end;
-  pte_t pte;
 
-  memset(buf, 0, sizeof(struct pdirstat));
-  vaddr = (char *) addr;
-  end = vaddr + len;
-  while (vaddr < end) {
-    if ((GET_PDE(vaddr) & PT_PRESENT) == 0) {
-      vaddr += PTES_PER_PAGE * PAGESIZE;
-      vaddr = (char *) ((unsigned long) vaddr & ~(PTES_PER_PAGE * PAGESIZE - 1));
-    } else {
-      pte = GET_PTE(vaddr);
-      if (pte & PT_PRESENT) {
-        buf->present++;
+int pdir_stat(
+    void *addr,
+    int len,
+    struct pdirstat *buf )
+{
+    char *vaddress;
+    char *end;
+    pte_t pte;
 
-        if (pte & PT_WRITABLE) {
-          buf->readwrite++;
-        } else {
-          buf->readonly++;
+    memset(buf, 0, sizeof(struct pdirstat));
+    vaddress = (char *) addr;
+    end = vaddress + len;
+    while (vaddress < end) {
+        if ((GET_PDE(vaddress) & PT_PRESENT) == 0)
+        {
+            vaddress += PTES_PER_PAGE * PAGESIZE;
+            vaddress = (char *) ((uint32_t) vaddress & ~(PTES_PER_PAGE * PAGESIZE - 1));
         }
+        else
+        {
+            pte = GET_PTE(vaddress);
+            if (pte & PT_PRESENT)
+            {
+                buf->present++;
 
-        if (pte & PT_USER) {
-          buf->user++;
-        } else {
-          buf->kernel++;
+                if (pte & PT_WRITABLE)
+                    buf->readwrite++;
+                else
+                    buf->readonly++;
+
+                if (pte & PT_USER)
+                    buf->user++;
+                else
+                    buf->kernel++;
+
+                if (pte & PT_ACCESSED) buf->accessed++;
+                if (pte & PT_DIRTY) buf->dirty++;
+            }
+
+            vaddress += PAGESIZE;
         }
-
-        if (pte & PT_ACCESSED) buf->accessed++;
-        if (pte & PT_DIRTY) buf->dirty++;
-      }
-
-      vaddr += PAGESIZE;
     }
-  }
 
-  return 0;
+    return 0;
 }

@@ -3,7 +3,9 @@
 //
 // IDE driver
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -496,7 +498,7 @@ static void setup_dma(struct hdc *hdc, char *buffer, int count, int cmd) {
   while (1) {
     if (i == MAX_PRDS) panic("hd dma transfer too large");
 
-    hdc->prds[i].addr = virt2phys(buffer);
+    hdc->prds[i].addr = kpage_virt2phys(buffer);
     len = next - buffer;
     if (count > len) {
       hdc->prds[i].len = len;
@@ -1457,7 +1459,7 @@ static int setup_hdc(struct hdc *hdc, int iobase, int irq, int bmregbase, int *m
   if (hdc->bmregbase) {
     // Allocate one page for PRD list
     hdc->prds = (struct prd *) kmalloc(PAGESIZE);
-    hdc->prds_phys = virt2phys(hdc->prds);
+    hdc->prds_phys = kpage_virt2phys(hdc->prds);
   }
 
   kdpc_create(&hdc->xfer_dpc);

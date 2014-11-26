@@ -3,7 +3,9 @@
 //
 // Kernel heap allocator
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -35,7 +37,14 @@
 #include <os/kmalloc.h>
 #include <os/kmem.h>
 
-extern uint16_t *frameArray_;
+
+/**
+ * Pointer to frame array (dynamically allocated).
+ *
+ * @remarks Defined at @ref pframe.c
+ */
+extern uint16_t *frameArray;
+
 
 unsigned char logTable[2048] = {
    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -121,7 +130,7 @@ void *kmalloc_tag(int size, unsigned long tag) {
     // Set size in pfn entry (include overflow check)
     bucket = PAGES(size) + PAGESHIFT;
     if (bucket > 255) panic("Not enough space for extra information in physical frame");
-    PFRAME_SET_EXTRA( BTOP(virt2phys(addr)), bucket );
+    PFRAME_SET_EXTRA( BTOP(kpage_virt2phys(addr)), bucket );
 
     return addr;
   }
@@ -140,8 +149,8 @@ void *kmalloc_tag(int size, unsigned long tag) {
 
     // Set bucket number in pfn entry
     // TODO: may have data lost (32bits -> 20bits)
-    //pfdb[BTOP(virt2phys(addr))].next = bucket;
-    PFRAME_SET_EXTRA( BTOP(virt2phys(addr)), bucket );
+    //pfdb[BTOP(kpage_virt2phys(addr))].next = bucket;
+    PFRAME_SET_EXTRA( BTOP(kpage_virt2phys(addr)), bucket );
 
     // Split page into chunks
     p = (char *) addr;
@@ -176,8 +185,8 @@ void kfree(void *addr) {
 
   // Get page information
   // TODO: may have data lost (20bits -> 32bits)
-  //bucket = frameArray[BTOP(virt2phys(addr))].next;
-  bucket = PFRAME_GET_EXTRA(BTOP(virt2phys(addr)));
+  //bucket = frameArray[BTOP(kpage_virt2phys(addr))].next;
+  bucket = PFRAME_GET_EXTRA(BTOP(kpage_virt2phys(addr)));
 
   // If a whole page or more, free directly
   if (bucket >= PAGESHIFT) {

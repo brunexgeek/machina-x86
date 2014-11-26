@@ -3,7 +3,9 @@
 //
 // Kernel initialization
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -418,7 +420,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     // initialize page frame database
     kpframe_initialize();
     // initialize page directory
-    init_pdir();
+    kpage_initialize();
     // initialize kernel heap
     kmem_initialize();
     // initialize kernel allocator
@@ -429,12 +431,12 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     kmach_flushtlb();
 
     // Register memory management procs
-    register_proc_inode("memmap", memmap_proc, NULL);
-    register_proc_inode("memusage", memusage_proc, NULL);
-    register_proc_inode("memstat", memstat_proc, NULL);
-    register_proc_inode("physmem", physmem_proc, NULL);
-    register_proc_inode("pdir", pdir_proc, NULL);
-    register_proc_inode("virtmem", virtmem_proc, NULL);
+    register_proc_inode("memmap", proc_memmap, NULL);
+    register_proc_inode("memusage", proc_memusage, NULL);
+    register_proc_inode("memstat", proc_memstat, NULL);
+    register_proc_inode("physmem", proc_physmem, NULL);
+    register_proc_inode("pdir", proc_pdir, NULL);
+    register_proc_inode("virtmem", proc_virtmem, NULL);
     register_proc_inode("kmem", kmem_proc, NULL);
     register_proc_inode("kmodmem", kmodmem_proc, NULL);
     register_proc_inode("kheap", kheapstat_proc, NULL);
@@ -633,6 +635,7 @@ void main(void *arg)
     main_readFile("/proc/vmem");
     main_readFile("/proc/cpu");
     main_readFile("/proc/netif");
+    main_readFile("/proc/handles");
 
     // Load kernel32.so in user address space
     /*imgbase = kloader_load(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);

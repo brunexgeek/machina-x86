@@ -345,7 +345,7 @@ int vmsync(void *addr, unsigned long size) {
     if (kpage_is_directory_mapped(vaddr)) {
       pte_t flags = kpage_get_flags(vaddr);
       /*if ((flags & (PT_FILE | PT_PRESENT | PT_DIRTY)) == (PT_FILE | PT_PRESENT | PT_DIRTY)) {
-        unsigned long pfn = BTOP(virt2phys(vaddr));
+        unsigned long pfn = BTOP(kpage_virt2phys(vaddr));
         // TODO: may have data lost (20bits -> 32bits)
         struct filemap *newfm = (struct filemap *) hlookup(pfdb[pfn].next);
         if (newfm != fm) {
@@ -389,7 +389,7 @@ int vmfree(void *addr, unsigned long size, int type) {
     for (i = 0; i < pages; i++) {
       if (kpage_is_directory_mapped(vaddr)) {
         pte_t flags = kpage_get_flags(vaddr);
-        unsigned long pfn = BTOP(virt2phys(vaddr));
+        unsigned long pfn = BTOP(kpage_virt2phys(vaddr));
 
         /*if (flags & PT_FILE) {
           // TODO: may have data lost (20bits -> 32bits)

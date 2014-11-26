@@ -3,8 +3,9 @@
 //
 // Page directory routines
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -34,6 +35,9 @@
 
 #ifndef MACHINA_PDIR_H
 #define MACHINA_PDIR_H
+
+
+#include <stdint.h>
 
 
 #define PAGESIZE       4096
@@ -134,24 +138,63 @@ struct pdirstat
 extern pte_t *pdir;
 extern pte_t *ptab;
 
-KERNELAPI void kpage_map(void *vaddr, unsigned long pfn, unsigned long flags);
-KERNELAPI void kpage_unmap(void *vaddr);
-KERNELAPI unsigned long virt2phys(void *vaddr);
-KERNELAPI unsigned long virt2pfn(void *vaddr);
-KERNELAPI pte_t kpage_get_flags(void *vaddr);
-KERNELAPI void kpage_set_flags(void *vaddr, unsigned long flags);
-KERNELAPI int kpage_is_mapped(void *vaddr);
-KERNELAPI int kpage_is_directory_mapped(void *vaddr);
-KERNELAPI void kpage_unguard(void *vaddr);
-KERNELAPI void kpage_clear_dirty(void *vaddr);
+void kpage_initialize();
 
-KERNELAPI int mem_access(void *vaddr, int size, pte_t access);
-KERNELAPI int str_access(char *s, pte_t access);
+KERNELAPI void kpage_map(
+    void *vaddress,
+    uint32_t frame,
+    uint32_t flags );
 
-void init_pdir();
-int pdir_proc(struct proc_file *pf, void *arg);
-int virtmem_proc(struct proc_file *pf, void *arg);
-int pdir_stat(void *addr, int len, struct pdirstat *buf);
+KERNELAPI void kpage_unmap(
+    void *vaddress );
+
+KERNELAPI uint32_t kpage_virt2phys(
+    void *vaddress );
+
+KERNELAPI uint32_t kpage_virt2frame(
+    void *vaddress );
+
+KERNELAPI pte_t kpage_get_flags(
+    void *vaddress );
+
+KERNELAPI void kpage_set_flags(
+    void *vaddress,
+    uint32_t flags );
+
+KERNELAPI int kpage_is_mapped(
+    void *vaddress );
+
+KERNELAPI int kpage_is_directory_mapped(
+    void *vaddress );
+
+KERNELAPI void kpage_unguard(
+    void *vaddress );
+
+KERNELAPI void kpage_clear_dirty(
+    void *vaddress );
+
+KERNELAPI int mem_access(
+    void *vaddress,
+    int size,
+    pte_t access);
+
+KERNELAPI int str_access(
+    char *s,
+    pte_t access);
+
+int proc_pdir(
+    struct proc_file *output,
+    void *arg );
+
+int proc_virtmem(
+    struct proc_file *output,
+    void *arg);
+
+int pdir_stat(
+    void *addr,
+    int len,
+    struct pdirstat *buf );
+
 
 #endif  // KERNEL
 #endif  // __ASSEMBLER__

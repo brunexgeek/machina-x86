@@ -1,7 +1,7 @@
 //
-// loader.c
+// loader.h
 //
-// Library and executable loader
+// ELF32 binary loader
 //
 // Copyright (C) 2014 Bruno Ribeiro.
 // All rights reserved.

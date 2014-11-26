@@ -114,7 +114,7 @@ void kmem_free( void *addr, int pages )
 
     for (i = 0; i < pages; i++)
     {
-        pfn = BTOP(virt2phys((char *) addr + PTOB(i)));
+        pfn = BTOP(kpage_virt2phys((char *) addr + PTOB(i)));
         kpframe_free(pfn);
         kpage_unmap((char *) addr + PTOB(i));
     }
@@ -176,7 +176,7 @@ void free_module_mem(void *addr, int pages)
 
     for (i = 0; i < pages; i++)
     {
-        pfn = BTOP(virt2phys((char *) addr + PTOB(i)));
+        pfn = BTOP(kpage_virt2phys((char *) addr + PTOB(i)));
         kpframe_free(pfn);
         kpage_unmap((char *) addr + PTOB(i));
     }

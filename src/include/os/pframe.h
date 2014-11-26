@@ -74,34 +74,59 @@
 
 #define INVALID_PFRAME        ((uint32_t)0xFFFFFFFF)
 
+
 #define PFRAME_GET_TAG(index) \
-    ( frameArray_[index] & 0x00FF )
+    ( frameArray[index] & 0x00FF )
 
 #define PFRAME_SET_TAG(index,value) \
-    { *(uint8_t*)(frameArray_ + index) = (value) & 0x00FF; }
+    { *(uint8_t*)(frameArray + index) = (value) & 0x00FF; }
 
 #define PFRAME_GET_EXTRA(index) \
-    ( (frameArray_[index] & 0xFF00) >> 0x08 )
+    ( (frameArray[index] & 0xFF00) >> 0x08 )
 
 #define PFRAME_SET_EXTRA(index,value) \
-    { *((uint8_t*)(frameArray_ + index) + 1) = (value) & 0x00FF; }
+    { *((uint8_t*)(frameArray + index) + 1) = (value) & 0x00FF; }
+
+
+void kpframe_initialize();
 
 KERNELAPI uint32_t kpframe_alloc(
     uint32_t count,
     uint8_t tag );
 
-KERNELAPI uint32_t kpframe_alloc_linear( uint32_t pages, uint8_t tag );
-KERNELAPI void kpframe_free( uint32_t pfn );
-KERNELAPI void kpframe_set_tag( void *addr, uint32_t len, uint8_t tag );
-uint8_t kpframe_get_tag( void *vaddr );
-const char *kpframe_tag_name( uint8_t tag );
+KERNELAPI uint32_t kpframe_alloc_linear(
+    uint32_t pages,
+    uint8_t tag );
 
-int memmap_proc(struct proc_file *pf, void *arg);
-int memusage_proc(struct proc_file *pf, void *arg);
-int memstat_proc(struct proc_file *pf, void *arg);
-int physmem_proc(struct proc_file *pf, void *arg);
+KERNELAPI void kpframe_free(
+    uint32_t frame );
 
-void kpframe_initialize();
+KERNELAPI void kpframe_set_tag(
+    void *vaddress,
+    uint32_t length,
+    uint8_t tag );
+
+uint8_t kpframe_get_tag(
+    void *vaddress );
+
+const char *kpframe_tag_name(
+    uint8_t tag );
+
+int proc_memmap(
+    struct proc_file *output,
+    void *arg );
+
+int proc_memusage(
+    struct proc_file *output,
+    void *arg );
+
+int proc_memstat(
+    struct proc_file *output,
+    void *arg );
+
+int proc_physmem(
+    struct proc_file *output,
+    void *arg );
 
 
 #endif  // MACHINA_OS_PFRAME_H

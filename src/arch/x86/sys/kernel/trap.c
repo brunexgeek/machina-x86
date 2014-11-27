@@ -890,7 +890,7 @@ void ktrap_init()
     register_interrupt(&sigexitintr, INTR_SIGEXIT, sigexit_handler, NULL);
 
     // Initialize fast syscall
-    if (global_cpu.features & CPU_FEATURE_SEP)
+    if (cpuInfo.features & CPU_FEATURE_SEP)
     {
         kmach_wrmsr(MSR_SYSENTER_CS, SEL_KTEXT | global_kring, 0);
         kmach_wrmsr(MSR_SYSENTER_ESP, TSS_ESP0, 0);

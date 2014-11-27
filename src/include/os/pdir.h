@@ -37,8 +37,6 @@
 #define MACHINA_PDIR_H
 
 
-#include <stdint.h>
-
 
 #define PAGESIZE       4096
 #define PAGESHIFT      12
@@ -116,7 +114,7 @@
 
 #ifndef __ASSEMBLER__
 
-typedef unsigned long pte_t;
+typedef unsigned int pte_t;
 
 struct pdirstat
 {
@@ -132,6 +130,7 @@ struct pdirstat
 #include <os/krnl.h>
 #include <sys/types.h>
 #include <os/procfs.h>
+#include <stdint.h>
 
 #ifdef KERNEL
 

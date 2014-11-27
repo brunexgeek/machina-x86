@@ -416,7 +416,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     // initialize machine
     init_mach();
     // initialize CPU
-    init_cpu();
+    kcpu_initialize();
     // initialize page frame database
     kpframe_initialize();
     // initialize page directory
@@ -441,7 +441,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     register_proc_inode("kmodmem", kmodmem_proc, NULL);
     register_proc_inode("kheap", kheapstat_proc, NULL);
     register_proc_inode("vmem", vmem_proc, NULL);
-    register_proc_inode("cpu", kcpu_proc, NULL);
+    register_proc_inode("cpu", proc_cpuinfo, NULL);
 
     // Initialize interrupts, floating-point support, and real-time clock
     kpic_init();
@@ -537,7 +537,7 @@ void main(void *arg)
     peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, PFT_PEB, NULL);
     if (!peb) panic("unable to allocate PEB");
     memset(peb, 0, PAGESIZE);
-    peb->fast_syscalls_supported = (global_cpu.features & CPU_FEATURE_SEP) != 0;
+    peb->fast_syscalls_supported = (cpuInfo.features & CPU_FEATURE_SEP) != 0;
 
     // Enumerate root host buses and units
     enum_host_bus();

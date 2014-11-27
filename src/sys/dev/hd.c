@@ -465,7 +465,7 @@ static void hd_setup_transfer(struct hd *hd, blkno_t blkno, int nsects) {
   outp(hd->hdc->iobase + HDC_SECTOR, (unsigned char) sector);
   outp(hd->hdc->iobase + HDC_TRACKLSB, (unsigned char) track);
   outp(hd->hdc->iobase + HDC_TRACKMSB, (unsigned char) (track >> 8));
-  outp(hd->hdc->iobase + HDC_DRVHD, (unsigned char) (head & 0xFF | hd->drvsel));
+  outp(hd->hdc->iobase + HDC_DRVHD, (unsigned char) ((head & 0xFF) | hd->drvsel));
 }
 
 static void pio_read_buffer(struct hd *hd, char *buffer, int size) {

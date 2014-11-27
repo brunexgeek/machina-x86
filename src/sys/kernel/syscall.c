@@ -2178,10 +2178,10 @@ static int sys_sysinfo(char *params) {
 
   switch (cmd) {
     case SYSINFO_CPU:
-      if (!data || size < sizeof(struct cpuinfo)) {
+      if (!data || size < sizeof(struct cpu_info)) {
         rc = -EFAULT;
       } else {
-        rc = kcpu_get_info((struct cpuinfo *) data);
+        rc = kcpu_get_info((struct cpu_info *) data);
       }
       break;
 

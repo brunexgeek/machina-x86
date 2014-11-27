@@ -1,7 +1,7 @@
 //
-// pframe.h
+// pframe.c
 //
-// Page frame database routines
+// Physical memory frames management.
 //
 // Copyright (C) 2013-2014 Bruno Ribeiro
 // Copyright (C) 2002 Michael Ringgaard
@@ -101,12 +101,12 @@ KERNELAPI uint32_t kpframe_alloc_linear(
 KERNELAPI void kpframe_free(
     uint32_t frame );
 
-KERNELAPI void kpframe_set_tag(
+static KERNELAPI void kpframe_set_tag(
     void *vaddress,
     uint32_t length,
     uint8_t tag );
 
-uint8_t kpframe_get_tag(
+static uint8_t kpframe_get_tag(
     void *vaddress );
 
 const char *kpframe_tag_name(

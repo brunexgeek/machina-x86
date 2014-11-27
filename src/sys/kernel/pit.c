@@ -284,7 +284,7 @@ void kpit_calibrate_delay()
     int precision;
 
     // check support for TSC (should be supported by Pentium I or later)
-    if (global_cpu.features & CPU_FEATURE_TSC)
+    if (cpuInfo.features & CPU_FEATURE_TSC)
     {
 
         unsigned long start;
@@ -334,7 +334,7 @@ void kpit_calibrate_delay()
     }
 
     kprintf(KERN_INFO "cpu: %d cycles/tick, %d MHz processor\n", cycles_per_tick, mhz);
-    global_cpu.mhz = mhz;
+    cpuInfo.mhz = mhz;
 }
 
 
@@ -407,7 +407,7 @@ void kpit_init()
 
 void kpit_udelay(unsigned long us)
 {
-    if (global_cpu.features & CPU_FEATURE_TSC)
+    if (cpuInfo.features & CPU_FEATURE_TSC)
         tsc_delay(us * (cycles_per_tick / (1000000 / TIMER_FREQ)));
     else
         timed_delay(us * (loops_per_tick / (1000000 / TIMER_FREQ)));

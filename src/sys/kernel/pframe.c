@@ -1,7 +1,7 @@
 //
 // pframe.c
 //
-// Page frame database functions.
+// Physical memory frames management.
 //
 // Copyright (C) 2013-2014 Bruno Ribeiro.
 // Copyright (C) 2002 Michael Ringgaard.
@@ -134,9 +134,8 @@ void kpframe_initialize()
     heap = syspage->ldrparams.heapend;
     pfdbpages = PAGES((memend / PAGESIZE) * sizeof(uint16_t));
     if ((pfdbpages + 2) * PAGESIZE + heap >= memend) panic("not enough memory for page table database");
-    kprintf("[DEBUG] PFDB requires %d pages to map %d KiB\n", pfdbpages, memend / 1024);
-    // intialize page tables for mapping the largest possible PFDB into kernel space
-    // (for a machine with 4GB of physical RAM we need 524 pages for PFDB)
+    // intialize page tables to map the largest possible frame array into kernel space
+    // (for a machine with 4GB of physical RAM we need 524 pages/frames for frame array)
     kmach_set_page_dir_entry(&pdir[PDEIDX(PFDBBASE)], heap | PT_PRESENT | PT_WRITABLE);
     pt = (pte_t *) heap;
     heap += PAGESIZE;
@@ -198,6 +197,7 @@ void kpframe_initialize()
 
 /**
  * Allocate a memory frame.
+ *
  * @return Index of the allocated frame or 0xFFFFFFFF otherwise.
  */
 uint32_t kpframe_alloc(
@@ -237,12 +237,13 @@ void kpframe_free(
 {
     if (frame >= frameCount) return;
 
+    // mark physical frames as free
     PFRAME_SET_TAG(frame, PFT_FREE);
     freeCount++;
 }
 
 
-void kpframe_set_tag(
+static void kpframe_set_tag(
     void *vaddress,
     uint32_t length,
     uint8_t tag )
@@ -264,7 +265,7 @@ void kpframe_set_tag(
 }
 
 
-uint8_t kpframe_get_tag(
+static uint8_t kpframe_get_tag(
     void *vaddress )
 {
     return PFRAME_GET_TAG(kpage_virt2phys(vaddress) << PAGESHIFT);
@@ -380,12 +381,7 @@ int proc_physmem(
 
         tag = PFRAME_GET_TAG(n);
         if (tag != PFT_FREE) keep = 1;
-        if (tag > MAX_PFT)
-        {
-            kprintf("tag = %d\n", tag);
-            panic("Fuuu");
-        }
-        if (PFT_NAMES[tag].symbol == NULL)
+        if (tag > MAX_PFT || PFT_NAMES[tag].symbol == NULL)
             pprintf(output, "?");
         else
             pprintf(output, "%s", PFT_NAMES[tag].symbol);

@@ -1,423 +1,26 @@
 #!/usr/bin/python
 
-import re
+from makegen import MakefileGenerator
 
-FIELD_PLATFORM = "FIELD_PLATFORM"
-FIELD_OUTPUT_DIRECTORY = "FIELD_OUTPUT_DIRECTORY"
-FIELD_OUTPUT_FILE = "FIELD_OUTPUT_FILE"
-FIELD_SOURCES = "FIELD_SOURCES"
-FIELD_SOURCE_DIRECTORY = "FIELD_SOURCE_DIRECTORY"
-FIELD_OBJECT_DIRECTORY = "FIELD_OBJECT_DIRECTORY"
-FIELD_PREFFIX = "FIELD_PREFFIX"
-FIELD_TYPE = "FIELD_TYPE"
-FIELD_DESCRIPTION = "FIELD_DESCRIPTION"
-FIELD_CFLAGS = "FIELD_CFLAGS"
-FIELD_LDFLAGS = "FIELD_LDFLAGS"
-FIELD_NAME = "FIELD_NAME"
-FIELD_DEPENDENCIES = "FIELD_DEPENDENCIES"
-FIELD_NFLAGS = "FIELD_NFLAGS"
-FIELD_COMMANDS = "FIELD_COMMANDS"
+from makegen import FIELD_PLATFORM
+from makegen import FIELD_OUTPUT_DIRECTORY
+from makegen import FIELD_OUTPUT_FILE
+from makegen import FIELD_SOURCES
+from makegen import FIELD_SOURCE_DIRECTORY
+from makegen import FIELD_OBJECT_DIRECTORY
+from makegen import FIELD_PREFFIX
+from makegen import FIELD_TYPE
+from makegen import FIELD_DESCRIPTION
+from makegen import FIELD_CFLAGS
+from makegen import FIELD_LDFLAGS
+from makegen import FIELD_NAME
+from makegen import FIELD_DEPENDENCIES
+from makegen import FIELD_NFLAGS
+from makegen import FIELD_COMMANDS
 
-COLOR_BLUE="$(COLOR_BLUE)"
-COLOR_RESET="$(COLOR_RESET)"
-
-
-BIN_DYNAMIC = 1
-BIN_STATIC = 2
-BIN_EXECUTABLE = 4
-
-LANG_C = 1
-LANG_S = 2
-LANG_ASM = 4
-
-class MakefileTarget:
-
-    def __init__(self, targetDefs):
-        self.checkFields(targetDefs)
-        self.target = targetDefs
-
-    @staticmethod
-    def println( text ):
-        print "\t@echo -e '" + text + "'"
-
-    #
-    # Returns the given suffix as a Makefile variable reference
-    #
-    @staticmethod
-    def toVar(suffix, targetDefs):
-        return "$(" + targetDefs[FIELD_PREFFIX] + "_" + suffix + ")"
-
-    def _toVar(self, suffix):
-        return MakefileTarget.toVar(suffix, self.target)
-
-    #
-    # Returns the given suffix as a Makefile variable name
-    #
-    @staticmethod
-    def toVarName(suffix, targetDefs):
-        return targetDefs[FIELD_PREFFIX] + "_" + suffix
-
-    def _toVarName(self, suffix):
-        return MakefileTarget.toVarName(suffix, self.target)
-
-    #
-    # Translate the file name from source to object.
-    #
-    @staticmethod
-    def toObject(fileName):
-        if (fileName.endswith(".c")):
-            return re.sub("\.c$", ".o", fileName)
-        if (fileName.endswith(".asm")):
-            return re.sub("\.asm$", ".o", fileName)
-        if (fileName.endswith(".s")):
-            return re.sub("\.s$", ".o", fileName)
-        raise AssertionError("Unknown file extension")
-
-    @staticmethod
-    def checkField(targetDefs, name):
-        if (name not in targetDefs):
-            raise KeyError("The field '" + name + "' must be present in target '" + targetDefs[FIELD_OUTPUT_FILE] + "'")
-
-    @staticmethod
-    def checkFields(targetDefs):
-        MakefileTarget.checkField(targetDefs, FIELD_DESCRIPTION);
-        MakefileTarget.checkField(targetDefs, FIELD_PREFFIX);
-        MakefileTarget.checkField(targetDefs, FIELD_OBJECT_DIRECTORY);
-        MakefileTarget.checkField(targetDefs, FIELD_SOURCES);
-        MakefileTarget.checkField(targetDefs, FIELD_SOURCE_DIRECTORY);
-        MakefileTarget.checkField(targetDefs, FIELD_OUTPUT_DIRECTORY);
-        MakefileTarget.checkField(targetDefs, FIELD_OUTPUT_FILE);
-        MakefileTarget.checkField(targetDefs, FIELD_TYPE);
-
-    @staticmethod
-    def getLanguages(targetDefs):
-        # check which language targets will be necessary
-        langs = 0
-        if (FIELD_SOURCES not in targetDefs):
-            return 0
-        for entry in targetDefs[FIELD_SOURCES]:
-            if (entry.endswith(".c")):
-                langs |= LANG_C
-            else:
-                if (entry.endswith(".s")):
-                    langs |= LANG_S
-                else:
-                    if (entry.endswith(".asm")):
-                        langs |= LANG_ASM
-        return langs;
-
-
-
-class CMakefileTarget(MakefileTarget):
-
-    @staticmethod
-    def isCompatible(targetDefs):
-        langs = MakefileTarget.getLanguages(targetDefs)
-        return ((langs & LANG_C) > 0 or (langs & LANG_S) > 0)
-
-    #
-    # Generate the C Makefile target
-    #
-    def generateTarget(self):
-        # target header
-        print "\n#\n#", self.target[FIELD_DESCRIPTION], "\n#"
-
-        # welcome target
-        #print self._toVarName("WELCOME") + ":"
-        #print "\t@echo"
-        #print "\t@echo Building", self.target[FIELD_DESCRIPTION]
-        #print
-
-        # print the CFLAGS definition
-        if (FIELD_CFLAGS in self.target):
-            print self._toVarName("CFLAGS"), "= ", self.target[FIELD_CFLAGS], "$(CFLAGS)"
-        else:
-            print self._toVarName("CFLAGS"), "= $(CFLAGS)"
-
-        # print the LDFLAGS definition
-        if (FIELD_LDFLAGS in self.target):
-            print self._toVarName("LDFLAGS"), "= ", self.target[FIELD_LDFLAGS], "$(LDFLAGS)"
-        else:
-            print self._toVarName("LDFLAGS"), "= $(LDFLAGS)"
-
-        # print the NFLAGS definition
-        if (FIELD_NFLAGS in self.target):
-            print self._toVarName("NFLAGS"), "= $(NFLAGS)", self.target[FIELD_NFLAGS]
-        else:
-            print self._toVarName("NFLAGS"), "= $(NFLAGS)"
-
-        # output directory and file
-        print self._toVarName("OUT_DIR"), "=", self.target[FIELD_OUTPUT_DIRECTORY]
-        print self._toVarName("OUT_FILE"), "=", self._toVar("OUT_DIR") + "/" + self.target[FIELD_OUTPUT_FILE]
-        # source directory
-        print self._toVarName("SRC_DIR"), "=", self.target[FIELD_SOURCE_DIRECTORY]
-        # source file list
-        print self._toVarName("SRC_FILES"), "= \\"
-        for index in range(len(self.target[FIELD_SOURCES])-1):
-            print "\t", self.target[FIELD_SOURCES][index], "\\"
-        print "\t", self.target[FIELD_SOURCES][len(self.target[FIELD_SOURCES])-1]
-        # object directory
-        print self._toVarName("OBJ_DIR"), "=", self.target[FIELD_OBJECT_DIRECTORY]
-        # object file list
-        print self._toVarName("OBJ_FILES"), "=", "$(patsubst %," + self._toVar("OBJ_DIR") + "/%.o ," + self._toVar("SRC_FILES") + ")"
-        print
-
-        # target to object directory creation
-        print self._toVar("OBJ_FILES") + ": | " + self._toVarName("OBJ_MKDIR")
-        print
-        print self._toVarName("OBJ_MKDIR") + ":"
-        print "\t" + "@mkdir -p", self.target[FIELD_OBJECT_DIRECTORY]
-        # find extra paths to create
-        extraPaths = set()
-        for entry in self.target[FIELD_SOURCES]:
-            pos = entry.rfind("/")
-            if (pos >= 0):
-                extraPaths.add(entry[:pos])
-        # include the extra paths creation in the Makefile
-        for entry in extraPaths:
-            print "\t" + "@mkdir -p", self.target[FIELD_OBJECT_DIRECTORY] + "/" + entry
-        print
-
-        # check which language targets will be necessary
-        langs = 0
-        for entry in self.target[FIELD_SOURCES]:
-            if (entry.endswith(".c")):
-                langs |= LANG_C
-            else:
-                if (entry.endswith(".s")):
-                    langs |= LANG_S
-                else:
-                    if (entry.endswith(".asm")):
-                        langs |= LANG_ASM
-        # set the current C compiler
-        compiler = "$(CC)"
-        # target to compile each C source file
-        if ((langs & LANG_C) > 0):
-            print self._toVar("OBJ_DIR") + "/%.c.o:", self._toVar("SRC_DIR") + "/%.c"
-            self.println(COLOR_BLUE + "Compiling $< " + COLOR_RESET)
-            print "\t" + compiler, self._toVar("CFLAGS"), "-DTARGET_MACHINE=$(TARGET_MACHINE)", "-c $< -o $@"
-            print
-        # target to compile each S source file
-        if ((langs & LANG_S) > 0):
-            print self._toVar("OBJ_DIR") + "/%.s.o:", self._toVar("SRC_DIR") + "/%.s"
-            self.println(COLOR_BLUE + "Compiling $<" + COLOR_RESET)
-            print "\t" + compiler, "-x assembler-with-cpp", self._toVar("CFLAGS"), "-c $< -o $@"
-            print
-        # target to compile each ASM source file
-        if ((langs & LANG_ASM) > 0):
-            print self._toVar("OBJ_DIR") + "/%.asm.o:", self._toVar("SRC_DIR") + "/%.asm"
-            self.println(COLOR_BLUE + "Compiling $<" + COLOR_RESET)
-            print "\t$(NASM)", self._toVar("NFLAGS"), "$< -o $@"
-            print
-
-        # target to clean de compilation
-        print self._toVarName("CLEAN"), ":"
-        print "\trm -f", self._toVar("OBJ_FILES"), self._toVar("OUT_FILE")
-        print
-
-        # choose the main target name
-        mainTarget = self._toVar("OUT_FILE")
-        if (FIELD_NAME in self.target):
-            mainTarget += " " + self.target[FIELD_NAME]
-        # find the dependencies
-        depends = ""
-        if (FIELD_DEPENDENCIES in self.target):
-            for entry in self.target[FIELD_DEPENDENCIES]:
-                depends += entry + " "
-        # target to compile the binary file
-        print mainTarget, ":", depends, self._toVar("OBJ_FILES")
-        self.println(COLOR_BLUE + "Building " + self.target[FIELD_DESCRIPTION] + COLOR_RESET)
-        print "\t@mkdir -p", self._toVar("OUT_DIR")
-        # check if the current target is for BIN_DYNAMIC or BIN_EXECUTABLE
-        if ((self.target[FIELD_TYPE] & BIN_STATIC) == 0):
-            compiler = "$(CC)"
-            print "\t" + compiler, \
-                "-DTARGET_MACHINE=$(TARGET_MACHINE)", \
-                self._toVar("LDFLAGS"), \
-                self._toVar("OBJ_FILES") , \
-                "-o", self._toVar("OUT_FILE")
-        else:
-            print "\t$(AR) -s -m", self._toVar("OUT_FILE"), self._toVar("OBJ_FILES")
-        print
-
-
-
-class AsmMakefileTarget(MakefileTarget):
-
-    @staticmethod
-    def isCompatible(targetDefs):
-        langs = MakefileTarget.getLanguages(targetDefs)
-        return ((langs & LANG_C) == 0 and (langs & LANG_S) == 0 and (langs & LANG_ASM) > 0)
-
-    #
-    # Generate the NASM Makefile target
-    #
-    def generateTarget(self):
-        # target header
-        print "\n#\n#", self.target[FIELD_DESCRIPTION], "\n#"
-
-        # print the NFLAGS definition
-        if (FIELD_NFLAGS in self.target):
-            print self._toVarName("NFLAGS"), "= $(NFLAGS)", self.target[FIELD_NFLAGS]
-        else:
-            print self._toVarName("NFLAGS"), "= $(NFLAGS)"
-
-        # output directory and file
-        print self._toVarName("OUT_DIR"), "=", self.target[FIELD_OUTPUT_DIRECTORY]
-        print self._toVarName("OUT_FILE"), "=", self._toVar("OUT_DIR") + "/" + self.target[FIELD_OUTPUT_FILE]
-        # source file list
-        print self._toVarName("SRC_FILES"), "= \\"
-        for index in range(len(self.target[FIELD_SOURCES])-1):
-            print "\t", self.target[FIELD_SOURCE_DIRECTORY] + "/" + self.target[FIELD_SOURCES][index], "\\"
-        print "\t", self.target[FIELD_SOURCE_DIRECTORY] + "/" + self.target[FIELD_SOURCES][len(self.target[FIELD_SOURCES])-1]
-        print
-
-        # target to clean de compilation
-        print self._toVarName("CLEAN"), ":"
-        print "\trm -f", self._toVar("OBJ_FILES"), self._toVar("OUT_FILE")
-        print
-
-        # choose the main target name
-        mainTarget = self._toVar("OUT_FILE")
-        if (FIELD_NAME in self.target):
-            mainTarget += " " + self.target[FIELD_NAME]
-        # find the dependencies
-        depends = ""
-        if (FIELD_DEPENDENCIES in self.target):
-            for entry in self.target[FIELD_DEPENDENCIES]:
-                depends += entry + " "
-        # target to compile the binary file
-        print mainTarget, ":", depends
-        self.println(COLOR_BLUE + "Building " + self.target[FIELD_DESCRIPTION] + COLOR_RESET)
-        print "\t@mkdir -p", self._toVar("OUT_DIR")
-        # check if the current target is for BIN_DYNAMIC or BIN_EXECUTABLE
-        print "\t$(NASM)", \
-            self._toVar("NFLAGS"), \
-            self._toVar("SRC_FILES") , \
-            "-o", self._toVar("OUT_FILE")
-        print
-
-
-
-class CustomMakefileTarget(MakefileTarget):
-
-    def __init__(self, targetDefs):
-        self.target = targetDefs
-
-    @staticmethod
-    def isCompatible(targetDefs):
-        return (FIELD_SOURCES not in targetDefs and FIELD_COMMANDS in targetDefs)
-
-    #
-    # Generate the NASM Makefile target
-    #
-    def generateTarget(self):
-        # target header
-        print "\n#\n#", self.target[FIELD_DESCRIPTION], "\n#"
-
-        # output directory and file
-        print self._toVarName("OUT_DIR"), "=", self.target[FIELD_OUTPUT_DIRECTORY]
-        print self._toVarName("OUT_FILE"), "=", self._toVar("OUT_DIR") + "/" + self.target[FIELD_OUTPUT_FILE]
-
-        # choose the main target name
-        mainTarget = self._toVar("OUT_FILE")
-        if (FIELD_NAME in self.target):
-            mainTarget += " " + self.target[FIELD_NAME]
-        # find the dependencies
-        depends = ""
-        if (FIELD_DEPENDENCIES in self.target):
-            for entry in self.target[FIELD_DEPENDENCIES]:
-                depends += entry + " "
-        # target to compile the binary file
-        print mainTarget, ":", depends
-        self.println(COLOR_BLUE + "Building " + self.target[FIELD_DESCRIPTION] + COLOR_RESET)
-        print "\t@mkdir -p", self._toVar("OUT_DIR")
-        # include the cursom commands
-        for command in self.target[FIELD_COMMANDS]:
-            print "\t" + command
-        print
-
-
-
-class MakefileGenerator:
-
-    def __init__(self):
-        self.targets = {}
-        self.variables = {}
-
-    def addTarget(self, targetDefs):
-        if (FIELD_NAME in targetDefs):
-            self.targets[targetDefs[FIELD_NAME]] = targetDefs
-        else:
-            if ((FIELD_OUTPUT_DIRECTORY in targetDefs) and \
-                (FIELD_OUTPUT_FILE in targetDefs)):
-                name = targetDefs[FIELD_OUTPUT_FILE] + "/" + FIELD_OUTPUT_FILE
-                self.targets[targetDefs[FIELD_OUTPUT_FILE]] = targetDefs
-            else:
-                raise KeyError("The fields 'FIELD_OUTPUT_DIRECTORY' and 'FIELD_OUTPUT_FILE' must be present")
-
-    def addVariable(self, name, value):
-        self.variables[name] = value
-
-    def generateMakefile(self):
-        print "#!/bin/make -f"
-        print
-
-        # include the code for interactive shell detection
-        print "INTERACTIVE:=$(shell [ -t 0 ] && echo 1)"
-        print """
-            ifdef INTERACTIVE
-                COLOR_BLUE=\\x1b[34;1m
-                COLOR_RESET=\\x1b[0m
-            else
-                COLOR_BLUE=\\#\\#\\#
-            endif"""
-        # print the variables
-        for name, value in self.variables.iteritems():
-            print name, ":=", value
-        print
-        # create the "help" target
-        print "help:"
-        print "\t@echo \"   all\""
-        print "\t@echo \"   clean\""
-        for key, current in self.targets.iteritems():
-            label = MakefileTarget.toVar("OUT_FILE", current)
-            if (FIELD_NAME in current):
-                label += " (" + current[FIELD_NAME] + ")"
-            print "\t@echo \"  ", label, "\""
-        print
-        # mark as PHONY all target names
-        print ".PHONY: all clean",
-        for key, current in self.targets.iteritems():
-            if (FIELD_NAME in current):
-                print current[FIELD_NAME],
-        print
-        # create the all other targets
-        for key, current in self.targets.iteritems():
-            if (AsmMakefileTarget.isCompatible(current)):
-                temp = AsmMakefileTarget(current)
-            else:
-                if (CMakefileTarget.isCompatible(current)):
-                    temp = CMakefileTarget(current)
-                else:
-                    if (CustomMakefileTarget.isCompatible(current)):
-                        temp = CustomMakefileTarget(current)
-                    else:
-                        raise RuntimeError("Invalid Makefile target")
-            temp.generateTarget()
-        # create the "all" target
-        print "all:",
-        for key, current in self.targets.iteritems():
-            print MakefileTarget.toVar("OUT_FILE", current),
-        print "\n"
-        # create the "clean" target
-        print "clean:",
-        for key, current in self.targets.iteritems():
-            if FIELD_COMMANDS not in current:
-                print MakefileTarget.toVarName("CLEAN", current),
-        print "\n"
-
-
+from makegen import BIN_DYNAMIC
+from makegen import BIN_STATIC
+from makegen import BIN_EXECUTABLE
 
 #
 # This script generate the Machina's makefiles.
@@ -484,6 +87,8 @@ target[FIELD_SOURCES] = \
     "output/outobj.c", \
     "output/outdbg.c" ]
 generator.addTarget(target);
+
+
 #
 # MKDFS Tool for GNU/Linux
 #
@@ -509,6 +114,8 @@ target[FIELD_SOURCES] = \
     "super.c", \
     "vfs.c" ]
 generator.addTarget(target);
+
+
 #
 # Machina Kernel for x86 with Debug Symbols
 #
@@ -627,6 +234,8 @@ target[FIELD_SOURCES] = \
     "lib/libc/verinfo.c", \
     "lib/libc/vsprintf.c" ]
 generator.addTarget(target);
+
+
 #
 # Machina Kernel for x86
 #
@@ -641,6 +250,8 @@ target[FIELD_COMMANDS] = [
     "objcopy -O elf32-i386 -j .text -j .rodata -j .bss -j .data" \
     " $(KRNLDBG32_OUT_FILE) $(KERNEL32_OUT_FILE)" ]
 generator.addTarget(target);
+
+
 #
 # Machina Kernel Library for x86
 #
@@ -686,6 +297,8 @@ target[FIELD_SOURCES] = \
     "lib/libc/vsprintf.c",
     "lib/libc/math/modf.asm" ]
 generator.addTarget(target);
+
+
 #
 # Machina Standard C Library for x86
 #
@@ -696,7 +309,7 @@ target[FIELD_PREFFIX] = "LIBC"
 target[FIELD_TYPE] = BIN_STATIC
 target[FIELD_CFLAGS] = "-I src/include -D OS_LIB"
 target[FIELD_LDFLAGS] = "-nostdlib"
-target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)", "build/tools/ar"]
+target[FIELD_DEPENDENCIES] = ["nasm", "build/tools/ar"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/usr/lib"
 target[FIELD_OUTPUT_FILE] = "libc.a"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/libc"
@@ -781,6 +394,8 @@ target[FIELD_SOURCES] = \
     "lib/libc/math/tan.asm", \
     "lib/libc/math/tanh.asm" ]
 generator.addTarget(target);
+
+
 #
 # Machina HD Stage 1 Bootloader
 #
@@ -790,13 +405,15 @@ target[FIELD_DESCRIPTION] = "Machina Stage 1 Bootloader"
 target[FIELD_PREFFIX] = "DISKBOOT"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_NFLAGS] = "-f bin"
-target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
+target[FIELD_DEPENDENCIES] = ["nasm"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "diskboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = ["arch/x86/boot/boot.asm"]
 generator.addTarget(target);
+
+
 #
 # Machina CD-ROM Stage 1 Bootloader
 #
@@ -806,13 +423,15 @@ target[FIELD_DESCRIPTION] = "Machina CD-ROM Stage 1 Bootloader"
 target[FIELD_PREFFIX] = "CDEMBOOT"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_NFLAGS] = "-f bin"
-target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
+target[FIELD_DEPENDENCIES] = ["nasm"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "cdemboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = ["arch/x86/boot/cdemboot.asm"]
 generator.addTarget(target);
+
+
 #
 # Machina PXE Stage 1 Bootloader
 #
@@ -822,13 +441,15 @@ target[FIELD_DESCRIPTION] = "Machina PXE Stage 1 Bootloader"
 target[FIELD_PREFFIX] = "NETBOOT"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_NFLAGS] = "-f bin"
-target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
+target[FIELD_DEPENDENCIES] = ["nasm"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/boot"
 target[FIELD_OUTPUT_FILE] = "netboot.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/boot"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = ["arch/x86/boot/netboot.asm"]
 generator.addTarget(target);
+
+
 #
 # Machina OS Loader Stub
 #
@@ -838,7 +459,7 @@ target[FIELD_DESCRIPTION] = "Machina OS Loader Stub"
 target[FIELD_PREFFIX] = "OSLDRS"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_NFLAGS] = "-f bin"
-target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)"]
+target[FIELD_DEPENDENCIES] = ["nasm"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/osloader"
 target[FIELD_OUTPUT_FILE] = "osloader-stub.bin"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
@@ -846,6 +467,8 @@ target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
     ["arch/x86/sys/osloader/stub.asm" ]
 generator.addTarget(target);
+
+
 #
 # Machina OS Loader Main
 #
@@ -856,7 +479,7 @@ target[FIELD_PREFFIX] = "OSLDRM"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-D OSLDR -D KERNEL -I src/include -masm=intel -nostdlib"
 target[FIELD_LDFLAGS] = "-Wl,-e,start -Wl,-T,src/arch/x86/sys/osloader/osloader.lds -nostdlib" #-Wl,-Ttext,0x90800"
-target[FIELD_DEPENDENCIES] = ["$(NASM_OUT_FILE)", "$(OSLDRS_OUT_FILE)"]
+target[FIELD_DEPENDENCIES] = ["nasm", "osloader-stub"]
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/osloader"
 target[FIELD_OUTPUT_FILE] = "osloader-main.elf"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/osloader"
@@ -869,6 +492,8 @@ target[FIELD_SOURCES] = \
     "lib/libc/string.c", \
     "arch/x86/sys/osloader/bioscall.asm" ]
 generator.addTarget(target);
+
+
 #
 # Machina OS Loader
 #
@@ -885,6 +510,7 @@ target[FIELD_COMMANDS] = [
     "cat $(OSLDRS_OUT_FILE) $(OSLDRM_OUT_FILE).bin > $(OSLDR_OUT_FILE)" ]
 generator.addTarget(target);
 
+
 #
 # Machina CD image
 #
@@ -892,7 +518,7 @@ target = {}
 target[FIELD_NAME] = "iso"
 target[FIELD_DESCRIPTION] = "Machina CD image"
 target[FIELD_PREFFIX] = "ISO"
-target[FIELD_DEPENDENCIES] = ["$(CDEMBOOT_OUT_FILE)", "$(OSLDR_OUT_FILE)", "$(MKDFS_OUT_FILE)", "kernel"]
+target[FIELD_DEPENDENCIES] = ["cdemboot", "osloader", "mkdfs", "kernel"]
 target[FIELD_OUTPUT_DIRECTORY] = "build"
 target[FIELD_OUTPUT_FILE] = "machina.iso"
 target[FIELD_COMMANDS] = [

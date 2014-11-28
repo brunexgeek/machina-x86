@@ -37,7 +37,7 @@ help:
 #
 KERNEL32_OUT_DIR = build/install/boot
 KERNEL32_OUT_FILE = $(KERNEL32_OUT_DIR)/kernel32.so
-$(KERNEL32_OUT_FILE) kernel : kernel-debug 
+$(KERNEL32_OUT_FILE) kernel : build/machina/kernel/kernel32-dbg.so 
 	@echo -e '$(COLOR_BLUE)Building Machina Kernel for x86$(COLOR_RESET)'
 	@mkdir -p $(KERNEL32_OUT_DIR)
 	objcopy -O elf32-i386 -j .text -j .rodata -j .bss -j .data $(KRNLDBG32_OUT_FILE) $(KERNEL32_OUT_FILE)
@@ -55,7 +55,7 @@ OSLDRS_SRC_FILES = \
 OSLDRS_CLEAN :
 	rm -f $(OSLDRS_OBJ_FILES) $(OSLDRS_OUT_FILE)
 
-$(OSLDRS_OUT_FILE) osloader-stub : $(NASM_OUT_FILE) 
+$(OSLDRS_OUT_FILE) osloader-stub : build/tools/nasm 
 	@echo -e '$(COLOR_BLUE)Building Machina OS Loader Stub$(COLOR_RESET)'
 	@mkdir -p $(OSLDRS_OUT_DIR)
 	$(NASM) $(OSLDRS_NFLAGS) $(OSLDRS_SRC_FILES) -o $(OSLDRS_OUT_FILE)
@@ -285,7 +285,7 @@ $(LIBC_OBJ_DIR)/%.asm.o: $(LIBC_SRC_DIR)/%.asm
 LIBC_CLEAN :
 	rm -f $(LIBC_OBJ_FILES) $(LIBC_OUT_FILE)
 
-$(LIBC_OUT_FILE) libc : $(NASM_OUT_FILE) build/tools/ar  $(LIBC_OBJ_FILES)
+$(LIBC_OUT_FILE) libc : build/tools/nasm build/tools/ar  $(LIBC_OBJ_FILES)
 	@echo -e '$(COLOR_BLUE)Building Machina Standard C Library for x86$(COLOR_RESET)'
 	@mkdir -p $(LIBC_OUT_DIR)
 	$(AR) -s -m $(LIBC_OUT_FILE) $(LIBC_OBJ_FILES)
@@ -445,7 +445,7 @@ NETBOOT_SRC_FILES = \
 NETBOOT_CLEAN :
 	rm -f $(NETBOOT_OBJ_FILES) $(NETBOOT_OUT_FILE)
 
-$(NETBOOT_OUT_FILE) netboot : $(NASM_OUT_FILE) 
+$(NETBOOT_OUT_FILE) netboot : build/tools/nasm 
 	@echo -e '$(COLOR_BLUE)Building Machina PXE Stage 1 Bootloader$(COLOR_RESET)'
 	@mkdir -p $(NETBOOT_OUT_DIR)
 	$(NASM) $(NETBOOT_NFLAGS) $(NETBOOT_SRC_FILES) -o $(NETBOOT_OUT_FILE)
@@ -463,7 +463,7 @@ CDEMBOOT_SRC_FILES = \
 CDEMBOOT_CLEAN :
 	rm -f $(CDEMBOOT_OBJ_FILES) $(CDEMBOOT_OUT_FILE)
 
-$(CDEMBOOT_OUT_FILE) cdemboot : $(NASM_OUT_FILE) 
+$(CDEMBOOT_OUT_FILE) cdemboot : build/tools/nasm 
 	@echo -e '$(COLOR_BLUE)Building Machina CD-ROM Stage 1 Bootloader$(COLOR_RESET)'
 	@mkdir -p $(CDEMBOOT_OUT_DIR)
 	$(NASM) $(CDEMBOOT_NFLAGS) $(CDEMBOOT_SRC_FILES) -o $(CDEMBOOT_OUT_FILE)
@@ -474,7 +474,7 @@ $(CDEMBOOT_OUT_FILE) cdemboot : $(NASM_OUT_FILE)
 #
 OSLDR_OUT_DIR = build/install/boot
 OSLDR_OUT_FILE = $(OSLDR_OUT_DIR)/osloader.bin
-$(OSLDR_OUT_FILE) osloader : osloader-stub osloader-main 
+$(OSLDR_OUT_FILE) osloader : build/machina/osloader/osloader-stub.bin build/machina/osloader/osloader-main.elf 
 	@echo -e '$(COLOR_BLUE)Building Machina OS Loader$(COLOR_RESET)'
 	@mkdir -p $(OSLDR_OUT_DIR)
 	objcopy -O binary -j .text -j .rodata -j .bss -j .data --set-section-flags .bss=alloc,load,contents $(OSLDRM_OUT_FILE) $(OSLDRM_OUT_FILE).bin
@@ -486,7 +486,7 @@ $(OSLDR_OUT_FILE) osloader : osloader-stub osloader-main
 #
 ISO_OUT_DIR = build
 ISO_OUT_FILE = $(ISO_OUT_DIR)/machina.iso
-$(ISO_OUT_FILE) iso : $(CDEMBOOT_OUT_FILE) $(OSLDR_OUT_FILE) $(MKDFS_OUT_FILE) kernel 
+$(ISO_OUT_FILE) iso : build/install/boot/cdemboot.bin build/install/boot/osloader.bin build/tools/mkdfs build/install/boot/kernel32.so 
 	@echo -e '$(COLOR_BLUE)Building Machina CD image$(COLOR_RESET)'
 	@mkdir -p $(ISO_OUT_DIR)
 	mkdir -p build/install/dev
@@ -507,7 +507,7 @@ DISKBOOT_SRC_FILES = \
 DISKBOOT_CLEAN :
 	rm -f $(DISKBOOT_OBJ_FILES) $(DISKBOOT_OUT_FILE)
 
-$(DISKBOOT_OUT_FILE) diskboot : $(NASM_OUT_FILE) 
+$(DISKBOOT_OUT_FILE) diskboot : build/tools/nasm 
 	@echo -e '$(COLOR_BLUE)Building Machina Stage 1 Bootloader$(COLOR_RESET)'
 	@mkdir -p $(DISKBOOT_OUT_DIR)
 	$(NASM) $(DISKBOOT_NFLAGS) $(DISKBOOT_SRC_FILES) -o $(DISKBOOT_OUT_FILE)
@@ -550,7 +550,7 @@ $(OSLDRM_OBJ_DIR)/%.asm.o: $(OSLDRM_SRC_DIR)/%.asm
 OSLDRM_CLEAN :
 	rm -f $(OSLDRM_OBJ_FILES) $(OSLDRM_OUT_FILE)
 
-$(OSLDRM_OUT_FILE) osloader-main : $(NASM_OUT_FILE) $(OSLDRS_OUT_FILE)  $(OSLDRM_OBJ_FILES)
+$(OSLDRM_OUT_FILE) osloader-main : build/tools/nasm build/machina/osloader/osloader-stub.bin  $(OSLDRM_OBJ_FILES)
 	@echo -e '$(COLOR_BLUE)Building Machina OS Loader Main$(COLOR_RESET)'
 	@mkdir -p $(OSLDRM_OUT_DIR)
 	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(OSLDRM_LDFLAGS) $(OSLDRM_OBJ_FILES) -o $(OSLDRM_OUT_FILE)

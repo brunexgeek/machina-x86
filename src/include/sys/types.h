@@ -3,8 +3,9 @@
 //
 // Basic type definitions
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -199,10 +200,10 @@ typedef __int64 systime_t;
 #define NOHANDLE ((handle_t) -1)
 #endif
 
-typedef unsigned char BYTE;
+/*typedef unsigned char BYTE;
 typedef unsigned short WORD;
 typedef unsigned long DWORD;
-typedef unsigned __int64 QWORD;
+typedef unsigned __int64 QWORD*/
 
 #endif  // _ONLY_STD_TYPES
 

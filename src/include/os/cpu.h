@@ -1,10 +1,11 @@
 //
-// cpu.h
+// pframe.c
 //
-// CPU information
+// Physical memory frames management.
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -173,7 +174,7 @@
 #define CPU_VENDOR_NAME_SIZE   0x10
 
 
-struct cpu
+struct cpu_info
 {
     int family;
     int vendor;
@@ -181,22 +182,27 @@ struct cpu
     int stepping;
     int mhz;
     unsigned long features;
-    unsigned long cpuid_level;
-    char vendor_id[CPU_VENDOR_ID_SIZE];
-    char model_id[CPU_MODEL_ID_SIZE];
-    char vendor_name[CPU_VENDOR_NAME_SIZE];
+    unsigned long level;
+    char vendorId[CPU_VENDOR_ID_SIZE];
+    char modelId[CPU_MODEL_ID_SIZE];
+    char vendorName[CPU_VENDOR_NAME_SIZE];
+    int pageSize;
 };
+
 
 #ifdef KERNEL
 
-extern struct cpu global_cpu;
+void kcpu_initialize();
 
-void init_cpu();
-int kcpu_get_info(struct cpuinfo *info);
+int kcpu_get_info(
+    struct cpu_info *info );
+
 unsigned long kcpu_get_eflags();
 
 #ifndef OSLDR
-int kcpu_proc(struct proc_file *pf, void *arg);
+int proc_cpuinfo(
+    struct proc_file *output,
+    void *arg );
 #endif
 
 #endif

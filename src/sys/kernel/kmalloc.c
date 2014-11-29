@@ -3,7 +3,9 @@
 //
 // Kernel heap allocator
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -35,9 +37,16 @@
 #include <os/kmalloc.h>
 #include <os/kmem.h>
 
-extern struct page_frame_t *pfdb;
 
-unsigned char log2[2048] = {
+/**
+ * Pointer to frame array (dynamically allocated).
+ *
+ * @remarks Defined at @ref pframe.c
+ */
+extern uint16_t *frameArray;
+
+
+unsigned char logTable[2048] = {
    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
@@ -104,7 +113,7 @@ unsigned char log2[2048] = {
   11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11
 };
 
-#define BUCKET(n) (log2[(n) - 1])
+#define BUCKET(n) (logTable[(n) - 1])
 
 struct bucket buckets[PAGESHIFT];
 
@@ -116,11 +125,12 @@ void *kmalloc_tag(int size, unsigned long tag) {
   // Handle large allocation by allocating pages
   if (size > PAGESIZE / 2) {
     // Allocate pages
-    addr = kmem_alloc(PAGES(size), tag ? tag : 0x414c4f43 /* ALOC */);
+    addr = kmem_alloc(PAGES(size), tag ? tag : PFT_HEAP);
 
-    // Set size in pfn entry
-    // TODO: may have data lost (32bits -> 20bits)
-    pfdb[BTOP(virt2phys(addr))].next = PAGES(size) + PAGESHIFT;
+    // Set size in pfn entry (include overflow check)
+    bucket = PAGES(size) + PAGESHIFT;
+    if (bucket > 255) panic("Not enough space for extra information in physical frame");
+    PFRAME_SET_EXTRA( BTOP(kpage_virt2phys(addr)), bucket );
 
     return addr;
   }
@@ -139,7 +149,8 @@ void *kmalloc_tag(int size, unsigned long tag) {
 
     // Set bucket number in pfn entry
     // TODO: may have data lost (32bits -> 20bits)
-    pfdb[BTOP(virt2phys(addr))].next = bucket;
+    //pfdb[BTOP(kpage_virt2phys(addr))].next = bucket;
+    PFRAME_SET_EXTRA( BTOP(kpage_virt2phys(addr)), bucket );
 
     // Split page into chunks
     p = (char *) addr;
@@ -174,7 +185,8 @@ void kfree(void *addr) {
 
   // Get page information
   // TODO: may have data lost (20bits -> 32bits)
-  bucket = pfdb[BTOP(virt2phys(addr))].next;
+  //bucket = frameArray[BTOP(kpage_virt2phys(addr))].next;
+  bucket = PFRAME_GET_EXTRA(BTOP(kpage_virt2phys(addr)));
 
   // If a whole page or more, free directly
   if (bucket >= PAGESHIFT) {

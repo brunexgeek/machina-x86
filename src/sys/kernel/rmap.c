@@ -1,10 +1,10 @@
 //
 // rmap.c
 //
-// Routines for working with a resource map
+// Routines for resource mapping
 //
-// Copyright (C) 2024 Bruno Ribeiro. All rights reserved.
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2024 Bruno Ribeiro.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -45,6 +45,8 @@
 #include <sys/types.h>
 #include <string.h>
 #include <os/rmap.h>
+#include <errno.h>
+
 
 #ifdef DEVELOPER
 #include <stdio.h>
@@ -54,8 +56,7 @@
 #endif
 
 
-#define RMAP_MAX_PAGES        (RMAP_MAX_ENTRIES)
-#define RMAP_MAX_INDEX        (RMAP_MAX_PAGES - 1)
+#define RMAP_MAX_PAGES        (1048576)  // Number of pages for 32bits
 #define RMAP_MAX_ALIGN        (256)
 
 
@@ -98,19 +99,19 @@ static void dump( struct rmap_t *rmap )
 /**
  * Initialize the given resource map
  *
- * "size" is the total size, including the element we will use
- * as the header.
+ * @param rmap Pointer for an array of struct rmap_t.
+ * @param size Number of the elements int the @c rmap array.
+ * @return Error code.
  */
-void krmap_init(struct rmap_t *rmap, uint32_t size)
+int krmap_initialize(
+    struct rmap_t *rmap,
+    uint32_t size )
 {
-    int c;
 
-    if (size < 16) panic("rmap size must be greater than 16!");
+    if (rmap == NULL || size < 16) return -EINVAL;
     if (size > RMAP_MAX_ENTRIES) size = RMAP_MAX_ENTRIES;
 
-    for (c = 0; c < size; ++c)
-        *((uint32_t*)rmap + c) = 0;
-
+    memset(rmap, 0, sizeof(struct rmap_t) * size);
     // use the first entry to hold general information
     rmap[0].next = size - 1;
     rmap[0].size = RMAP_MAX_PAGES;
@@ -118,20 +119,28 @@ void krmap_init(struct rmap_t *rmap, uint32_t size)
     rmap[1].size = RMAP_MAX_PAGES;
     rmap[1].used = 1;
     rmap[1].next = 0;
+
+    return 0;
 }
 
 
 /**
- * Allocate some space from a resource map.
+ * Allocates pages.
  *
- * @returns 0 on failure.  Thus, you can't store index 0 in a resource map
+ * @return Address for the first allocated page or 0 otherwise.
+ * @remarks This function can not allocate the first page in the memory (0x00000000).
  */
-int krmap_alloc(struct rmap_t *rmap, unsigned int size)
+uint32_t krmap_alloc(struct rmap_t *rmap, uint32_t size)
 {
     return krmap_alloc_align(rmap, size, 1);
 }
 
 
+/**
+ * Returns an unused entry, if any.
+ *
+ * @return Pointer to the unused entry of NULL otherwise.
+ */
 static inline struct rmap_t *krmap_new( struct rmap_t *rmap )
 {
     register struct rmap_t *current;
@@ -222,15 +231,22 @@ static inline struct rmap_t *krmap_split(
 
 
 /**
- * Allocate some aligned space from a resource map.
+ * Allocates aligned pages.
  *
- * Returns 0 on failure.
+ * @return Address for the first allocated page or 0 otherwise.
+ * @remarks This function can not allocate the first page in the memory (0x00000000).
  */
-int krmap_alloc_align(struct rmap_t *rmap, unsigned int size, unsigned int align)
+uint32_t krmap_alloc_align(
+    struct rmap_t *rmap,
+    uint32_t size,
+    uint32_t align )
 {
     register struct rmap_t *current, *prev;
     register uint32_t offset;
-    uint32_t before, after;
+    uint32_t before;
+    #ifdef RMAP_DEBUG
+    uint32_t after;
+    #endif
 
     if (align > RMAP_MAX_ALIGN) return -1;
     if (align == 0) align = 1;
@@ -245,11 +261,13 @@ int krmap_alloc_align(struct rmap_t *rmap, unsigned int size, unsigned int align
         {
             // calculates the free space before the next aligned offset
             before = offset % align;//align - (offset % align) - 1;
-            // check if we have enough space in the curent chunk
+            // check if we have enough space in the curent entry
             if (current->size > before && current->size - before >= size)
             {
                 // calculates the free space after the range
+                #ifdef RMAP_DEBUG
                 after = current->size - before - size;
+                #endif
                 break;
             }
         }
@@ -279,22 +297,27 @@ int krmap_alloc_align(struct rmap_t *rmap, unsigned int size, unsigned int align
     dump(rmap);
     #endif
 
-    // returns the offset for the first mapped page
+    // returns the address for the first mapped page
     return offset + before;
 }
 
 
 /**
- * Free some space back into the resource map
+ * Free previously allocated pages.
  *
- * The list is kept ordered, with the first free element flagged
- * with a size of 0.
+ * @return 0 on success or error code otherwise.
  */
-void krmap_free( struct rmap_t *rmap, uint32_t offset, uint32_t size )
+int krmap_free(
+    struct rmap_t *rmap,
+    uint32_t offset,
+    uint32_t size )
 {
     register struct rmap_t *current, *prev;
     register uint32_t pos;
-    uint32_t before, after;
+    uint32_t before;
+    #ifdef RMAP_DEBUG
+    uint32_t after;
+    #endif
 
     // find first entry that fits
     current = rmap + 1;
@@ -304,12 +327,14 @@ void krmap_free( struct rmap_t *rmap, uint32_t offset, uint32_t size )
     {
         if (current->used)
         {
-            // check if we have enough space in the curent chunk
+            // check if we have enough space in the current entry
             if (offset >= pos && offset + size <= pos + current->size)
             {
                 // calculates the free space after the range
                 before = offset - pos;
+                #ifdef RMAP_DEBUG
                 after = current->size - before - size;
+                #endif
                 break;
             }
         }
@@ -317,12 +342,7 @@ void krmap_free( struct rmap_t *rmap, uint32_t offset, uint32_t size )
         prev = current;
         current = rmap + current->next;
     }
-    //if (current == rmap) return;
-    if (current == rmap)
-    {
-        panic("Free failed!");
-        return;
-    }
+    if (current == rmap) return -ENOMEM;
 
     #ifdef RMAP_DEBUG
     kprintf("Removing %d pages from 0x%08x [ .before=%d  .after=%d ] \n", size, offset, before, after);
@@ -341,17 +361,26 @@ void krmap_free( struct rmap_t *rmap, uint32_t offset, uint32_t size )
 }
 
 
-//
-// Reserve the requested range, or return failure if any of it is not free
-//
-// Returns 0 on success, 1 on failure.
-//
-
-int krmap_reserve(struct rmap_t *rmap, uint32_t offset, uint32_t size)
+/**
+ * Reserve the pages at requested range.
+ *
+ * All pages in the range should be free.
+ *
+ * @return 0 on success or error code otherwise.
+ */
+int krmap_reserve(
+    struct rmap_t *rmap,
+    uint32_t offset,
+    uint32_t size)
 {
     register struct rmap_t *current, *prev;
     register uint32_t pos;
-    uint32_t before, after;
+    uint32_t before;
+    #ifdef RMAP_DEBUG
+    uint32_t after;
+    #endif
+
+    if (rmap == NULL || size == 0) return -EINVAL;
 
     // find first entry that fits
     current = rmap + 1;
@@ -361,12 +390,14 @@ int krmap_reserve(struct rmap_t *rmap, uint32_t offset, uint32_t size)
     {
         if (!current->used)
         {
-            // check if we have enough space in the curent chunk
+            // check if we have enough space in the curent entry
             if (offset >= pos && offset + size <= pos + current->size)
             {
                 // calculates the free space after the range
                 before = offset - pos;
+                #ifdef RMAP_DEBUG
                 after = current->size - before - size;
+                #endif
                 break;
             }
         }
@@ -374,18 +405,13 @@ int krmap_reserve(struct rmap_t *rmap, uint32_t offset, uint32_t size)
         prev = current;
         current = rmap + current->next;
     }
-    //if (current == rmap) return 1;
-    if (current == rmap)
-    {
-        panic("Reservation failed!");
-        return 1;
-    }
+    if (current == rmap) return -ENOMEM;
 
     #ifdef RMAP_DEBUG
     kprintf("Reserving %d pages from 0x%08x [ .before=%d  .after=%d ] \n", size, offset, before, after);
     #endif
 
-    if ( krmap_split(rmap, prev, current, before, size) == NULL) return 1;
+    if ( krmap_split(rmap, prev, current, before, size) == NULL) return -ENOMEM;
 
     // increments the total number of mapped pages (don't include gaps)
     RMAP_TOTAL(rmap) += size;
@@ -399,11 +425,14 @@ int krmap_reserve(struct rmap_t *rmap, uint32_t offset, uint32_t size)
 
 
 /**
- * Checks allocation status for a resource region
+ * Checks allocation status for a page range.
  *
- * @returns 0 if free, 1 if allocated, -1 if partially allocated.
+ * @returns 0 if free, 1 if allocated or -1 if partially allocated.
  */
-int krmap_status(struct rmap_t *rmap, unsigned int offset, unsigned int size)
+int krmap_get_status(
+    struct rmap_t *rmap,
+    uint32_t offset,
+    uint32_t size )
 {
     register struct rmap_t *current;
     uint32_t pos;
@@ -431,6 +460,32 @@ int krmap_status(struct rmap_t *rmap, unsigned int offset, unsigned int size)
     #ifdef RMAP_DEBUG
     dump(rmap);
     #endif
+
+    return 0;
+}
+
+
+/**
+ * Returns the amount of used entry in the map.
+ *
+ * @return Number of entry or an error code otherwise.
+ */
+int krmap_get_entry_count(
+    struct rmap_t *rmap,
+    uint32_t *count )
+{
+    uint16_t c = 0;
+    struct rmap_t *current = rmap + 1;
+
+    if (rmap == NULL || count == NULL) return -EINVAL;
+
+    while (1)
+    {
+        ++c;
+        if (current->next == 0) break;
+        current = rmap + current->next;
+    }
+    *count = c;
 
     return 0;
 }

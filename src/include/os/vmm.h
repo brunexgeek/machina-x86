@@ -3,7 +3,9 @@
 //
 // Virtual memory manager
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -39,7 +41,7 @@
 
 extern struct rmap_t *vmap;
 
-void init_vmm();
+void kvmm_initialize();
 
 KERNELAPI void *vmalloc(void *addr, unsigned long size, int type, int protect, uint8_t tag, int *rc);
 KERNELAPI void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off64_t offset, int *rc);

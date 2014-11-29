@@ -1,7 +1,7 @@
 //
-// loader.c
+// loader.h
 //
-// Library and executable loader
+// ELF32 binary loader
 //
 // Copyright (C) 2014 Bruno Ribeiro.
 // All rights reserved.
@@ -36,7 +36,7 @@
 #define MACHINA_OS_LOADER_H
 
 
-#define PFT_UMOD              (*((const uint32_t*)("UMOD")))
+//#define PFT_UMOD              (*((const uint32_t*)("UMOD")))
 
 
 #include <stdint.h>

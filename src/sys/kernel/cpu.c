@@ -1,9 +1,11 @@
 //
 // cpu.c
 //
-// CPU information
+// CPU detection and information.
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -35,11 +37,15 @@
 #include <os/cpu.h>
 #include <string.h>
 
-struct cpu global_cpu;
+/**
+ * Global CPU information.
+ */
+struct cpu_info cpuInfo;
 
-struct cpu_vendor_t
+
+struct cpu_vendor
 {
-    const char *vendor_id;
+    const char *vendorId;
 
     int vendor;
 
@@ -47,7 +53,7 @@ struct cpu_vendor_t
 };
 
 
-static const struct cpu_vendor_t CPU_VENDORS[] =
+static const struct cpu_vendor CPU_VENDORS[] =
 {
     { "GenuineIntel", CPU_VENDOR_INTEL,     "Intel" },
     { "AuthenticAMD", CPU_VENDOR_AMD,       "AMD" },
@@ -75,11 +81,10 @@ unsigned long kcpu_get_eflags()
 }
 
 
-void init_cpu()
+void kcpu_initialize()
 {
     unsigned long val[4];
-    char *vendorname;
-    const struct cpu_vendor_t *current;
+    const struct cpu_vendor *current;
 
     // check if CPUID is not supported
     if (!cpuid_is_supported())
@@ -92,32 +97,32 @@ void init_cpu()
 
     // get vendor ID
     kmach_cpuid(0x00000000, val);
-    global_cpu.cpuid_level = val[0];
-    memcpy(global_cpu.vendor_id + 0, val + 1, 4);
-    memcpy(global_cpu.vendor_id + 4, val + 3, 4);
-    memcpy(global_cpu.vendor_id + 8, val + 2, 4);
+    cpuInfo.level = val[0];
+    memcpy(cpuInfo.vendorId + 0, val + 1, 4);
+    memcpy(cpuInfo.vendorId + 4, val + 3, 4);
+    memcpy(cpuInfo.vendorId + 8, val + 2, 4);
     // retrieve the vendor name and code
     current = CPU_VENDORS;
     while (1)
     {
-        if (current->vendor_id != NULL || strcmp(global_cpu.vendor_id, current->vendor_id) == 0)
+        if (current->vendorId != NULL || strcmp(cpuInfo.vendorId, current->vendorId) == 0)
         {
-            global_cpu.vendor = current->vendor;
-            memset(global_cpu.vendor_name, 0, CPU_VENDOR_NAME_SIZE);
-            strncpy(global_cpu.vendor_name, current->name, CPU_VENDOR_NAME_SIZE-1);
+            cpuInfo.vendor = current->vendor;
+            memset(cpuInfo.vendorName, 0, CPU_VENDOR_NAME_SIZE);
+            strncpy(cpuInfo.vendorName, current->name, CPU_VENDOR_NAME_SIZE-1);
         }
-        if (current->vendor_id != NULL) break;
+        if (current->vendorId != NULL) break;
         current = current + 1;
     }
 
     // get family, model, stepping and features
-    if (global_cpu.cpuid_level >= 0x00000001)
+    if (cpuInfo.level >= 0x00000001)
     {
         kmach_cpuid(0x00000001, val);
-        global_cpu.family = (val[0] >> 8) & 0x0F;
-        global_cpu.model = (val[0] >> 4) & 0x0F;
-        global_cpu.stepping = val[0] & 0x0F;
-        global_cpu.features = val[3];
+        cpuInfo.family = (val[0] >> 8) & 0x0F;
+        cpuInfo.model = (val[0] >> 4) & 0x0F;
+        cpuInfo.stepping = val[0] & 0x0F;
+        cpuInfo.features = val[3];
     }
 
     // get brand string
@@ -135,7 +140,7 @@ void init_cpu()
 
         // trim brand string
         p = model;
-        q = global_cpu.model_id;
+        q = cpuInfo.modelId;
         space = 0;
         while (*p == ' ') p++;
         while (*p)
@@ -162,28 +167,30 @@ void init_cpu()
         kmach_halt();
     }
 
-    kprintf(KERN_INFO "cpu: %s family %d model %d stepping %d\n", global_cpu.model_id, global_cpu.family, global_cpu.model, global_cpu.stepping);
+    kprintf(KERN_INFO "cpu: %s family %d model %d stepping %d\n", cpuInfo.modelId, cpuInfo.family, cpuInfo.model, cpuInfo.stepping);
 }
 
 
-int kcpu_proc(struct proc_file *pf, void *arg)
+int proc_cpuinfo(
+    struct proc_file *output,
+    void *arg )
 {
-    pprintf(pf, "%s family %d model %d stepping %d\n", global_cpu.model_id, global_cpu.family, global_cpu.model, global_cpu.stepping);
+    pprintf(output, "%s family %d model %d stepping %d\n", cpuInfo.modelId, cpuInfo.family, cpuInfo.model, cpuInfo.stepping);
     return 0;
 }
 
 
-int kcpu_get_info(struct cpuinfo *info)
+int kcpu_get_info(struct cpu_info *info)
 {
-    info->cpu_vendor = global_cpu.vendor;
-    info->cpu_family = global_cpu.family;
-    info->cpu_model = global_cpu.model;
-    info->cpu_stepping = global_cpu.stepping;
-    info->cpu_mhz = global_cpu.mhz;
-    info->cpu_features = global_cpu.features;
-    info->pagesize = PAGESIZE;
-    strcpy(info->vendorid, global_cpu.vendor_id);
-    strcpy(info->modelid, global_cpu.model_id);
+    info->vendor = cpuInfo.vendor;
+    info->family = cpuInfo.family;
+    info->model = cpuInfo.model;
+    info->stepping = cpuInfo.stepping;
+    info->mhz = cpuInfo.mhz;
+    info->features = cpuInfo.features;
+    info->pageSize = PAGESIZE;
+    strcpy(info->vendorId, cpuInfo.vendorId);
+    strcpy(info->modelId, cpuInfo.modelId);
 
     return 0;
 }

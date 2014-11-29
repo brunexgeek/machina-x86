@@ -222,7 +222,7 @@ static void dbg_connect(struct dbg_hdr *hdr, union dbg_body *body)
         body->conn.thr.tib = t->tib;
         body->conn.thr.tcb = t;
         body->conn.thr.startaddr = t->entrypoint;
-        body->conn.cpu = global_cpu;
+        body->conn.cpu = cpuInfo;
 
         dbg_send_packet(hdr->cmd + DBGCMD_REPLY, hdr->id, body, sizeof(struct dbg_connect));
     }

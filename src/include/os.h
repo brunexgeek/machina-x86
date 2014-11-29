@@ -3,8 +3,9 @@
 //
 // Operating system API
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -1330,17 +1331,6 @@ struct mallinfo {
 #define SYSINFO_MEM  1
 #define SYSINFO_LOAD 2
 
-struct cpuinfo {
-  int cpu_vendor;
-  int cpu_family;
-  int cpu_model;
-  int cpu_stepping;
-  int cpu_mhz;
-  unsigned long cpu_features;
-  int pagesize;
-  char vendorid[16];
-  char modelid[64];
-};
 
 struct meminfo {
   unsigned int physmem_total;

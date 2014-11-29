@@ -47,18 +47,18 @@
 
 struct rmap_t *vmap;
 
-extern struct page_frame_t *pfdb;  // from 'pframe.c'
 extern uint32_t freeCount;         // from 'pframe.c'
-extern uint32_t usableCount;       // from 'pframe.c'
+extern uint32_t useableCount;      // from 'pframe.c'
 
 
-static int valid_range(void *addr, int size) {
-  int pages = PAGES(size);
+static int valid_range(void *addr, int size)
+{
+    int pages = PAGES(size);
 
-  if ((unsigned long) addr < VMEM_START) return 0;
-  if (KERNELSPACE((unsigned long) addr + pages * PAGESIZE)) return 0;
-  if (krmap_status(vmap, BTOP(addr), pages) != 1) return 0;
-  return 1;
+    if ((unsigned long) addr < VMEM_START) return 0;
+    if (KERNELSPACE((unsigned long) addr + pages * PAGESIZE)) return 0;
+    if (krmap_get_status(vmap, BTOP(addr), pages) != 1) return 0;
+    return 1;
 }
 
 static unsigned long pte_flags_from_protect(int protect) {
@@ -159,10 +159,13 @@ static int save_file_page(struct filemap *fm, void *addr) {
   return 0;
 }*/
 
-void init_vmm() {
-  vmap = (struct rmap_t *) kmalloc(VMAP_ENTRIES * sizeof(struct rmap_t));
-  krmap_init(vmap, VMAP_ENTRIES);
-  krmap_free(vmap, BTOP(VMEM_START), BTOP(OSBASE - VMEM_START));
+
+void kvmm_initialize()
+{
+    vmap = (struct rmap_t *) kmalloc(VMAP_ENTRIES * sizeof(struct rmap_t));
+    if (krmap_initialize(vmap, VMAP_ENTRIES) != 0)
+        panic("Error initializing virtual memory map");
+    krmap_free(vmap, BTOP(VMEM_START), BTOP(OSBASE - VMEM_START));
 }
 
 /**
@@ -220,7 +223,7 @@ void *vmalloc(
         }
         else
         {
-            if (krmap_reserve(vmap, BTOP(address), pages))
+            if (krmap_reserve(vmap, BTOP(address), pages) != 0)
             {
                 if (result) *result = -ENOMEM;
                 return NULL;
@@ -253,7 +256,7 @@ void *vmalloc(
             else
             {
                 // allocate a new page and map it to the address
-                pfn = kpframe_alloc(tag);
+                pfn = kpframe_alloc(1, tag);
                 if (pfn == 0xFFFFFFFF)
                 {
                     if (result) *result = -ENOMEM;
@@ -289,7 +292,7 @@ void *vmmap(void *addr, unsigned long size, int protect, struct file *filp, off6
       return NULL;
     }
   } else {
-    if (krmap_reserve(vmap, BTOP(addr), pages)) {
+    if (krmap_reserve(vmap, BTOP(addr), pages) != 0) {
       if (rc) *rc = -ENOMEM;
       return NULL;
     }
@@ -342,7 +345,7 @@ int vmsync(void *addr, unsigned long size) {
     if (kpage_is_directory_mapped(vaddr)) {
       pte_t flags = kpage_get_flags(vaddr);
       /*if ((flags & (PT_FILE | PT_PRESENT | PT_DIRTY)) == (PT_FILE | PT_PRESENT | PT_DIRTY)) {
-        unsigned long pfn = BTOP(virt2phys(vaddr));
+        unsigned long pfn = BTOP(kpage_virt2phys(vaddr));
         // TODO: may have data lost (20bits -> 32bits)
         struct filemap *newfm = (struct filemap *) hlookup(pfdb[pfn].next);
         if (newfm != fm) {
@@ -386,7 +389,7 @@ int vmfree(void *addr, unsigned long size, int type) {
     for (i = 0; i < pages; i++) {
       if (kpage_is_directory_mapped(vaddr)) {
         pte_t flags = kpage_get_flags(vaddr);
-        unsigned long pfn = BTOP(virt2phys(vaddr));
+        unsigned long pfn = BTOP(kpage_virt2phys(vaddr));
 
         /*if (flags & PT_FILE) {
           // TODO: may have data lost (20bits -> 32bits)
@@ -500,7 +503,7 @@ int guard_page_handler(void *addr) {
   if (addr < t->tib->stacklimit || addr >= t->tib->stacktop) return -EFAULT;
   if (t->tib->stacklimit <= t->tib->stackbase) return -EFAULT;
 
-  pfn = kpframe_alloc(PFT_STACK);
+  pfn = kpframe_alloc(1, PFT_STACK);
   if (pfn == 0xFFFFFFFF) return -ENOMEM;
 
   t->tib->stacklimit = (char *) t->tib->stacklimit - PAGESIZE;
@@ -539,8 +542,9 @@ int fetch_page(void *addr) {
   return 0;
 }*/
 
-int vmem_proc(struct proc_file *pf, void *arg) {
-  return list_memmap(pf, vmap, BTOP(VMEM_START));
+int vmem_proc(struct proc_file *pf, void *arg)
+{
+    return list_memmap(pf, vmap, BTOP(VMEM_START));
 }
 
 int mem_sysinfo(struct meminfo *info)
@@ -553,7 +557,7 @@ int mem_sysinfo(struct meminfo *info)
     //rlim = &vmap[vmap->offset];
     //for (r = &vmap[1]; r <= rlim; r++) free += r->size;
 
-    info->physmem_total = usableCount * PAGESIZE;
+    info->physmem_total = useableCount * PAGESIZE;
     info->physmem_avail = freeCount * PAGESIZE;
     info->virtmem_total = OSBASE - VMEM_START;
     info->virtmem_avail = free * PAGESIZE;

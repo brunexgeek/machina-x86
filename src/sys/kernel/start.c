@@ -3,7 +3,9 @@
 //
 // Kernel initialization
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -414,32 +416,32 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     // initialize machine
     init_mach();
     // initialize CPU
-    init_cpu();
+    kcpu_initialize();
     // initialize page frame database
-    kpframe_init();
+    kpframe_initialize();
     // initialize page directory
-    init_pdir();
+    kpage_initialize();
     // initialize kernel heap
-    init_kmem();
+    kmem_initialize();
     // initialize kernel allocator
     init_malloc();
     // initialize virtual memory manager
-    init_vmm();
+    kvmm_initialize();
     // flush tlb
     kmach_flushtlb();
 
     // Register memory management procs
-    register_proc_inode("memmap", memmap_proc, NULL);
-    register_proc_inode("memusage", memusage_proc, NULL);
-    register_proc_inode("memstat", memstat_proc, NULL);
-    register_proc_inode("physmem", physmem_proc, NULL);
-    register_proc_inode("pdir", pdir_proc, NULL);
-    register_proc_inode("virtmem", virtmem_proc, NULL);
+    register_proc_inode("memmap", proc_memmap, NULL);
+    register_proc_inode("memusage", proc_memusage, NULL);
+    register_proc_inode("memstat", proc_memstat, NULL);
+    register_proc_inode("physmem", proc_physmem, NULL);
+    register_proc_inode("pdir", proc_pdir, NULL);
+    register_proc_inode("virtmem", proc_virtmem, NULL);
     register_proc_inode("kmem", kmem_proc, NULL);
     register_proc_inode("kmodmem", kmodmem_proc, NULL);
     register_proc_inode("kheap", kheapstat_proc, NULL);
     register_proc_inode("vmem", vmem_proc, NULL);
-    register_proc_inode("cpu", kcpu_proc, NULL);
+    register_proc_inode("cpu", proc_cpuinfo, NULL);
 
     // Initialize interrupts, floating-point support, and real-time clock
     kpic_init();
@@ -492,7 +494,7 @@ void main_readFile( char *fileName )
     ret = open(fileName, 0, S_IREAD, &tmp);
     if (ret == 0)
     {
-        kprintf("##########################\n## %s\n##########################\n", fileName);
+        kprintf("\n\n##########################\n## %s\n##########################\n", fileName);
         int count = 1;
         while (count != 0)
         {
@@ -535,7 +537,7 @@ void main(void *arg)
     peb = vmalloc((void *) PEB_ADDRESS, PAGESIZE, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, PFT_PEB, NULL);
     if (!peb) panic("unable to allocate PEB");
     memset(peb, 0, PAGESIZE);
-    peb->fast_syscalls_supported = (global_cpu.features & CPU_FEATURE_SEP) != 0;
+    peb->fast_syscalls_supported = (cpuInfo.features & CPU_FEATURE_SEP) != 0;
 
     // Enumerate root host buses and units
     enum_host_bus();
@@ -633,6 +635,7 @@ void main(void *arg)
     main_readFile("/proc/vmem");
     main_readFile("/proc/cpu");
     main_readFile("/proc/netif");
+    main_readFile("/proc/handles");
 
     // Load kernel32.so in user address space
     /*imgbase = kloader_load(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);

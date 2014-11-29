@@ -168,7 +168,7 @@ struct dbg_connect {
   struct dbg_evt_trap trap;
   struct dbg_evt_load_module mod;
   struct dbg_evt_create_thread thr;
-  struct cpu cpu;
+  struct cpu_info cpu;
 };
 
 union dbg_body {

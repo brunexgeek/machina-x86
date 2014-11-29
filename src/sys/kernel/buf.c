@@ -3,7 +3,9 @@
 //
 // I/O buffer cache
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013-2014 Bruno Ribeiro.
+// Copyright (C) 2002 Michael Ringgaard.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -481,7 +483,7 @@ struct bufpool *init_buffer_pool(dev_t devno, int poolsize, int bufsize, void (*
   memset(pool->bufbase, 0, sizeof(struct buf) * poolsize);
 
   // Allocate data buffers
-  pool->database = (char *) kmalloc_tag(poolsize * bufsize, 0x43414348 /* CACH */);
+  pool->database = (char *) kmalloc_tag(poolsize * bufsize, PFT_CACHE);
   if (pool->database == NULL) {
     kfree(pool->bufbase);
     kfree(pool);

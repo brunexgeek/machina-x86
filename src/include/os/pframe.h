@@ -1,7 +1,7 @@
 //
-// pframe.h
+// pframe.c
 //
-// Page frame database routines
+// Physical memory frames management.
 //
 // Copyright (C) 2013-2014 Bruno Ribeiro
 // Copyright (C) 2002 Michael Ringgaard
@@ -44,6 +44,10 @@
 #define DMA_BUFFER_START 0x10000
 #define DMA_BUFFER_PAGES 16
 
+/*
+ * Physical frame tags.
+ */
+
 #define PFT_FREE              0x01 /// Available for allocation
 #define PFT_HTAB              0x02
 #define PFT_RESERVED          0x03 /// Reserved by system (according BIOS)
@@ -66,32 +70,63 @@
 #define PFT_HEAP              0x14
 #define PFT_TIB               0x15
 #define PFT_PEB               0x16
+#define PFT_CACHE             0x17
 
 #define INVALID_PFRAME        ((uint32_t)0xFFFFFFFF)
 
 
-struct page_frame_t
-{
-    uint32_t linear : 1;   /// Indicates if frame begin a linear allocation
-    uint32_t tag    : 5;
-    uint32_t __resv : 2;
-    uint32_t next   : 24;  /// Index for next page frame (when in free list).
-};
+#define PFRAME_GET_TAG(index) \
+    ( frameArray[index] & 0x00FF )
+
+#define PFRAME_SET_TAG(index,value) \
+    { *(uint8_t*)(frameArray + index) = (value) & 0x00FF; }
+
+#define PFRAME_GET_EXTRA(index) \
+    ( (frameArray[index] & 0xFF00) >> 0x08 )
+
+#define PFRAME_SET_EXTRA(index,value) \
+    { *((uint8_t*)(frameArray + index) + 1) = (value) & 0x00FF; }
 
 
-KERNELAPI uint32_t kpframe_alloc( uint8_t tag );
-KERNELAPI uint32_t kpframe_alloc_linear( uint32_t pages, uint8_t tag );
-KERNELAPI void kpframe_free( uint32_t pfn );
-KERNELAPI void kpframe_set_tag( void *addr, uint32_t len, uint8_t tag );
-uint8_t kpframe_get_tag( void *vaddr );
-const char *kpframe_tag_name( uint8_t tag );
+void kpframe_initialize();
 
-int memmap_proc(struct proc_file *pf, void *arg);
-int memusage_proc(struct proc_file *pf, void *arg);
-int memstat_proc(struct proc_file *pf, void *arg);
-int physmem_proc(struct proc_file *pf, void *arg);
+KERNELAPI uint32_t kpframe_alloc(
+    uint32_t count,
+    uint8_t tag );
 
-void kpframe_init();
+KERNELAPI uint32_t kpframe_alloc_linear(
+    uint32_t pages,
+    uint8_t tag );
+
+KERNELAPI void kpframe_free(
+    uint32_t frame );
+
+static KERNELAPI void kpframe_set_tag(
+    void *vaddress,
+    uint32_t length,
+    uint8_t tag );
+
+static uint8_t kpframe_get_tag(
+    void *vaddress );
+
+const char *kpframe_tag_name(
+    uint8_t tag );
+
+int proc_memmap(
+    struct proc_file *output,
+    void *arg );
+
+int proc_memusage(
+    struct proc_file *output,
+    void *arg );
+
+int proc_memstat(
+    struct proc_file *output,
+    void *arg );
+
+int proc_physmem(
+    struct proc_file *output,
+    void *arg );
 
 
 #endif  // MACHINA_OS_PFRAME_H

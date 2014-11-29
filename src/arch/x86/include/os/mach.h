@@ -42,6 +42,15 @@
 
 #define kmach_reboot()        { kbd_reboot(); }
 
+
+/**
+ * Global CPU information.
+ *
+ * @remarks Defined in @c cpu.c.
+ */
+extern struct cpu_info cpuInfo;
+
+
 static inline void kmach_sti()
 {
     __asm__("sti;");
@@ -185,9 +194,9 @@ static inline void kmach_flushtlb()
     );
 }
 
-static inline void kmach_invlpage(void *addr)
+static inline void kmach_invlpage( void *addr )
 {
-    if (global_cpu.family < CPU_FAMILY_486)
+    if (cpuInfo.family < CPU_FAMILY_486)
     {
         __asm__
         (
@@ -199,7 +208,6 @@ static inline void kmach_invlpage(void *addr)
     {
         __asm__
         (
-            //"mov eax, addr;"
             "invlpg [eax];"
             :
             : "a" (addr)

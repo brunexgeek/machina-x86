@@ -61,8 +61,14 @@ void *kmem_alloc_module(int pages);
 void free_module_mem(void *addr, int pages);
 
 int list_memmap(struct proc_file *pf, struct rmap_t *rmap, unsigned int startpos);
-int kmem_proc(struct proc_file *pf, void *arg);
-int kmodmem_proc(struct proc_file *pf, void *arg);
+
+int proc_kmem(
+    struct proc_file *output,
+    void *arg );
+
+int kmodmem_proc(
+    struct proc_file *output,
+    void *arg );
 
 
 #endif  // MACHINA_OS_KMEM_H

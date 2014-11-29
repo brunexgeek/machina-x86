@@ -93,7 +93,7 @@ static char *getchild(char *start, char *end, char *name, int *size) {
 }
 
 static struct version_resource *getver(hmodule_t hmod) {
-  int rc;
+  /*int rc;
   struct version_resource *ver;
 
   rc = get_resource_data(hmod, INTRES(16), INTRES(1), 0, (void **) &ver);
@@ -101,7 +101,8 @@ static struct version_resource *getver(hmodule_t hmod) {
   if (rc < sizeof(struct version_resource)) return NULL;
   if (ver->fixed.signature != VER_SIGNATURE) return NULL;
 
-  return ver;
+  return ver;*/
+  return NULL;
 }
 
 struct verinfo *get_version_info(hmodule_t hmod) {

@@ -256,4 +256,9 @@ typedef struct elf32_relc_t
 } elf32_relc_t;
 
 
+void *elf32_load(
+    char *start,
+    unsigned int size );
+
+
 #endif  // MACHINA_OS_ELF_H

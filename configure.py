@@ -137,6 +137,7 @@ target[FIELD_SOURCES] = \
     "sys/kernel/buf.c", \
     "sys/kernel/cpu.c", \
     "sys/kernel/dbg.c", \
+    "sys/kernel/elf32.c", \
     "sys/kernel/dev.c", \
     "sys/kernel/fpu.c", \
     "sys/kernel/hndl.c", \
@@ -145,13 +146,13 @@ target[FIELD_SOURCES] = \
     "sys/kernel/iovec.c", \
     "sys/kernel/kmalloc.c", \
     "sys/kernel/kmem.c", \
-    "sys/kernel/loader.c", \
     "sys/kernel/mach.c", \
     "sys/kernel/object.c", \
     "sys/kernel/pci.c", \
     "sys/kernel/pdir.c", \
     "sys/kernel/pframe.c", \
     "sys/kernel/pic.c", \
+    "sys/kernel/module.c", \
     "sys/kernel/pit.c", \
     "sys/kernel/pnpbios.c", \
     "sys/kernel/queue.c", \
@@ -225,7 +226,7 @@ target[FIELD_SOURCES] = \
     "lib/libc/bitops.c", \
     "lib/libc/ctype.c", \
     "lib/libc/inifile.c", \
-    "lib/libc/moddb.c", \
+    #"lib/libc/moddb.c", \
     "lib/libc/opts.c", \
     "lib/libc/string.c", \
     "lib/libc/strtol.c", \
@@ -296,7 +297,7 @@ target[FIELD_SOURCES] = \
     "lib/libc/verinfo.c", \
     "lib/libc/vsprintf.c",
     "lib/libc/math/modf.asm" ]
-generator.addTarget(target);
+#generator.addTarget(target);
 
 
 #
@@ -393,7 +394,7 @@ target[FIELD_SOURCES] = \
     "lib/libc/math/sqrt.asm", \
     "lib/libc/math/tan.asm", \
     "lib/libc/math/tanh.asm" ]
-generator.addTarget(target);
+#generator.addTarget(target);
 
 
 #
@@ -530,21 +531,21 @@ target[FIELD_COMMANDS] = [
 generator.addTarget(target);
 
 # Driver for NIC 3C905C
-#target = {}
-#target[FIELD_DESCRIPTION] = "Machina 3C905C NIC driver for x86"
-#target[FIELD_PREFFIX] = "LIB3C905C"
-#target[FIELD_TYPE] = BIN_DYNAMIC | BIN_MACHINA
-#target[FIELD_CFLAGS] = "-I src/include -D KERNEL"
-#target[FIELD_LDFLAGS] = "-shared -entry _start@12 -nostdlib -Lbuild/install/boot -lkernel32"
-#target[FIELD_DEPENDENCIES] = ["build/tools/cc", "build/tools/as", "build/tools/ar", "build/install/boot/libkernel32.so"]
-#target[FIELD_OUTPUT_DIRECTORY] = "build/install/sys"
-#target[FIELD_OUTPUT_FILE] = "lib3c905c.sys"
-#target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/dev/3c905c"
-#target[FIELD_SOURCE_DIRECTORY] = "src"
-#target[FIELD_SOURCES] = \
-#   ["sys/dev/3c905c.c", \
-#   "lib/libs/string.c" ]
-#generator.addTarget(target);
+target = {}
+target[FIELD_NAME] = "nic3C905c"
+target[FIELD_DESCRIPTION] = "Machina 3C905C NIC driver for x86"
+target[FIELD_PREFFIX] = "LIB3C905C"
+target[FIELD_TYPE] = BIN_DYNAMIC
+target[FIELD_CFLAGS] = "-I src/include -D KERNEL"
+target[FIELD_LDFLAGS] = "-shared -nostdlib -Lbuild/install/boot -lkernel32-dbg"
+target[FIELD_OUTPUT_DIRECTORY] = "build/install/sys"
+target[FIELD_OUTPUT_FILE] = "lib3c905c.sys"
+target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/dev/3c905c"
+target[FIELD_SOURCE_DIRECTORY] = "src"
+target[FIELD_SOURCES] = \
+   ["sys/dev/3c905c.c", \
+   "lib/libs/string.c" ]
+generator.addTarget(target);
 
 
 generator.generateMakefile()

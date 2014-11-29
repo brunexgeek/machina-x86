@@ -39,7 +39,7 @@
 #include <os/syspage.h>
 
 
-#define MAX_PFT                  (1 << 5)
+#define MAX_PFT                  (24)
 
 
 /**
@@ -80,42 +80,40 @@ static struct
 } PFT_NAMES[MAX_PFT] =
 {
     { NULL,   NULL },
-    { "FREE", "." },
-    { "RAM",  "H" },
-    { "RESV", "-" },
-    { "MEM",  "." },
-    { "NVS",  "N" },
-    { "ACPI", "A" },
-    { "BAD",  "*" },
-    { "PTAB", "P" },
-    { "DMA",  "D" },
-    { "PFDB", "F" },
-    { "SYS",  "Y" },
-    { "TCB",  "T" },
-    { "BOOT", "B" },
-    { "FMAP", "M" },
-    { "STCK", "S" },
-    { "KMEM", "E" },
-    { "KMOD", "K" },
-    { "UMOD", "U" },
-    { "VM",   "V" },
-    { NULL,   NULL },
-    { NULL,   NULL },
-    { NULL,   NULL },
-    { NULL,   NULL },
-    { NULL,   NULL },
-    { NULL,   NULL },
-    { NULL,   NULL },
-    { NULL,   NULL },
-    { NULL,   NULL },
-    { NULL,   NULL },
-    { NULL,   NULL },
-    { NULL,   NULL }
-} ;
-
+    { "FREE", "."  },
+    { "HTAB", "H"  },
+    { "RESV", "R"  },
+    { "MEM" , NULL },
+    { "NVS" , NULL },
+    { "ACPI", "A"  },
+    { "BAD" , "*"  },
+    { "PTAB", "P"  },
+    { "DMA" , "D"  },
+    { "FRM" , "F"  },
+    { "SYS" , "Y"  },
+    { "TCB" , "T"  },
+    { "BOOT", "B"  },
+    { "FMAP", "M"  },
+    { "STCK", "S"  },
+    { "KMEM", "E"  },
+    { "KMOD", "K"  },
+    { "UMOD", "U"  },
+    { "VM"  , "V"  },
+    { "HEAP", "H"  },
+    { "TIB" , "I"  },
+    { "PEB" , NULL },
+    { "CACH", "C"  },
+};
 
 void panic(char *msg);
 
+static void kpframe_set_tag(
+    void *vaddress,
+    uint32_t length,
+    uint8_t tag );
+
+static uint8_t kpframe_get_tag(
+    void *vaddress );
 
 void kpframe_initialize()
 {
@@ -208,6 +206,7 @@ uint32_t kpframe_alloc(
 
     if (count == 0) return INVALID_PFRAME;
     if (tag == PFT_FREE) panic("Can not allocate with tag PFT_FREE");
+    if (tag > MAX_PFT) panic("Unknown tag");
 
     // check if we have enough free memory
     if (freeCount < count) return INVALID_PFRAME;

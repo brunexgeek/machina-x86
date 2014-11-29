@@ -42,7 +42,7 @@
 #include <os/dfs.h>
 #include <os/pe.h>
 #include <os/dev.h>
-#include <os/elf.h>
+#include <os/elf32.h>
 
 
 void kprintf(const char *fmt,...);

@@ -17,10 +17,9 @@ help:
 	@echo "   all"
 	@echo "   clean"
 	@echo "   $(KERNEL32_OUT_FILE) (kernel) "
-	@echo "   $(OSLDRS_OUT_FILE) (osloader-stub) "
+	@echo "   $(LIB3C905C_OUT_FILE) (nic3C905c) "
 	@echo "   $(MKDFS_OUT_FILE) "
-	@echo "   $(LIBKERNEL_OUT_FILE) "
-	@echo "   $(LIBC_OUT_FILE) (libc) "
+	@echo "   $(OSLDRS_OUT_FILE) (osloader-stub) "
 	@echo "   $(KRNLDBG32_OUT_FILE) (kernel-debug) "
 	@echo "   $(NETBOOT_OUT_FILE) (netboot) "
 	@echo "   $(CDEMBOOT_OUT_FILE) (cdemboot) "
@@ -30,7 +29,7 @@ help:
 	@echo "   $(OSLDRM_OUT_FILE) (osloader-main) "
 	@echo "   $(NASM_OUT_FILE) (nasm) "
 
-.PHONY: all clean kernel osloader-stub libc kernel-debug netboot cdemboot osloader iso diskboot osloader-main nasm
+.PHONY: all clean kernel nic3C905c osloader-stub kernel-debug netboot cdemboot osloader iso diskboot osloader-main nasm
 
 #
 # Machina Kernel for x86 
@@ -44,21 +43,38 @@ $(KERNEL32_OUT_FILE) kernel : build/machina/kernel/kernel32-dbg.so
 
 
 #
-# Machina OS Loader Stub 
+# Machina 3C905C NIC driver for x86 
 #
-OSLDRS_NFLAGS = $(NFLAGS) -f bin
-OSLDRS_OUT_DIR = build/machina/osloader
-OSLDRS_OUT_FILE = $(OSLDRS_OUT_DIR)/osloader-stub.bin
-OSLDRS_SRC_FILES = \
-	src/arch/x86/sys/osloader/stub.asm
+LIB3C905C_CFLAGS =  -I src/include -D KERNEL $(CFLAGS)
+LIB3C905C_LDFLAGS =  -shared -nostdlib -Lbuild/install/boot -lkernel32-dbg $(LDFLAGS)
+LIB3C905C_NFLAGS = $(NFLAGS)
+LIB3C905C_OUT_DIR = build/install/sys
+LIB3C905C_OUT_FILE = $(LIB3C905C_OUT_DIR)/lib3c905c.sys
+LIB3C905C_SRC_DIR = src
+LIB3C905C_SRC_FILES = \
+	sys/dev/3c905c.c \
+	lib/libs/string.c
+LIB3C905C_OBJ_DIR = build/machina/obj/dev/3c905c
+LIB3C905C_OBJ_FILES = $(patsubst %,$(LIB3C905C_OBJ_DIR)/%.o ,$(LIB3C905C_SRC_FILES))
 
-OSLDRS_CLEAN :
-	rm -f $(OSLDRS_OBJ_FILES) $(OSLDRS_OUT_FILE)
+$(LIB3C905C_OBJ_FILES): | LIB3C905C_OBJ_MKDIR
 
-$(OSLDRS_OUT_FILE) osloader-stub : build/tools/nasm 
-	@echo -e '$(COLOR_BLUE)Building Machina OS Loader Stub$(COLOR_RESET)'
-	@mkdir -p $(OSLDRS_OUT_DIR)
-	$(NASM) $(OSLDRS_NFLAGS) $(OSLDRS_SRC_FILES) -o $(OSLDRS_OUT_FILE)
+LIB3C905C_OBJ_MKDIR:
+	@mkdir -p build/machina/obj/dev/3c905c
+	@mkdir -p build/machina/obj/dev/3c905c/lib/libs
+	@mkdir -p build/machina/obj/dev/3c905c/sys/dev
+
+$(LIB3C905C_OBJ_DIR)/%.c.o: $(LIB3C905C_SRC_DIR)/%.c
+	@echo -e '$(COLOR_BLUE)Compiling $< $(COLOR_RESET)'
+	$(CC) $(LIB3C905C_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
+
+LIB3C905C_CLEAN :
+	rm -f $(LIB3C905C_OBJ_FILES) $(LIB3C905C_OUT_FILE)
+
+$(LIB3C905C_OUT_FILE) nic3C905c :  $(LIB3C905C_OBJ_FILES)
+	@echo -e '$(COLOR_BLUE)Building Machina 3C905C NIC driver for x86$(COLOR_RESET)'
+	@mkdir -p $(LIB3C905C_OUT_DIR)
+	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(LIB3C905C_LDFLAGS) $(LIB3C905C_OBJ_FILES) -o $(LIB3C905C_OUT_FILE)
 
 
 #
@@ -105,190 +121,21 @@ $(MKDFS_OUT_FILE) :  $(MKDFS_OBJ_FILES)
 
 
 #
-# Machina Kernel Library for x86 
+# Machina OS Loader Stub 
 #
-LIBKERNEL_CFLAGS =  -I src/include -D OS_LIB $(CFLAGS)
-LIBKERNEL_LDFLAGS =  -shared -entry _start@12 -fixed 0x7FF00000 -nostdlib $(LDFLAGS)
-LIBKERNEL_NFLAGS = $(NFLAGS)
-LIBKERNEL_OUT_DIR = build/install/boot
-LIBKERNEL_OUT_FILE = $(LIBKERNEL_OUT_DIR)/machina.so
-LIBKERNEL_SRC_DIR = src
-LIBKERNEL_SRC_FILES = \
-	sys/os/critsect.c \
-	sys/os/environ.c \
-	sys/os/heap.c \
-	sys/os/netdb.c \
-	sys/os/os.c \
-	sys/os/resolv.c \
-	sys/os/signal.c \
-	sys/os/sntp.c \
-	sys/os/sysapi.c \
-	sys/os/syserr.c \
-	sys/os/syslog.c \
-	sys/os/thread.c \
-	sys/os/tls.c \
-	sys/os/userdb.c \
-	lib/libc/bitops.c \
-	lib/libc/crypt.c \
-	lib/libc/ctype.c \
-	lib/libc/fcvt.c \
-	lib/libc/inifile.c \
-	lib/libc/moddb.c \
-	lib/libc/opts.c \
-	lib/libc/strftime.c \
-	lib/libc/string.c \
-	lib/libc/strtol.c \
-	lib/libc/tcccrt.c \
-	lib/libc/time.c \
-	lib/libc/verinfo.c \
-	lib/libc/vsprintf.c \
-	lib/libc/math/modf.asm
-LIBKERNEL_OBJ_DIR = build/machina/obj/machina
-LIBKERNEL_OBJ_FILES = $(patsubst %,$(LIBKERNEL_OBJ_DIR)/%.o ,$(LIBKERNEL_SRC_FILES))
+OSLDRS_NFLAGS = $(NFLAGS) -f bin
+OSLDRS_OUT_DIR = build/machina/osloader
+OSLDRS_OUT_FILE = $(OSLDRS_OUT_DIR)/osloader-stub.bin
+OSLDRS_SRC_FILES = \
+	src/arch/x86/sys/osloader/stub.asm
 
-$(LIBKERNEL_OBJ_FILES): | LIBKERNEL_OBJ_MKDIR
+OSLDRS_CLEAN :
+	rm -f $(OSLDRS_OBJ_FILES) $(OSLDRS_OUT_FILE)
 
-LIBKERNEL_OBJ_MKDIR:
-	@mkdir -p build/machina/obj/machina
-	@mkdir -p build/machina/obj/machina/lib/libc/math
-	@mkdir -p build/machina/obj/machina/sys/os
-	@mkdir -p build/machina/obj/machina/lib/libc
-
-$(LIBKERNEL_OBJ_DIR)/%.c.o: $(LIBKERNEL_SRC_DIR)/%.c
-	@echo -e '$(COLOR_BLUE)Compiling $< $(COLOR_RESET)'
-	$(CC) $(LIBKERNEL_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
-
-$(LIBKERNEL_OBJ_DIR)/%.asm.o: $(LIBKERNEL_SRC_DIR)/%.asm
-	@echo -e '$(COLOR_BLUE)Compiling $<$(COLOR_RESET)'
-	$(NASM) $(LIBKERNEL_NFLAGS) $< -o $@
-
-LIBKERNEL_CLEAN :
-	rm -f $(LIBKERNEL_OBJ_FILES) $(LIBKERNEL_OUT_FILE)
-
-$(LIBKERNEL_OUT_FILE) :  $(LIBKERNEL_OBJ_FILES)
-	@echo -e '$(COLOR_BLUE)Building Machina Kernel Library for x86$(COLOR_RESET)'
-	@mkdir -p $(LIBKERNEL_OUT_DIR)
-	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(LIBKERNEL_LDFLAGS) $(LIBKERNEL_OBJ_FILES) -o $(LIBKERNEL_OUT_FILE)
-
-
-#
-# Machina Standard C Library for x86 
-#
-LIBC_CFLAGS =  -I src/include -D OS_LIB $(CFLAGS)
-LIBC_LDFLAGS =  -nostdlib $(LDFLAGS)
-LIBC_NFLAGS = $(NFLAGS)
-LIBC_OUT_DIR = build/install/usr/lib
-LIBC_OUT_FILE = $(LIBC_OUT_DIR)/libc.a
-LIBC_SRC_DIR = src
-LIBC_SRC_FILES = \
-	lib/libc/assert.c \
-	lib/libc/tcccrt.c \
-	lib/libc/bsearch.c \
-	lib/libc/conio.c \
-	lib/libc/crt0.c \
-	lib/libc/ctype.c \
-	lib/libc/dirent.c \
-	lib/libc/fcvt.c \
-	lib/libc/fnmatch.c \
-	lib/libc/fork.c \
-	lib/libc/getopt.c \
-	lib/libc/glob.c \
-	lib/libc/hash.c \
-	lib/libc/inifile.c \
-	lib/libc/input.c \
-	lib/libc/math.c \
-	lib/libc/mman.c \
-	lib/libc/opts.c \
-	lib/libc/output.c \
-	lib/libc/qsort.c \
-	lib/libc/random.c \
-	lib/libc/readline.c \
-	lib/libc/rmap.c \
-	lib/libc/rtttl.c \
-	lib/libc/sched.c \
-	lib/libc/semaphore.c \
-	lib/libc/stdio.c \
-	lib/libc/shlib.c \
-	lib/libc/scanf.c \
-	lib/libc/printf.c \
-	lib/libc/tmpfile.c \
-	lib/libc/popen.c \
-	lib/libc/stdlib.c \
-	lib/libc/strftime.c \
-	lib/libc/string.c \
-	lib/libc/strtod.c \
-	lib/libc/strtol.c \
-	lib/libc/termios.c \
-	lib/libc/time.c \
-	lib/libc/xtoa.c \
-	lib/libc/regex/regcomp.c \
-	lib/libc/regex/regexec.c \
-	lib/libc/regex/regerror.c \
-	lib/libc/regex/regfree.c \
-	lib/libc/pthread/barrier.c \
-	lib/libc/pthread/condvar.c \
-	lib/libc/pthread/mutex.c \
-	lib/libc/pthread/pthread.c \
-	lib/libc/pthread/rwlock.c \
-	lib/libc/pthread/spinlock.c \
-	lib/libc/setjmp.c \
-	lib/libc/chkstk.s \
-	lib/libc/math/acos.asm \
-	lib/libc/math/asin.asm \
-	lib/libc/math/atan.asm \
-	lib/libc/math/atan2.asm \
-	lib/libc/math/ceil.asm \
-	lib/libc/math/cos.asm \
-	lib/libc/math/cosh.asm \
-	lib/libc/math/exp.asm \
-	lib/libc/math/fabs.asm \
-	lib/libc/math/floor.asm \
-	lib/libc/math/fmod.asm \
-	lib/libc/math/fpconst.asm \
-	lib/libc/math/fpreset.asm \
-	lib/libc/math/frexp.asm \
-	lib/libc/math/ftol.asm \
-	lib/libc/math/ldexp.asm \
-	lib/libc/math/log.asm \
-	lib/libc/math/log10.asm \
-	lib/libc/math/modf.asm \
-	lib/libc/math/pow.asm \
-	lib/libc/math/sin.asm \
-	lib/libc/math/sinh.asm \
-	lib/libc/math/sqrt.asm \
-	lib/libc/math/tan.asm \
-	lib/libc/math/tanh.asm
-LIBC_OBJ_DIR = build/machina/obj/libc
-LIBC_OBJ_FILES = $(patsubst %,$(LIBC_OBJ_DIR)/%.o ,$(LIBC_SRC_FILES))
-
-$(LIBC_OBJ_FILES): | LIBC_OBJ_MKDIR
-
-LIBC_OBJ_MKDIR:
-	@mkdir -p build/machina/obj/libc
-	@mkdir -p build/machina/obj/libc/lib/libc/pthread
-	@mkdir -p build/machina/obj/libc/lib/libc/regex
-	@mkdir -p build/machina/obj/libc/lib/libc/math
-	@mkdir -p build/machina/obj/libc/lib/libc
-
-$(LIBC_OBJ_DIR)/%.c.o: $(LIBC_SRC_DIR)/%.c
-	@echo -e '$(COLOR_BLUE)Compiling $< $(COLOR_RESET)'
-	$(CC) $(LIBC_CFLAGS) -DTARGET_MACHINE=$(TARGET_MACHINE) -c $< -o $@
-
-$(LIBC_OBJ_DIR)/%.s.o: $(LIBC_SRC_DIR)/%.s
-	@echo -e '$(COLOR_BLUE)Compiling $<$(COLOR_RESET)'
-	$(CC) -x assembler-with-cpp $(LIBC_CFLAGS) -c $< -o $@
-
-$(LIBC_OBJ_DIR)/%.asm.o: $(LIBC_SRC_DIR)/%.asm
-	@echo -e '$(COLOR_BLUE)Compiling $<$(COLOR_RESET)'
-	$(NASM) $(LIBC_NFLAGS) $< -o $@
-
-LIBC_CLEAN :
-	rm -f $(LIBC_OBJ_FILES) $(LIBC_OUT_FILE)
-
-$(LIBC_OUT_FILE) libc : build/tools/nasm build/tools/ar  $(LIBC_OBJ_FILES)
-	@echo -e '$(COLOR_BLUE)Building Machina Standard C Library for x86$(COLOR_RESET)'
-	@mkdir -p $(LIBC_OUT_DIR)
-	$(AR) -s -m $(LIBC_OUT_FILE) $(LIBC_OBJ_FILES)
+$(OSLDRS_OUT_FILE) osloader-stub : build/tools/nasm 
+	@echo -e '$(COLOR_BLUE)Building Machina OS Loader Stub$(COLOR_RESET)'
+	@mkdir -p $(OSLDRS_OUT_DIR)
+	$(NASM) $(OSLDRS_NFLAGS) $(OSLDRS_SRC_FILES) -o $(OSLDRS_OUT_FILE)
 
 
 #
@@ -305,6 +152,7 @@ KRNLDBG32_SRC_FILES = \
 	sys/kernel/buf.c \
 	sys/kernel/cpu.c \
 	sys/kernel/dbg.c \
+	sys/kernel/elf32.c \
 	sys/kernel/dev.c \
 	sys/kernel/fpu.c \
 	sys/kernel/hndl.c \
@@ -313,13 +161,13 @@ KRNLDBG32_SRC_FILES = \
 	sys/kernel/iovec.c \
 	sys/kernel/kmalloc.c \
 	sys/kernel/kmem.c \
-	sys/kernel/loader.c \
 	sys/kernel/mach.c \
 	sys/kernel/object.c \
 	sys/kernel/pci.c \
 	sys/kernel/pdir.c \
 	sys/kernel/pframe.c \
 	sys/kernel/pic.c \
+	sys/kernel/module.c \
 	sys/kernel/pit.c \
 	sys/kernel/pnpbios.c \
 	sys/kernel/queue.c \
@@ -389,7 +237,6 @@ KRNLDBG32_SRC_FILES = \
 	lib/libc/bitops.c \
 	lib/libc/ctype.c \
 	lib/libc/inifile.c \
-	lib/libc/moddb.c \
 	lib/libc/opts.c \
 	lib/libc/string.c \
 	lib/libc/strtol.c \
@@ -626,7 +473,7 @@ $(NASM_OUT_FILE) nasm :  $(NASM_OBJ_FILES)
 	@mkdir -p $(NASM_OUT_DIR)
 	$(CC) -DTARGET_MACHINE=$(TARGET_MACHINE) $(NASM_LDFLAGS) $(NASM_OBJ_FILES) -o $(NASM_OUT_FILE)
 
-all: $(KERNEL32_OUT_FILE) $(OSLDRS_OUT_FILE) $(MKDFS_OUT_FILE) $(LIBKERNEL_OUT_FILE) $(LIBC_OUT_FILE) $(KRNLDBG32_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(OSLDR_OUT_FILE) $(ISO_OUT_FILE) $(DISKBOOT_OUT_FILE) $(OSLDRM_OUT_FILE) $(NASM_OUT_FILE) 
+all: $(KERNEL32_OUT_FILE) $(LIB3C905C_OUT_FILE) $(MKDFS_OUT_FILE) $(OSLDRS_OUT_FILE) $(KRNLDBG32_OUT_FILE) $(NETBOOT_OUT_FILE) $(CDEMBOOT_OUT_FILE) $(OSLDR_OUT_FILE) $(ISO_OUT_FILE) $(DISKBOOT_OUT_FILE) $(OSLDRM_OUT_FILE) $(NASM_OUT_FILE) 
 
-clean: OSLDRS_CLEAN MKDFS_CLEAN LIBKERNEL_CLEAN LIBC_CLEAN KRNLDBG32_CLEAN NETBOOT_CLEAN CDEMBOOT_CLEAN DISKBOOT_CLEAN OSLDRM_CLEAN NASM_CLEAN 
+clean: LIB3C905C_CLEAN MKDFS_CLEAN OSLDRS_CLEAN KRNLDBG32_CLEAN NETBOOT_CLEAN CDEMBOOT_CLEAN DISKBOOT_CLEAN OSLDRM_CLEAN NASM_CLEAN 
 

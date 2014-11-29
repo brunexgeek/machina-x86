@@ -31,7 +31,7 @@
 // SUCH DAMAGE.
 //
 
-
+#if (0)
 #include <os/krnl.h>
 #include <os/dbg.h>
 #include <os/sched.h>
@@ -365,7 +365,7 @@ static void dbg_get_modules(struct dbg_hdr *hdr, union dbg_body *body) {
   struct module *mod;
   int n = 0;
 
-  mod = kmods.modules;
+  mod = NULL;//kmods.modules;
   if (kmods.modules) {
     while (1) {
       body->modl.mods[n].hmod = mod->hmod;
@@ -594,3 +594,4 @@ void dbg_output(char *msg) {
     dbg_main();
   }
 }
+#endif

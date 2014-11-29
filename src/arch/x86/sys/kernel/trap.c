@@ -171,7 +171,7 @@ void trap(unsigned long args)
     intr = intr_handlers[ctxt->traptype];
     if (!intr)
     {
-        dbg_enter(ctxt, NULL);
+        //dbg_enter(ctxt, NULL);
     }
     else
     {
@@ -296,7 +296,7 @@ void send_signal(struct context *ctxt, int signum, void *addr) {
   // Check for global handler
   if (!peb || !peb->globalhandler) {
     //panic("no global signal handler");
-    dbg_enter(ctxt, addr);
+    //dbg_enter(ctxt, addr);
   }
 
   // Get copy of user stack pointer
@@ -515,7 +515,7 @@ static int sigexit_handler(struct context *ctxt, void *arg) {
     if (tib) tib->errnum = -((int) ctxt->errcode);
   }
 
-  if (debug) dbg_enter(ctxt, info->si_addr);
+  //if (debug) dbg_enter(ctxt, info->si_addr);
 
   return 1;
 }
@@ -532,7 +532,7 @@ static int div_handler(struct context *ctxt, void *arg)
     else
     {
         kprintf(KERN_CRIT "trap: division by zero in kernel mode\n");
-        dbg_enter(ctxt, 0);
+        //dbg_enter(ctxt, 0);
     }
 
     return 0;
@@ -551,7 +551,7 @@ static int breakpoint_handler(struct context *ctxt, void *arg)
     else
     {
         kprintf(KERN_CRIT "trap: breakpoint in kernel mode\n");
-        dbg_enter(ctxt, 0);
+        //dbg_enter(ctxt, 0);
     }
 
     return 0;
@@ -570,7 +570,7 @@ static int overflow_handler(struct context *ctxt, void *arg)
     else
     {
         kprintf(KERN_CRIT "trap: overflow exception in kernel mode\n");
-        dbg_enter(ctxt, 0);
+        //dbg_enter(ctxt, 0);
     }
 
     return 0;
@@ -589,7 +589,7 @@ static int bounds_handler(struct context *ctxt, void *arg)
     else
     {
         kprintf(KERN_CRIT "trap: bounds exception in kernel mode\n");
-        dbg_enter(ctxt, 0);
+        //dbg_enter(ctxt, 0);
     }
 
     return 0;
@@ -608,7 +608,7 @@ static int illop_handler(struct context *ctxt, void *arg)
     else
     {
         kprintf(KERN_CRIT "trap: illegal instruction exception in kernel mode\n");
-        dbg_enter(ctxt, 0);
+        //dbg_enter(ctxt, 0);
     }
 
     return 0;
@@ -627,7 +627,7 @@ static int seg_handler(struct context *ctxt, void *arg)
     else
     {
         kprintf(KERN_CRIT "trap: segment not present exception in kernel mode\n");
-        dbg_enter(ctxt, 0);
+        //dbg_enter(ctxt, 0);
     }
 
     return 0;
@@ -646,7 +646,7 @@ static int stack_handler(struct context *ctxt, void *arg)
     else
     {
         kprintf(KERN_CRIT "trap: stack segment exception in kernel mode\n");
-        dbg_enter(ctxt, 0);
+        //dbg_enter(ctxt, 0);
     }
 
     return 0;
@@ -665,7 +665,7 @@ static int genpro_handler(struct context *ctxt, void *arg)
     else
     {
         kprintf(KERN_CRIT "trap: general protection exception in kernel mode\n");
-        dbg_enter(ctxt, 0);
+        //dbg_enter(ctxt, 0);
     }
 
     return 0;
@@ -713,7 +713,7 @@ static int pagefault_handler(struct context *ctxt, void *arg)
     else
     {
         kprintf(KERN_CRIT "trap: page fault in kernel mode\n");
-        dbg_enter(ctxt, addr);
+        //dbg_enter(ctxt, addr);
     }
 
     return 0;
@@ -729,7 +729,7 @@ static int alignment_handler(struct context *ctxt, void *arg)
     send_signal(ctxt, SIGBUS, (void *) kmach_get_cr2());
     } else {
     kprintf(KERN_CRIT "trap: alignment exception in kernel mode\n");
-    dbg_enter(ctxt, 0);
+    //dbg_enter(ctxt, 0);
     }
 
     return 0;

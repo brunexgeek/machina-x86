@@ -274,12 +274,18 @@ int list_memmap(struct proc_file *pf, struct rmap_t *rmap, unsigned int startpos
     return 0;
 }
 
-int kmem_proc(struct proc_file *pf, void *arg)
+
+int proc_kmem(
+    struct proc_file *output,
+    void *arg )
 {
-    return list_memmap(pf, osvmap, BTOP(KHEAPBASE));
+    return list_memmap(output, osvmap, BTOP(KHEAPBASE));
 }
 
-int kmodmem_proc(struct proc_file *pf, void *arg)
+
+int kmodmem_proc(
+    struct proc_file *output,
+    void *arg )
 {
-    return list_memmap(pf, kmodmap, BTOP(OSBASE));
+    return list_memmap(output, kmodmap, BTOP(OSBASE));
 }

@@ -45,6 +45,6 @@
 
 extern int kprint_enabled;
 
-KERNELAPI void kprintf(const char *fmt, ...);
+/*KERNELAPI*/ void kprintf(const char *fmt, ...);
 
 #endif

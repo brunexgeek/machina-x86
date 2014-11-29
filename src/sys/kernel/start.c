@@ -57,6 +57,7 @@
 #include <net/socket.h>
 #include <net/net.h>
 #include <os/sched.h>
+#include <os/module.h>
 
 
 #ifdef BSD
@@ -215,7 +216,7 @@ void panic(char *msg)
     if (onpanic == ONPANIC_DEBUG)
     {
 
-        if (debugging) dbg_output(msg);
+        //if (debugging) dbg_output(msg);
         dbg_break();
     }
     else
@@ -332,7 +333,7 @@ static void init_filesystem()
     if (rc < 0) panic("error mounting proc filesystem");
 }
 
-static int version_proc(struct proc_file *pf, void *arg) {
+/*static int version_proc(struct proc_file *pf, void *arg) {
   hmodule_t krnl = (hmodule_t) OSBASE;
   struct verinfo *ver;
   time_t ostimestamp;
@@ -365,7 +366,7 @@ static int version_proc(struct proc_file *pf, void *arg) {
   pprintf(pf, ")\n");
 
   return 0;
-}
+}*/
 
 
 static int copyright_proc(struct proc_file *pf, void *arg)
@@ -377,7 +378,7 @@ static int copyright_proc(struct proc_file *pf, void *arg)
     if (get_version_value(krnl, "LegalCopyright", copy, sizeof(copy)) < 0) strcpy(copy, OS_COPYRIGHT);
     if (get_version_value(krnl, "LegalTrademarks", legal, sizeof(legal)) < 0) strcpy(legal, OS_LEGAL);
 
-    version_proc(pf, arg);
+    //version_proc(pf, arg);
     pprintf(pf, "%s %s\n\n", copy, legal);
     proc_write(pf, copyright, strlen(copyright));
     return 0;
@@ -437,7 +438,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     register_proc_inode("physmem", proc_physmem, NULL);
     register_proc_inode("pdir", proc_pdir, NULL);
     register_proc_inode("virtmem", proc_virtmem, NULL);
-    register_proc_inode("kmem", kmem_proc, NULL);
+    register_proc_inode("kmem", proc_kmem, NULL);
     register_proc_inode("kmodmem", kmodmem_proc, NULL);
     register_proc_inode("kheap", kheapstat_proc, NULL);
     register_proc_inode("vmem", vmem_proc, NULL);
@@ -583,25 +584,17 @@ void main(void *arg)
     peb->pathsep = pathsep;
 
     // Initialize module loader
-    //init_kernel_modules();
+main_readFile("/proc/memusage");
+    kmodule_initialize();
+main_readFile("/proc/memusage");
     console(NULL, NULL);
 
-    // Get os version info from kernel version resource
-    /*get_version_value((hmodule_t) OSBASE, "ProductName", peb->osname, sizeof peb->osname);
-    peb->ostimestamp = get_image_header((hmodule_t) OSBASE)->header.timestamp;
-    ver = get_version_info((hmodule_t) OSBASE);
-    if (ver)
-    {
-        memcpy(&peb->osversion, ver, sizeof(struct verinfo));
-    }
-    else
-    {
-        strcpy(peb->osname, OS_NAME);
-        peb->osversion.file_major_version = OS_VERSION_MAJOR;
-        peb->osversion.file_minor_version = OS_VERSION_MINOR;
-        peb->osversion.file_release_number = OS_RELEASE;
-        peb->osversion.file_build_number = OS_BUILD;
-    }*/
+    // get Machina version information
+    strcpy(peb->osname, OS_NAME);
+    peb->osversion.file_major_version = OS_VERSION_MAJOR;
+    peb->osversion.file_minor_version = OS_VERSION_MINOR;
+    peb->osversion.file_release_number = OS_RELEASE;
+    peb->osversion.file_build_number = OS_BUILD;
 
     // Install device drivers
     install_drivers();
@@ -610,7 +603,7 @@ void main(void *arg)
     init_net();
 
     // Install /proc/version and /proc/copyright handler
-    register_proc_inode("version", version_proc, NULL);
+    //register_proc_inode("version", version_proc, NULL);
     register_proc_inode("copyright", copyright_proc, NULL);
 
     // Allocate handles for stdin, stdout and stderr
@@ -622,7 +615,7 @@ void main(void *arg)
     if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
-    main_readFile("/proc/units");
+    /*main_readFile("/proc/units");
     main_readFile("/proc/memmap");
     main_readFile("/proc/memusage");
     main_readFile("/proc/memstat");
@@ -635,7 +628,7 @@ void main(void *arg)
     main_readFile("/proc/vmem");
     main_readFile("/proc/cpu");
     main_readFile("/proc/netif");
-    main_readFile("/proc/handles");
+    main_readFile("/proc/handles");*/
 
     // Load kernel32.so in user address space
     /*imgbase = kloader_load(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);

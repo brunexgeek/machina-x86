@@ -1,5 +1,5 @@
 //
-// elf.c
+// elf32.c
 //
 // ELF32 binary handling
 //
@@ -32,12 +32,11 @@
 // SUCH DAMAGE.
 //
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <dlfcn.h>
-#include <os/elf.h>
+#include <os/kmem.h>
+#include <os/elf32.h>
+#include <os/klog.h>
 
 
 static const uint8_t ELF32_MAGIC[] =
@@ -64,14 +63,12 @@ static const char *ELF32_RELOCS[] =
 
 #define ELF32_RELOCS_COUNT   ( sizeof(ELF32_RELOCS) / sizeof(char*) )
 
-#define kprintf printf
-
 
 static void *elf32_resolve( const char* sym )
 {
     static void *handle = NULL;
 
-    return dlsym(handle, sym);
+    return NULL;
 }
 
 
@@ -124,7 +121,7 @@ static uint32_t elf32_relocateSymbol(
             address = (uint32_t)image + *field;
             break;
         default:
-            printf("Unsupported relocation type 0x%x\n", ELF32_R_TYPE(reloc->r_info));
+            kprintf("Unsupported relocation type 0x%x\n", ELF32_R_TYPE(reloc->r_info));
             address = 0;
     }
 
@@ -162,7 +159,7 @@ void elf32_relocate(
             // relocate the symbol
             *slot = elf32_relocateSymbol(image, symbol, rheader + j, stringTable, bias);
 
-            printf("Relocated   .slot=%8p   .type=%-14s   .base=%8p   .target=%08x   %s\n",
+            kprintf("Relocated   .slot=%8p   .type=%-14s   .base=%8p   .target=%08x   %s\n",
                 slot,
                 (ELF32_R_TYPE(rheader[j].r_info) < ELF32_RELOCS_COUNT)?
                     ELF32_RELOCS[ELF32_R_TYPE(rheader[j].r_info)] : "OTHER",
@@ -285,15 +282,14 @@ void *elf32_load(
     // allocate memory for ELF32 image
     pheader = (elf32_prog_header_t *)(start + header->e_phoff);
     imageSize = elf32_getImageSize(pheader, header->e_phnum);
-    image = mmap(NULL, imageSize, PROT_READ | PROT_WRITE | PROT_EXEC,
-        MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+    image = kmem_alloc(PAGES(imageSize), PFT_KMOD);
     if (image == NULL)
     {
         kprintf("Error allocating memory\n");
         return NULL;
     }
     memset(image, 0, imageSize);
-    printf("ELF32 image requires %d bytes\n", imageSize);
+    kprintf("ELF32 image requires %d bytes\n", imageSize);
 
     // copy every ELF segments
     for(i = 0; i < header->e_phnum; ++i)
@@ -315,7 +311,7 @@ void *elf32_load(
             kprintf("Not enough space for program segment\n");
             goto ESCAPE;
         }
-        printf("Loading segment with %d bytes to 0x%p\n",  pheader[i].p_memsz, destination);
+        kprintf("Loading segment with %d bytes to 0x%p\n",  pheader[i].p_memsz, destination);
         memcpy(destination, source, pheader[i].p_filesz);
     }
 
@@ -328,7 +324,7 @@ void *elf32_load(
         {
             dynTable = (elf32_symb_t*)(start + sheader[i].sh_offset);
             stringTable = start + sheader[sheader[i].sh_link].sh_offset;
-            printf("String table at 0x%p\n", stringTable);
+            kprintf("String table at 0x%p\n", stringTable);
             break;
         }
     }
@@ -338,26 +334,26 @@ void *elf32_load(
     elf32_relocate(start, image, header, dynTable, stringTable, bias);
 
     // protect program segments
-    for (i = 0; i < header->e_phnum; ++i)
+    /*for (i = 0; i < header->e_phnum; ++i)
     {
         if (pheader[i].p_type != PT_LOAD || pheader[i].p_filesz == 0) continue;
 
         source = pheader[i].p_vaddr - bias + image;
         // check if read-only segment
         if ((pheader[i].p_flags & PF_W) == 0)
-            mprotect((unsigned char *) source, pheader[i].p_memsz, PROT_READ);
+            vmprotect((unsigned char *) source, pheader[i].p_memsz, PROT_READ);
         // check if executable segment
         if (pheader[i].p_flags & PF_X)
-            mprotect((unsigned char *) source, pheader[i].p_memsz, PROT_EXEC);
-    }
+            vmprotect((unsigned char *) source, pheader[i].p_memsz, PROT_EXEC);
+    }*/
 
     return image;
 ESCAPE:
-    munmap(image, size);
+    kmem_free(image, PAGES(imageSize));
     return NULL;
 }
 
-
+/*
 int main(int argc, char** argv, char** envp)
 {
     int (*ptr)(int,int);
@@ -381,4 +377,4 @@ int main(int argc, char** argv, char** envp)
         printf("Returned %d\n", result);
     }
     return 0;
-}
+}*/

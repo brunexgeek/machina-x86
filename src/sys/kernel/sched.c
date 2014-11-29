@@ -350,7 +350,7 @@ struct thread *kthread_create_kland(threadproc_t startaddr, void *arg, int prior
     kthread_ready(t, 0, 0);
 
     // Notify debugger
-    dbg_notify_create_thread(t, startaddr);
+    //dbg_notify_create_thread(t, startaddr);
 
     return t;
 }
@@ -399,7 +399,7 @@ int kthread_create_uland(void *entrypoint, unsigned long stacksize, char *name, 
     ktimer_init(&t->alarm, tmr_alarm, t);
 
     // Notify debugger
-    dbg_notify_create_thread(t, entrypoint);
+    //dbg_notify_create_thread(t, entrypoint);
 
     *retval = t;
     return 0;
@@ -483,7 +483,7 @@ int kthread_destroy(struct thread *t)
     }
 
     // Notify debugger
-    dbg_notify_exit_thread(t);
+    //dbg_notify_exit_thread(t);
 
     // Remove thread from thread list
     remove(t);

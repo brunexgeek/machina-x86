@@ -132,7 +132,7 @@ void kprintf(const char *fmt,...)
 
     add_to_klog(buffer, len);
 
-    if (debugging) dbg_output(buffer);
+    //if (debugging) dbg_output(buffer);
 
     if (kprint_enabled)
     {

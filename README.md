@@ -36,7 +36,6 @@ Building
 Clone the repository in your machine. In the root directory, type the following commands to create the ISO image:
 
 ```
-# make nasm
 # make iso
 ```
 
@@ -53,15 +52,15 @@ Working in progress
 Currently I'm working on the following features:
 
 - Support for ELF32 binaries
-- Support for multiprocessing in user mode
-- Standard C library
-
+- ACPI support
 
 Roadmap
 -------
 
 Some features for future developement (no specific order):
 
+- Standard C library
+- Support for multiprocessing in user mode
 - Graphic mode CLI
 - Port to ARMv6 machines (e.g. Raspberry Pi)
 - Support for PAE (Physical Address Extension)

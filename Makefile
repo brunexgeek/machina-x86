@@ -46,14 +46,14 @@ $(KERNEL32_OUT_FILE) kernel : build/machina/kernel/kernel32-dbg.so
 # Machina 3C905C NIC driver for x86 
 #
 LIB3C905C_CFLAGS =  -I src/include -D KERNEL $(CFLAGS)
-LIB3C905C_LDFLAGS =  -shared -nostdlib -Lbuild/install/boot -lkernel32-dbg $(LDFLAGS)
+LIB3C905C_LDFLAGS =  -shared -nostdlib $(LDFLAGS)
 LIB3C905C_NFLAGS = $(NFLAGS)
 LIB3C905C_OUT_DIR = build/install/sys
 LIB3C905C_OUT_FILE = $(LIB3C905C_OUT_DIR)/lib3c905c.sys
 LIB3C905C_SRC_DIR = src
 LIB3C905C_SRC_FILES = \
 	sys/dev/3c905c.c \
-	lib/libs/string.c
+	lib/libc/string.c
 LIB3C905C_OBJ_DIR = build/machina/obj/dev/3c905c
 LIB3C905C_OBJ_FILES = $(patsubst %,$(LIB3C905C_OBJ_DIR)/%.o ,$(LIB3C905C_SRC_FILES))
 
@@ -61,7 +61,7 @@ $(LIB3C905C_OBJ_FILES): | LIB3C905C_OBJ_MKDIR
 
 LIB3C905C_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/dev/3c905c
-	@mkdir -p build/machina/obj/dev/3c905c/lib/libs
+	@mkdir -p build/machina/obj/dev/3c905c/lib/libc
 	@mkdir -p build/machina/obj/dev/3c905c/sys/dev
 
 $(LIB3C905C_OBJ_DIR)/%.c.o: $(LIB3C905C_SRC_DIR)/%.c

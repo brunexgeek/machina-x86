@@ -33,10 +33,6 @@
 // SUCH DAMAGE.
 //
 
-#if _MSC_VER > 1000
-#pragma once
-#endif
-
 #ifndef ERRNO_H
 #define ERRNO_H
 
@@ -158,6 +154,8 @@
 #define ECONN           ENOTCONN
 #define ERST            ECONNRESET
 #define EABORT          ECONNABORTED
+
+#define ENOTFOUND       100
 
 #endif
 

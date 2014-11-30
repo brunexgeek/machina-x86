@@ -615,6 +615,7 @@ main_readFile("/proc/memusage");
     if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
+    main_readFile("/proc/kmods");
     /*main_readFile("/proc/units");
     main_readFile("/proc/memmap");
     main_readFile("/proc/memusage");

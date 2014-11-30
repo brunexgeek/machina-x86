@@ -496,6 +496,8 @@ struct section;
 #define ERST            ECONNRESET
 #define EABORT          ECONNABORTED
 
+#define ENOTFOUND       100
+
 #endif
 
 //

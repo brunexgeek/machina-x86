@@ -3,18 +3,27 @@
 //
 // 3Com 3C905C NIC network driver
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
-// Copyright (C) 1999 3Com Corporation. All rights reserved.
-// 
+// Copyright (C) 2002 Michael Ringgaard
+// Copyright (C) 1999 3Com Corporation
+// All rights reserved.
+//
 // 3Com Network Driver software is distributed as is, without any warranty
 // of any kind, either express or implied as further specified in the GNU Public
 // License. This software may be used and distributed according to the terms of
 // the GNU Public License, located in the file LICENSE.
 //
 // 3Com and EtherLink are registered trademarks of 3Com Corporation.
-// 
+//
 
 #include <os/krnl.h>
+#include <os/trap.h>
+#include <os/dev.h>
+#include <os/pdir.h>
+#include <os/pci.h>
+#include <os/pic.h>
+#include <net/ether.h>
+#include <net/stats.h>
+#include <os/sched.h>
 #include "3c905c.h"
 
 #define tracenic 0
@@ -168,7 +177,7 @@ int execute_command_wait(struct nic *nic, int cmd, int param) {
   execute_command(nic, cmd, param);
   for (i = 0; i < 100000; i++) {
     if (!(inpw(nic->iobase + STATUS) & INTSTATUS_CMD_IN_PROGRESS)) return 0;
-    udelay(10);
+    kpit_udelay(10);
   }
 
   for (i = 0; i < 200; i++) {
@@ -203,7 +212,7 @@ void update_statistics(struct nic *nic) {
   unsigned long rx_bytes;
   unsigned long tx_bytes;
   unsigned char upper;
-  
+
   // Read the current window
   current_window = inpw(nic->iobase + STATUS) >> 13;
 
@@ -296,10 +305,10 @@ int nic_find_mii_phy(struct nic *nic) {
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, 0);
 
     for (i = 0; i < 32; i++) {
-      udelay(1);
+      kpit_udelay(1);
       outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_CLOCK);
 
-      udelay(1);
+      kpit_udelay(1);
       outpw(nic->iobase + PHYSICAL_MANAGEMENT, 0);
 
     }
@@ -326,9 +335,9 @@ void nic_send_mii_phy_preamble(struct nic *nic) {
   for (i = 0; i < 32; i++) {
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_WRITE | PHY_DATA1);
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_WRITE | PHY_DATA1 | PHY_CLOCK);
-    udelay(1);
+    kpit_udelay(1);
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_WRITE);
-    udelay(1);
+    kpit_udelay(1);
   }
 }
 
@@ -356,9 +365,9 @@ void nic_write_mii_phy(struct nic *nic, unsigned short reg, unsigned short value
         outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_WRITE);
         outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_WRITE | PHY_CLOCK);
       }
-      udelay(1);
+      kpit_udelay(1);
       outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_WRITE);
-      udelay(1);
+      kpit_udelay(1);
     }
   }
 
@@ -366,9 +375,9 @@ void nic_write_mii_phy(struct nic *nic, unsigned short reg, unsigned short value
   outpw(nic->iobase + PHYSICAL_MANAGEMENT, 0);
   for (i = 0; i < 2; i++) {
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_CLOCK);
-    udelay(1);
+    kpit_udelay(1);
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, 0);
-    udelay(1);
+    kpit_udelay(1);
   }
 }
 
@@ -381,7 +390,7 @@ int nic_read_mii_phy(struct nic *nic, unsigned short reg) {
   read_cmd = MII_PHY_ADDRESS_READ;
 
   nic_send_mii_phy_preamble(nic);
-  
+
   // Bits 2..6 of the command word specify the register
   read_cmd |= (reg & 0x1F) << 2;
 
@@ -396,17 +405,17 @@ int nic_read_mii_phy(struct nic *nic, unsigned short reg) {
       outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_WRITE | PHY_CLOCK);
     }
 
-    udelay(1);
+    kpit_udelay(1);
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_WRITE);
-    udelay(1);
+    kpit_udelay(1);
   }
 
   // Now run one clock with nobody driving
   outpw(nic->iobase + PHYSICAL_MANAGEMENT, 0);
   outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_CLOCK);
-  udelay(1);
+  kpit_udelay(1);
   outpw(nic->iobase + PHYSICAL_MANAGEMENT, 0);
-  udelay(1);
+  kpit_udelay(1);
 
   // Now run one clock, expecting the PHY to be driving a 0 on the data
   // line.  If we read a 1, it has to be just his pull-up, and he's not
@@ -421,9 +430,9 @@ int nic_read_mii_phy(struct nic *nic, unsigned short reg) {
   for (i = 0x8000; i; i >>= 1) {
     // Shift input up one to make room
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_CLOCK);
-    udelay(1);
+    kpit_udelay(1);
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, 0);
-    udelay(1);
+    kpit_udelay(1);
 
     phy_mgmt = inpw(nic->iobase + PHYSICAL_MANAGEMENT);
 
@@ -434,9 +443,9 @@ int nic_read_mii_phy(struct nic *nic, unsigned short reg) {
   outpw(nic->iobase + PHYSICAL_MANAGEMENT, 0);
   for (i = 0; i < 2; i++) {
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, PHY_CLOCK);
-    udelay(1);
+    kpit_udelay(1);
     outpw(nic->iobase + PHYSICAL_MANAGEMENT, 0);
-    udelay(1);
+    kpit_udelay(1);
   }
 
   return value;
@@ -446,16 +455,16 @@ int nic_eeprom_busy(struct nic *nic) {
   unsigned short status;
   unsigned long timeout;
 
-  timeout = get_ticks() + 1 * TICKS_PER_SEC;
+  timeout = kpic_get_ticks() + 1 * TICKS_PER_SEC;
   while (1) {
     status = inpw(nic->iobase + EEPROM_CMD);
     if (!(status & EEPROM_BUSY)) return 0;
-    if (time_after(get_ticks(), timeout)) {
+    if (time_after(kpic_get_ticks(), timeout)) {
       kprintf(KERN_ERR "nic: timeout reading eeprom\n");
       return -ETIMEOUT;
     }
 
-    udelay(10);
+    kpit_udelay(10);
   }
 }
 
@@ -504,7 +513,7 @@ int nic_transmit(struct dev *dev, struct pbuf *p) {
   // Fill tx entry
   entry = nic->next_tx;
   for (q = p, i = 0; q != NULL; q = q->next, i++) {
-    entry->sglist[i].addr = virt2phys(q->payload);
+    entry->sglist[i].addr = kpage_virt2phys(q->payload);
     if (!q->next) {
       entry->sglist[i].length = q->len | LAST_FRAG;
     } else {
@@ -637,7 +646,7 @@ void nic_up_complete(struct nic *nic) {
         pbuf_realloc(p, length);
 
         nic->curr_rx->pkt = q;
-        nic->curr_rx->sglist[0].addr = virt2phys(q->payload);
+        nic->curr_rx->sglist[0].addr = kpage_virt2phys(q->payload);
       } else {
         p = NULL;
         netstats->link.memerr++;
@@ -648,7 +657,7 @@ void nic_up_complete(struct nic *nic) {
     // Send packet to upper layer
     if (p) {
       netstats->link.recv++;
-      if (dev_receive(nic->devno, p) < 0) pbuf_free(p);
+      if (kdev_receive(nic->devno, p) < 0) pbuf_free(p);
     }
 
     // Clear status and move to next packet in rx ring
@@ -681,7 +690,7 @@ void nic_down_complete(struct nic *nic) {
 }
 
 void nic_host_error(struct nic *nic) {
-  execute_command_wait(nic, CMD_RESET, 
+  execute_command_wait(nic, CMD_RESET,
     GLOBAL_RESET_MASK_NETWORK_RESET |
     GLOBAL_RESET_MASK_TP_AUI_RESET |
     GLOBAL_RESET_MASK_ENDEC_RESET |
@@ -787,14 +796,14 @@ void nic_dpc(void *arg) {
     status = inpw(nic->iobase + STATUS);
   }
 
-  eoi(nic->irq);
+  kpic_eoi(nic->irq);
 }
 
 int nic_handler(struct context *ctxt, void *arg) {
   struct nic *nic = (struct nic *) arg;
 
   // Queue DPC to service interrupt
-  queue_irq_dpc(&nic->dpc, nic_dpc, nic);
+  kdpc_queue(&nic->dpc, nic_dpc, nic);
 
   return 0;
 }
@@ -815,7 +824,7 @@ int nic_try_mii(struct nic *nic, unsigned short options) {
     // If it is capable of auto negotiation, see if it has been done already.
     // Check the current MII auto-negotiation state and see if we need to
     // start auto-neg over.
- 
+
     if (nic_check_mii_configuration(nic, options) < 0) return -ENODEV;
 
     // See if link is up...
@@ -962,7 +971,7 @@ int nic_initialize_adapter(struct nic *nic) {
 
   // Acknowledge any pending interrupts.
   execute_command(nic, CMD_ACKNOWLEDGE_INTERRUPT, ALL_ACK);
-  
+
   // Clear the statistics from the hardware.
   execute_command(nic, CMD_STATISTICS_DISABLE, 0);
   clear_statistics(nic);
@@ -1002,7 +1011,7 @@ int nic_get_link_speed(struct nic *nic) {
 
   phy_aner = nic_read_mii_phy(nic, MII_PHY_ANER);
   if (phy_aner < 0) return phy_aner;
-  
+
   phy_anlpar = nic_read_mii_phy(nic, MII_PHY_ANLPAR);
   if (phy_anlpar < 0) return phy_anlpar;
 
@@ -1066,14 +1075,14 @@ int nic_restart_transmitter(struct nic *nic) {
   select_window(nic, 4);
 
   media_status = inpw(nic->iobase + MEDIA_STATUS);
-  udelay(10);
+  kpit_udelay(10);
 
   if (media_status & MEDIA_STATUS_TX_IN_PROGRESS) {
-    timeout = get_ticks() + 1 * TICKS_PER_SEC;
+    timeout = kpic_get_ticks() + 1 * TICKS_PER_SEC;
     while (1) {
       media_status = inpw(nic->iobase + MEDIA_STATUS);
       if (!(media_status & MEDIA_STATUS_TX_IN_PROGRESS)) break;
-      if (time_after(get_ticks(), timeout)) {
+      if (time_after(kpic_get_ticks(), timeout)) {
         kprintf(KERN_WARNING "nic: timeout waiting for transmitter to go quiet\n");
         return -ETIMEOUT;
       }
@@ -1083,14 +1092,14 @@ int nic_restart_transmitter(struct nic *nic) {
 
   // Wait for download engine to stop
   dma_control = inpd(nic->iobase + DMA_CONTROL);
-  udelay(10);
+  kpit_udelay(10);
 
   if (dma_control & DMA_CONTROL_DOWN_IN_PROGRESS) {
-    timeout = get_ticks() + 1 * TICKS_PER_SEC;
+    timeout = kpic_get_ticks() + 1 * TICKS_PER_SEC;
     while (1) {
       dma_control = inpd(nic->iobase + DMA_CONTROL);
       if (!(dma_control & DMA_CONTROL_DOWN_IN_PROGRESS)) break;
-      if (time_after(get_ticks(), timeout)) {
+      if (time_after(kpic_get_ticks(), timeout)) {
         kprintf(KERN_WARNING "nic: timeout waiting for download engine to stop\n");
         return -ETIMEOUT;
       }
@@ -1159,7 +1168,7 @@ int nic_configure_mii(struct nic *nic, unsigned short media_options) {
   // then enable both half and full-duplex settings. Otherwise, go by what's
   // been enabled for duplex mode.
   //
-  
+
   if (media_options & MEDIA_OPTIONS_100BASETX_AVAILABLE) {
     if (nic->autoselect) {
       phy_anar |= (MII_ANAR_100TXFD | MII_ANAR_100TX);
@@ -1184,20 +1193,20 @@ int nic_configure_mii(struct nic *nic, unsigned short media_options) {
   phy_control |= (MII_CONTROL_ENABLE_AUTO | MII_CONTROL_START_AUTO);
 
   // Write the MII registers back.
-  nic_write_mii_phy(nic, MII_PHY_ANAR, (unsigned short) phy_anar); 
-  nic_write_mii_phy(nic, MII_PHY_CONTROL, (unsigned short) phy_control); 
+  nic_write_mii_phy(nic, MII_PHY_ANAR, (unsigned short) phy_anar);
+  nic_write_mii_phy(nic, MII_PHY_CONTROL, (unsigned short) phy_control);
 
   // Wait for auto-negotiation to finish.
   phy_status = nic_read_mii_phy(nic, MII_PHY_STATUS);
   if (phy_status < 0) return phy_status;
-  udelay(1000);
+  kpit_udelay(1000);
 
   if (!(phy_status & MII_STATUS_AUTO_DONE)) {
-    timeout = get_ticks() + 3 * TICKS_PER_SEC;
+    timeout = kpic_get_ticks() + 3 * TICKS_PER_SEC;
     while (1) {
       phy_status = nic_read_mii_phy(nic, MII_PHY_STATUS);
       if (phy_status & MII_STATUS_AUTO_DONE) break;
-      if (time_after(get_ticks(), timeout)) {
+      if (time_after(kpic_get_ticks(), timeout)) {
         kprintf(KERN_WARNING "nic: timeout waiting for auto-negotiation to finish\n");
         return -ETIMEOUT;
       }
@@ -1229,12 +1238,12 @@ int nic_check_mii_configuration(struct nic *nic, unsigned short media_options) {
     rc = nic_configure_mii(nic, media_options);
     if (rc < 0) return rc;
   }
-  
+
   //
   // Auto-negotiation has completed. Check the results against the ANAR and ANLPAR
   // registers to see if we need to restart auto-neg.
   //
-  
+
   phy_anar = nic_read_mii_phy(nic, MII_PHY_ANAR);
   if (phy_anar < 0) return phy_anar;
 
@@ -1242,7 +1251,7 @@ int nic_check_mii_configuration(struct nic *nic, unsigned short media_options) {
   // Check to see what we negotiated with the link partner. First, let's make
   // sure that the ANAR is set properly based on the media options defined.
   //
-  
+
   new_anar = 0;
   if (media_options & MEDIA_OPTIONS_100BASETX_AVAILABLE) {
     if (nic->autoselect) {
@@ -1276,7 +1285,7 @@ int nic_check_mii_configuration(struct nic *nic, unsigned short media_options) {
       return nic_configure_mii(nic, media_options);
     }
   }
-  
+
   if (media_options & MEDIA_OPTIONS_10BASET_AVAILABLE) {
     // Check 10BaseT settings.
     if ((phy_anar & MII_ANAR_MEDIA_10_MASK) != (new_anar & MII_ANAR_MEDIA_10_MASK)) {
@@ -1331,16 +1340,16 @@ int nic_check_dc_converter(struct nic *nic, int enabled) {
   nictrace("enter nic_check_dc_converter\n");
 
   media_status = inpw(nic->iobase + MEDIA_STATUS);
-  udelay(1000);
+  kpit_udelay(1000);
 
-  if (enabled && !(media_status & MEDIA_STATUS_DC_CONVERTER_ENABLED) ||
-      !enabled && (media_status & MEDIA_STATUS_DC_CONVERTER_ENABLED)) {
-    timeout = get_ticks() + 3; // 30 ms
+  if ((enabled && !(media_status & MEDIA_STATUS_DC_CONVERTER_ENABLED)) ||
+      (!enabled && (media_status & MEDIA_STATUS_DC_CONVERTER_ENABLED))) {
+    timeout = kpic_get_ticks() + 3; // 30 ms
     while (1) {
       media_status = inpw(nic->iobase + MEDIA_STATUS);
       if (enabled && (media_status & MEDIA_STATUS_DC_CONVERTER_ENABLED)) break;
       if (!enabled && !(media_status & MEDIA_STATUS_DC_CONVERTER_ENABLED)) break;
-      if (time_after(get_ticks(), timeout)) {
+      if (time_after(kpic_get_ticks(), timeout)) {
         kprintf(KERN_ERR "nic: timeout waiting for dc converter to go %s\n", enabled ? "on" : "off");
         return -ETIMEOUT;
       }
@@ -1498,7 +1507,7 @@ int nic_setup_media(struct nic *nic) {
   // link state.
   //
   if (nic_get_link_speed(nic) < 0) return -EIO;
-  
+
   // Set up duplex mode
   select_window(nic, 3);
   mac_control = inpw(nic->iobase +  MAC_CONTROL);
@@ -1579,8 +1588,8 @@ int nic_setup_buffers(struct nic *nic) {
     nic->rx_ring[i].pkt = pbuf_alloc(PBUF_RAW, ETHER_FRAME_LEN, PBUF_RW);
     if (!nic->rx_ring[i].pkt) return -ENOMEM;
 
-    nic->rx_ring[i].phys_next = virt2phys(nic->rx_ring[i].next);
-    nic->rx_ring[i].sglist[0].addr = virt2phys(nic->rx_ring[i].pkt->payload);
+    nic->rx_ring[i].phys_next = kpage_virt2phys(nic->rx_ring[i].next);
+    nic->rx_ring[i].sglist[0].addr = kpage_virt2phys(nic->rx_ring[i].pkt->payload);
     nic->rx_ring[i].sglist[0].length = ETHER_FRAME_LEN | LAST_FRAG;
   }
   nic->curr_rx = &nic->rx_ring[0];
@@ -1599,7 +1608,7 @@ int nic_setup_buffers(struct nic *nic) {
       nic->tx_ring[i].prev = &nic->tx_ring[i - 1];
     }
 
-    nic->tx_ring[i].phys_addr = virt2phys(&nic->tx_ring[i]);
+    nic->tx_ring[i].phys_addr = kpage_virt2phys(&nic->tx_ring[i]);
   }
 
   nic->next_tx = &nic->tx_ring[0];
@@ -1631,7 +1640,7 @@ int nic_start_adapter(struct nic *nic) {
 
   // Give receive ring to upload engine
   execute_command_wait(nic, CMD_UP_STALL, 0);
-  outpd(nic->iobase + UP_LIST_POINTER, virt2phys(nic->curr_rx));
+  outpd(nic->iobase + UP_LIST_POINTER, kpage_virt2phys(nic->curr_rx));
   execute_command(nic, CMD_UP_UNSTALL, 0);
 
   // Give transmit ring to download engine
@@ -1678,7 +1687,7 @@ int __declspec(dllexport) install(struct unit *unit) {
 
   // Determine chipset
   switch (unit->unitcode) {
-    case UNITCODE_3C905B1: 
+    case UNITCODE_3C905B1:
       unit->vendorname = "3Com";
       unit->productname = "3Com EtherLink 3C905B-1";
       break;
@@ -1704,30 +1713,30 @@ int __declspec(dllexport) install(struct unit *unit) {
   memset(nic, 0, sizeof(struct nic));
 
   // Setup NIC configuration
-  nic->iobase = (unsigned short) get_unit_iobase(unit);
-  nic->irq = (unsigned short) get_unit_irq(unit);
+  nic->iobase = (unsigned short) kdev_get_unit_iobase(unit);
+  nic->irq = (unsigned short) kdev_get_unit_irq(unit);
   nic->deviceid = PCI_DEVICE_ID(unit->unitcode);
   nic->connector = CONNECTOR_UNKNOWN;
-  nic->devno = dev_make("eth#", &nic_driver, unit, nic);
+  nic->devno = kdev_create("eth#", &nic_driver, unit, nic);
 
   // Enable bus mastering
   pci_enable_busmastering(unit);
 
   // Install interrupt handler
-  init_dpc(&nic->dpc);
+  kdpc_create(&nic->dpc);
   register_interrupt(&nic->intr, IRQ2INTR(nic->irq), nic_handler, nic);
-  enable_irq(nic->irq);
+  kpic_enable_irq(nic->irq);
 
   // Setup buffers
   rc = nic_setup_buffers(nic);
   if (rc < 0) return rc;
 
   // Global reset
-  rc = execute_command_wait(nic, CMD_RESET, 
-         GLOBAL_RESET_MASK_TP_AUI_RESET | 
-         GLOBAL_RESET_MASK_ENDEC_RESET | 
-         GLOBAL_RESET_MASK_AISM_RESET | 
-         GLOBAL_RESET_MASK_SMB_RESET | 
+  rc = execute_command_wait(nic, CMD_RESET,
+         GLOBAL_RESET_MASK_TP_AUI_RESET |
+         GLOBAL_RESET_MASK_ENDEC_RESET |
+         GLOBAL_RESET_MASK_AISM_RESET |
+         GLOBAL_RESET_MASK_SMB_RESET |
          GLOBAL_RESET_MASK_VCO_RESET);
 
   if (rc < 0) {
@@ -1758,10 +1767,10 @@ int __declspec(dllexport) install(struct unit *unit) {
   rc = nic_start_adapter(nic);
   if (rc < 0) return rc;
 
-  register_proc_inode(device(nic->devno)->name, nicstat_proc, nic);
+  register_proc_inode(kdev_get(nic->devno)->name, nicstat_proc, nic);
 
-  kprintf(KERN_INFO "%s: %s, iobase 0x%x irq %d mac %la\n", device(nic->devno)->name, unit->productname, nic->iobase, nic->irq, &nic->hwaddr);
-  kprintf(KERN_INFO "%s: %d MBits/s, %s-duplex, %s\n", device(nic->devno)->name, nic->linkspeed, nic->fullduplex ? "full" : "half", connectorname[nic->connector]);
+  kprintf(KERN_INFO "%s: %s, iobase 0x%x irq %d mac %la\n", kdev_get(nic->devno)->name, unit->productname, nic->iobase, nic->irq, &nic->hwaddr);
+  kprintf(KERN_INFO "%s: %d MBits/s, %s-duplex, %s\n", kdev_get(nic->devno)->name, nic->linkspeed, nic->fullduplex ? "full" : "half", connectorname[nic->connector]);
 
   return 0;
 }

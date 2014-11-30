@@ -35,6 +35,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <os/kmem.h>
+#include <os/kmalloc.h>
 #include <os/elf32.h>
 #include <os/klog.h>
 
@@ -242,9 +243,10 @@ uint32_t elf32_getImageSize( elf32_prog_header_t *pheader, uint16_t count )
 }
 
 
-void *elf32_load(
+int elf32_load(
     char *start,
-    unsigned int size )
+    uint32_t size,
+    struct module **module )
 {
     elf32_file_header_t *header;
     elf32_prog_header_t *pheader;
@@ -264,19 +266,19 @@ void *elf32_load(
     if(memcmp(header->e_ident, ELF32_MAGIC, sizeof(ELF32_MAGIC)) != 0)
     {
         kprintf("image_load:: invalid ELF image\n");
-        return NULL;
+        return -EINVAL;
     }
     // check if supported ELF type (until we have processes, only share-library is supported)
     if (/*header->e_type != ET_EXEC &&*/ header->e_type != ET_DYN)
     {
         kprintf("Unsupported ELF type\n");
-        return NULL;
+        return -EINVAL;;
     }
     // check if supported machine
     if (header->e_machine != EM_386)
     {
         kprintf("Unsupported machine\n");
-        return NULL;
+        return -EINVAL;
     }
 
     // allocate memory for ELF32 image
@@ -286,7 +288,7 @@ void *elf32_load(
     if (image == NULL)
     {
         kprintf("Error allocating memory\n");
-        return NULL;
+        return -ENOMEM;
     }
     memset(image, 0, imageSize);
     kprintf("ELF32 image requires %d bytes\n", imageSize);
@@ -328,7 +330,7 @@ void *elf32_load(
             break;
         }
     }
-    if (stringTable == NULL || dynTable == NULL) return NULL;
+    if (stringTable == NULL || dynTable == NULL) return -EINVAL;
 
     // relocate internal and external symbols
     elf32_relocate(start, image, header, dynTable, stringTable, bias);
@@ -347,10 +349,17 @@ void *elf32_load(
             vmprotect((unsigned char *) source, pheader[i].p_memsz, PROT_EXEC);
     }*/
 
-    return image;
+    *module = kmalloc(sizeof(struct module));
+    memset(*module, 0, sizeof(struct module));
+    if (*module == NULL) goto ESCAPE;
+    (*module)->image = image;
+    (*module)->size = imageSize;
+    (*module)->symbols = (char*)dynTable - (char*)start + (char*)image;
+
+    return 0;
 ESCAPE:
     kmem_free(image, PAGES(imageSize));
-    return NULL;
+    return -EINVAL;
 }
 
 /*

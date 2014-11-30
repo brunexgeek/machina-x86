@@ -3,8 +3,9 @@
 //
 // Programmable Interval Timer functions (PIT i8253)
 //
-// Copyright (C) 2013 Bruno Ribeiro. All rights reserved.
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2013 Bruno Ribeiro
+// Copyright (C) 2002 Michael Ringgaard
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -450,4 +451,10 @@ int kpit_get_system_load(struct loadinfo *info)
     info->load_idle = loadavg[LOADTYPE_IDLE];
 
     return 0;
+}
+
+
+unsigned int kpic_get_ticks()
+{
+    return global_ticks;
 }

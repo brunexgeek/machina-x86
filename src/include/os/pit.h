@@ -92,4 +92,6 @@ void kpit_set_time(struct timeval *tv);
  */
 int kpit_get_system_load( struct loadinfo *info );
 
+unsigned int kpic_get_ticks();
+
 #endif

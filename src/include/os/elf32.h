@@ -188,6 +188,7 @@
 #define EM_AARCH64      183     // ARM AArch64
 
 #include <stdint.h>
+#include <os/module.h>
 
 typedef struct elf32_file_header_t
 {
@@ -256,9 +257,10 @@ typedef struct elf32_relc_t
 } elf32_relc_t;
 
 
-void *elf32_load(
+int elf32_load(
     char *start,
-    unsigned int size );
+    uint32_t size,
+    struct module **module );
 
 
 #endif  // MACHINA_OS_ELF_H

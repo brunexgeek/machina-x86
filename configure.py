@@ -537,14 +537,14 @@ target[FIELD_DESCRIPTION] = "Machina 3C905C NIC driver for x86"
 target[FIELD_PREFFIX] = "LIB3C905C"
 target[FIELD_TYPE] = BIN_DYNAMIC
 target[FIELD_CFLAGS] = "-I src/include -D KERNEL"
-target[FIELD_LDFLAGS] = "-shared -nostdlib -Lbuild/install/boot -lkernel32-dbg"
+target[FIELD_LDFLAGS] = "-shared -nostdlib"
 target[FIELD_OUTPUT_DIRECTORY] = "build/install/sys"
 target[FIELD_OUTPUT_FILE] = "lib3c905c.sys"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/dev/3c905c"
 target[FIELD_SOURCE_DIRECTORY] = "src"
 target[FIELD_SOURCES] = \
    ["sys/dev/3c905c.c", \
-   "lib/libs/string.c" ]
+   "lib/libc/string.c" ]
 generator.addTarget(target);
 
 

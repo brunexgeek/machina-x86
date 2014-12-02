@@ -126,6 +126,7 @@ target[FIELD_PREFFIX] = "KRNLDBG32"
 target[FIELD_TYPE] = BIN_EXECUTABLE
 target[FIELD_CFLAGS] = "-g -I src/include -D KERNEL -D KRNL_LIB -nostdlib -masm=intel"
 target[FIELD_LDFLAGS] = "-nostdlib -Wl,-T,src/arch/x86/sys/kernel/kernel.lds"
+target[FIELD_DEPENDENCIES] = [ "src/arch/x86/sys/kernel/kernel.lds" ]
 target[FIELD_OUTPUT_DIRECTORY] = "build/machina/kernel"
 target[FIELD_OUTPUT_FILE] = "kernel32-dbg.so"
 target[FIELD_OBJECT_DIRECTORY] = "build/machina/obj/kernel"

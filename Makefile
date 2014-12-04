@@ -372,6 +372,7 @@ KRNLDBG32_SRC_FILES = \
 	sys/net/tcpsock.c \
 	sys/net/udp.c \
 	sys/net/udpsock.c \
+	sys/fs/ext2fs/ext2.c \
 	sys/fs/cdfs/cdfs.c \
 	sys/fs/devfs/devfs.c \
 	sys/fs/dfs/dfs.c \
@@ -411,6 +412,7 @@ KRNLDBG32_OBJ_MKDIR:
 	@mkdir -p build/machina/obj/kernel/sys/net
 	@mkdir -p build/machina/obj/kernel/sys/kernel
 	@mkdir -p build/machina/obj/kernel/sys/dev
+	@mkdir -p build/machina/obj/kernel/sys/fs/ext2fs
 	@mkdir -p build/machina/obj/kernel/arch/x86/sys/kernel
 	@mkdir -p build/machina/obj/kernel/sys/fs/procfs
 	@mkdir -p build/machina/obj/kernel/sys/fs/cdfs

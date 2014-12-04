@@ -101,13 +101,13 @@ KERNELAPI uint32_t kpframe_alloc_linear(
 KERNELAPI void kpframe_free(
     uint32_t frame );
 
-static KERNELAPI void kpframe_set_tag(
+/*static KERNELAPI void kpframe_set_tag(
     void *vaddress,
     uint32_t length,
     uint8_t tag );
 
 static uint8_t kpframe_get_tag(
-    void *vaddress );
+    void *vaddress );*/
 
 const char *kpframe_tag_name(
     uint8_t tag );

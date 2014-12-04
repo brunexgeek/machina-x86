@@ -1,9 +1,11 @@
 //
 // dev.c
 //
-// Device Manager
+// Device manager
 //
-// Copyright (C) 2002 Michael Ringgaard. All rights reserved.
+// Copyright (C) 2014 Bruno Ribeiro
+// Copyright (C) 2002 Michael Ringgaard
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -625,16 +627,18 @@ dev_t kdev_create(char *name, struct driver *driver, struct unit *unit, void *pr
     return devno;
 }
 
-dev_t kdev_get_number(char *name) {
-  dev_t devno;
+dev_t kdev_get_number( const char *name )
+{
+    dev_t devno;
 
-  for (devno = 0; devno < num_devs; devno++) {
-    if (strcmp(devtab[devno]->name, name) == 0) return devno;
-  }
-  return NODEV;
+    for (devno = 0; devno < num_devs; devno++)
+        if (strcmp(devtab[devno]->name, name) == 0) return devno;
+
+    return NODEV;
 }
 
-dev_t kdev_open(char *name)
+dev_t kdev_open(
+    const char *name )
 {
     dev_t d = kdev_get_number(name);
     if (d != NODEV) devtab[d]->refcnt++;

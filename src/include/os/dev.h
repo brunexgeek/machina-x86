@@ -254,8 +254,8 @@ KERNELAPI struct board *kdev_lookup_board(struct board *board_tbl, struct unit *
 KERNELAPI struct dev *kdev_get(dev_t devno);
 
 KERNELAPI dev_t kdev_create(char *name, struct driver *driver, struct unit *unit, void *privdata);
-KERNELAPI dev_t kdev_get_number(char *name);
-KERNELAPI dev_t kdev_open(char *name);
+KERNELAPI dev_t kdev_get_number( const char *name );
+KERNELAPI dev_t kdev_open( const char *name );
 KERNELAPI int kdev_close(dev_t devno);
 
 KERNELAPI int kdev_ioctl(dev_t devno, int cmd, void *args, size_t size);

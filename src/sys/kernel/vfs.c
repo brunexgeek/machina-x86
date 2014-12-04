@@ -153,7 +153,7 @@ int fslookup(char *name, int full, struct fs **mntfs, char **rest)
             }
 
             m = strlen(q);
-            if (n >= m && fnmatch(p, m, q, m) && (p[m] == PS1 || p[m] == PS2 || full && p[m] == 0)) {
+            if (n >= m && fnmatch(p, m, q, m) && (p[m] == PS1 || p[m] == PS2 || (full && p[m] == 0))) {
             rc = check(fs->mode, fs->uid, fs->gid, S_IEXEC);
             if (rc < 0) return rc;
 
@@ -339,7 +339,7 @@ int mount(char *type, char *mntto, char *mntfrom, char *opts, struct fs **newfs)
     }
 
     // Check that mount point exists
-    if (path[0] == 0 || (path[0] == PS1 || path[0] == PS2) &&  path[1] == 0)
+    if ((path[0] == 0 || (path[0] == PS1 || path[0] == PS2)) &&  path[1] == 0)
     {
         st.st_uid = 0;
         st.st_gid = 0;
@@ -745,7 +745,7 @@ int pread(struct file *filp, void *data, size_t size, off64_t offset) {
   int rc;
 
   if (!filp) return -EINVAL;
-  if (!data && size > 0 || offset < 0) return -EINVAL;
+  if ((!data && size > 0) || offset < 0) return -EINVAL;
   if (filp->flags & O_WRONLY) return -EACCES;
   if (filp->flags & O_TEXT) return -ENXIO;
 
@@ -815,7 +815,7 @@ int pwrite(struct file *filp, void *data, size_t size, off64_t offset) {
   int rc;
 
   if (!filp) return -EINVAL;
-  if (!data && size > 0 || offset < 0) return -EINVAL;
+  if ((!data && size > 0) || offset < 0) return -EINVAL;
   if (filp->flags == O_RDONLY) return -EACCES;
   if (filp->flags & O_TEXT) return -ENXIO;
 
@@ -1372,4 +1372,23 @@ int readdir(struct file *filp, struct direntry *dirp, int count) {
   rc = filp->fs->ops->readdir(filp, dirp, count);
   unlock_fs(filp->fs, FSOP_READDIR);
   return rc;
+}
+
+
+int proc_mounts(
+    struct proc_file *output,
+    void *arg )
+{
+    struct fs *current = mountlist;
+
+    pprintf(output, "Device        Type     Mount point\n");
+    pprintf(output, "------------  -------- ----------------\n");
+
+    while (current != NULL)
+    {
+        pprintf(output, "%-12s  %-8s %-16s\n", current->mntfrom, current->fsys->name, current->mntto);
+        current = current->next;
+    }
+
+    return 0;
 }

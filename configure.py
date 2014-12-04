@@ -207,6 +207,7 @@ target[FIELD_SOURCES] = \
     "sys/net/udp.c", \
     "sys/net/udpsock.c", \
     # file system
+    "sys/fs/ext2fs/ext2.c", \
     "sys/fs/cdfs/cdfs.c", \
     "sys/fs/devfs/devfs.c", \
     "sys/fs/dfs/dfs.c", \

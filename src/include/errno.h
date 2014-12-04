@@ -33,10 +33,6 @@
 // SUCH DAMAGE.
 //
 
-#if _MSC_VER > 1000
-#pragma once
-#endif
-
 #ifndef ERRNO_H
 #define ERRNO_H
 
@@ -161,17 +157,11 @@
 
 #endif
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
 
 #ifndef errno
-osapi int *_errno();
+/*osapi*/ int *_errno();
 #define errno (*_errno())
 #endif
 
-#ifdef  __cplusplus
-}
-#endif
 
 #endif

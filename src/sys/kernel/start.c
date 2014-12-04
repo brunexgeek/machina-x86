@@ -3,8 +3,8 @@
 //
 // Kernel initialization
 //
-// Copyright (C) 2013-2014 Bruno Ribeiro.
-// Copyright (C) 2002 Michael Ringgaard.
+// Copyright (C) 2013-2014 Bruno Ribeiro
+// Copyright (C) 2002 Michael Ringgaard
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,7 @@
 #include <net/socket.h>
 #include <net/net.h>
 #include <os/sched.h>
+#include <fs/ext2fs.h>
 
 
 #ifdef BSD
@@ -287,6 +288,7 @@ static void init_filesystem()
     init_pipefs();
     init_smbfs();
     init_cdfs();
+    ext2_initialize();
 
     // Determine boot device
     if ((syspage->ldrparams.bootdrv & 0xF0) == 0xF0)
@@ -332,54 +334,23 @@ static void init_filesystem()
     if (rc < 0) panic("error mounting proc filesystem");
 }
 
-static int version_proc(struct proc_file *pf, void *arg) {
-  hmodule_t krnl = (hmodule_t) OSBASE;
-  struct verinfo *ver;
-  time_t ostimestamp;
-  char osname[32];
-  struct tm tm;
 
-  ostimestamp = get_image_header(krnl)->header.timestamp;
-  gmtime_r(&ostimestamp, &tm);
-
-  ver = get_version_info(krnl);
-  if (ver)  {
-    if (get_version_value(krnl, "ProductName", osname, sizeof(osname)) < 0) strcpy(osname, "Sanos");
-    pprintf(pf, "%s version %d.%d.%d.%d", osname, ver->file_major_version, ver->file_minor_version, ver->file_release_number, ver->file_build_number);
-
-    if (ver->file_flags & VER_FLAG_PRERELEASE) pprintf(pf, " prerelease");
-    if (ver->file_flags & VER_FLAG_PATCHED) pprintf(pf, " patch");
-    if (ver->file_flags & VER_FLAG_PRIVATEBUILD) pprintf(pf, " private");
-    if (ver->file_flags & VER_FLAG_DEBUG) pprintf(pf, " debug");
-  } else {
-    pprintf(pf, "%s version %d.%d.%d.%d", OS_NAME, OS_VERSION_MAJOR, OS_VERSION_MINOR, OS_RELEASE, OS_BUILD);
-  }
-
-  pprintf(pf, " (Built %04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-#ifdef _MSC_VER
-  pprintf(pf, " with MSVC %d.%02d on WIN32", _MSC_VER / 100, _MSC_VER % 100);
-#endif
-#ifdef _TCC_VER
-  pprintf(pf, " with TCC %s on %s", _TCC_VER, _TCC_PLATFORM);
-#endif
-  pprintf(pf, ")\n");
-
-  return 0;
+static int proc_version(
+    struct proc_file *output,
+    void *arg )
+{
+    pprintf(output, "Machina version 0.1 (https://github.com/brunexgeek/machina) GCC %s\n", __VERSION__);
+    return 0;
 }
 
 
-static int copyright_proc(struct proc_file *pf, void *arg)
+static int proc_copyright(
+    struct proc_file *output,
+    void *arg )
 {
-    hmodule_t krnl = (hmodule_t) OSBASE;
-    char copy[128];
-    char legal[128];
-
-    if (get_version_value(krnl, "LegalCopyright", copy, sizeof(copy)) < 0) strcpy(copy, OS_COPYRIGHT);
-    if (get_version_value(krnl, "LegalTrademarks", legal, sizeof(legal)) < 0) strcpy(legal, OS_LEGAL);
-
-    version_proc(pf, arg);
-    pprintf(pf, "%s %s\n\n", copy, legal);
-    proc_write(pf, copyright, strlen(copyright));
+    proc_version(output, arg);
+    pprintf(output, "\nCopyright (C) 2013-2014 Bruno Ribeiro\n\n");
+    proc_write(output, copyright, strlen(copyright));
     return 0;
 }
 
@@ -442,6 +413,7 @@ __attribute__((section("entryp"))) void __attribute__((stdcall)) start(
     register_proc_inode("kheap", kheapstat_proc, NULL);
     register_proc_inode("vmem", vmem_proc, NULL);
     register_proc_inode("cpu", proc_cpuinfo, NULL);
+    register_proc_inode("mounts", proc_mounts, NULL);
 
     // Initialize interrupts, floating-point support, and real-time clock
     kpic_init();
@@ -610,8 +582,8 @@ void main(void *arg)
     init_net();
 
     // Install /proc/version and /proc/copyright handler
-    register_proc_inode("version", version_proc, NULL);
-    register_proc_inode("copyright", copyright_proc, NULL);
+    register_proc_inode("version", proc_version, NULL);
+    register_proc_inode("copyright", proc_copyright, NULL);
 
     // Allocate handles for stdin, stdout and stderr
     sconsole = get_property(krnlcfg, "kernel", "console", serial_console ? "/dev/com1" : "/dev/console");
@@ -622,12 +594,18 @@ void main(void *arg)
     if (halloc(&cons->iob.object) != 1) panic("unexpected stdout handle");
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
-    main_readFile("/proc/units");
+struct fs *fs;
+    mount("ext2fs", "/disk0", "/dev/hd0", NULL, &fs);
+
+    main_readFile("/proc/mounts");
+    main_readFile("/proc/copyright");
+
+    /*main_readFile("/proc/units");
     main_readFile("/proc/memmap");
     main_readFile("/proc/memusage");
     main_readFile("/proc/memstat");
     main_readFile("/proc/physmem");
-    //main_readFile("/proc/pdir");
+    main_readFile("/proc/pdir");
     main_readFile("/proc/virtmem");
     main_readFile("/proc/kmem");
     main_readFile("/proc/kmodmem");
@@ -635,7 +613,7 @@ void main(void *arg)
     main_readFile("/proc/vmem");
     main_readFile("/proc/cpu");
     main_readFile("/proc/netif");
-    main_readFile("/proc/handles");
+    main_readFile("/proc/handles");*/
 
     // Load kernel32.so in user address space
     /*imgbase = kloader_load(get_property(krnlcfg, "kernel", "osapi", "/boot/kernel32.so"), 1);

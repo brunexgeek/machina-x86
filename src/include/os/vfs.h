@@ -112,53 +112,55 @@ struct file {
   char chbuf;
 };
 
-struct fsops {
-  unsigned long reentrant;
 
-  int (*lockfs)(struct fs *fs);
-  void (*unlockfs)(struct fs *fs);
+struct fsops
+{
+    unsigned long reentrant;
 
-  int (*mkfs)(char *devname, char *opts);
-  int (*mount)(struct fs *fs, char *opts);
-  int (*umount)(struct fs *fs);
+    int (*lockfs)(struct fs *fs);
+    void (*unlockfs)(struct fs *fs);
 
-  int (*statfs)(struct fs *fs, struct statfs *buf);
+    int (*mkfs)(char *devname, char *opts);
+    int (*mount)(struct fs *fs, char *opts);
+    int (*umount)(struct fs *fs);
 
-  int (*open)(struct file *filp, char *name);
-  int (*close)(struct file *filp);
-  int (*destroy)(struct file *filp);
-  int (*fsync)(struct file *filp);
+    int (*statfs)(struct fs *fs, struct statfs *buf);
 
-  int (*read)(struct file *filp, void *data, size_t size, off64_t pos);
-  int (*write)(struct file *filp, void *data, size_t size, off64_t pos);
-  int (*ioctl)(struct file *filp, int cmd, void *data, size_t size);
+    int (*open)(struct file *filp, char *name);
+    int (*close)(struct file *filp);
+    int (*destroy)(struct file *filp);
+    int (*fsync)(struct file *filp);
 
-  off64_t (*tell)(struct file *filp);
-  off64_t (*lseek)(struct file *filp, off64_t offset, int origin);
-  int (*ftruncate)(struct file *filp, off64_t size);
+    int (*read)(struct file *filp, void *data, size_t size, off64_t pos);
+    int (*write)(struct file *filp, void *data, size_t size, off64_t pos);
+    int (*ioctl)(struct file *filp, int cmd, void *data, size_t size);
 
-  int (*futime)(struct file *filp, struct utimbuf *times);
-  int (*utime)(struct fs *fs, char *name, struct utimbuf *times);
+    off64_t (*tell)(struct file *filp);
+    off64_t (*lseek)(struct file *filp, off64_t offset, int origin);
+    int (*ftruncate)(struct file *filp, off64_t size);
 
-  int (*fstat)(struct file *filp, struct stat64 *buffer);
-  int (*stat)(struct fs *fs, char *name, struct stat64 *buffer);
+    int (*futime)(struct file *filp, struct utimbuf *times);
+    int (*utime)(struct fs *fs, char *name, struct utimbuf *times);
 
-  int (*access)(struct fs *fs, char *name, int mode);
+    int (*fstat)(struct file *filp, struct stat64 *buffer);
+    int (*stat)(struct fs *fs, char *name, struct stat64 *buffer);
 
-  int (*fchmod)(struct file *filp, int mode);
-  int (*chmod)(struct fs *fs, char *name, int mode);
-  int (*fchown)(struct file *filp, int owner, int group);
-  int (*chown)(struct fs *fs, char *name, int owner, int group);
+    int (*access)(struct fs *fs, char *name, int mode);
 
-  int (*mkdir)(struct fs *fs, char *name, int mode);
-  int (*rmdir)(struct fs *fs, char *name);
+    int (*fchmod)(struct file *filp, int mode);
+    int (*chmod)(struct fs *fs, char *name, int mode);
+    int (*fchown)(struct file *filp, int owner, int group);
+    int (*chown)(struct fs *fs, char *name, int owner, int group);
 
-  int (*rename)(struct fs *fs, char *oldname, char *newname);
-  int (*link)(struct fs *fs, char *oldname, char *newname);
-  int (*unlink)(struct fs *fs, char *name);
+    int (*mkdir)(struct fs *fs, char *name, int mode);
+    int (*rmdir)(struct fs *fs, char *name);
 
-  int (*opendir)(struct file *filp, char *name);
-  int (*readdir)(struct file *filp, struct direntry *dirp, int count);
+    int (*rename)(struct fs *fs, char *oldname, char *newname);
+    int (*link)(struct fs *fs, char *oldname, char *newname);
+    int (*unlink)(struct fs *fs, char *name);
+
+    int (*opendir)(struct file *filp, char *name);
+    int (*readdir)(struct file *filp, struct direntry *dirp, int count);
 };
 
 #ifdef KERNEL
@@ -225,6 +227,10 @@ KERNELAPI int unlink(char *name);
 
 KERNELAPI int opendir(char *name, struct file **retval);
 KERNELAPI int readdir(struct file *filp, struct direntry *dirp, int count);
+
+int proc_mounts(
+    struct proc_file *output,
+    void *arg );
 
 #endif
 

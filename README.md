@@ -52,7 +52,8 @@ Working in progress
 Currently I'm working on the following features:
 
 - Support for ELF32 binaries
-- ACPI support
+- Support for APIC
+- ext2 filesystem
 
 Roadmap
 -------
@@ -64,6 +65,7 @@ Some features for future developement (no specific order):
 - Graphic mode CLI
 - Port to ARMv6 machines (e.g. Raspberry Pi)
 - Support for PAE (Physical Address Extension)
+- Support for PSE (Page Size Extension)
 - Support for UEFI
 - Support for multi-core CPUs
 - OS API for GPU parallel computing

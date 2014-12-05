@@ -74,7 +74,7 @@ typedef unsigned int ino_t;
 
 #ifndef _DEV_T_DEFINED
 #define _DEV_T_DEFINED
-typedef unsigned int dev_t;
+typedef int dev_t;
 #endif
 
 #ifndef _MODE_T_DEFINED

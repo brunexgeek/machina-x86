@@ -6,6 +6,9 @@
 #include <os/kmalloc.h>
 
 
+#define EXT2_SUPER_MAGIC      (0xEF53)
+
+
 /**
  * @brief ext2 superblock
  */
@@ -26,7 +29,7 @@ struct ext2_superblock
     int32_t  s_wtime;                // POSIX time of the last write access to the filesystem
     int16_t  s_mnt_count;            // Mount count since the last full check
     int16_t  s_max_mnt_count;        // Maximum mount count before a full check is performed
-    int16_t  s_magic;                // Boot image magic number (0xEF53)
+    uint16_t s_magic;                // ext2 image magic number (0xEF53)
     int16_t  s_state;                // Filesystem state
     int16_t  s_errors;               // Behaviour when detecting errors
     int16_t  s_minor_rev_level;      // Minor revision level

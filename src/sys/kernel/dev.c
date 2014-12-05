@@ -663,16 +663,18 @@ int kdev_ioctl(dev_t devno, int cmd, void *args, size_t size)
     return dev->driver->ioctl(dev, cmd, args, size);
 }
 
-int kdev_read(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags) {
-  struct dev *dev;
 
-  if (devno < 0 || devno >= num_devs) return -ENODEV;
-  dev = devtab[devno];
-  if (!dev->driver->read) return -ENOSYS;
-  dev->reads++;
-  dev->input += count;
+int kdev_read(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags)
+{
+    struct dev *dev;
 
-  return dev->driver->read(dev, buffer, count, blkno, flags);
+    if (devno < 0 || devno >= num_devs) return -ENODEV;
+    dev = devtab[devno];
+    if (!dev->driver->read) return -ENOSYS;
+    dev->reads++;
+    dev->input += count;
+
+    return dev->driver->read(dev, buffer, count, blkno, flags);
 }
 
 int kdev_write(dev_t devno, void *buffer, size_t count, blkno_t blkno, int flags) {

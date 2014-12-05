@@ -10,7 +10,7 @@ int ext2_open_filesystem(
     struct ext2_filesystem **fs )
 {
     dev_t device;
-    uint32_t count;
+    int32_t count;
     int result;
 
     device = kdev_open(deviceName);
@@ -23,15 +23,17 @@ int ext2_open_filesystem(
     *fs = (struct ext2_filesystem*) kmalloc( sizeof(struct ext2_filesystem) );
     if (*fs == NULL) return -ENOMEM;
     // read the superblock
-    result = kdev_read(device, &(*fs)->superblock, SECTORSIZE, 2, 0);
-    if (result != 2 * SECTORSIZE)
+    result = kdev_read(device, &(*fs)->superblock, SECTORSIZE * 2, 2, 0);
+    if (result != SECTORSIZE * 2)
     {
         result = -ENODATA;
         goto ESCAPE;
     }
+
     // check the filesystem signature
-    if ((*fs)->superblock.s_magic != 0x55AA)
+    if ((*fs)->superblock.s_magic != EXT2_SUPER_MAGIC)
     {
+        kprintf("Invalid magic number\n");
         result = -EINVAL;
         goto ESCAPE;
     }

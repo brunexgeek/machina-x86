@@ -116,6 +116,14 @@ static struct
 
 void panic(char *msg);
 
+static void kpframe_set_tag(
+    void *vaddress,
+    uint32_t length,
+    uint8_t tag );
+
+static uint8_t kpframe_get_tag(
+    void *vaddress );
+
 
 void kpframe_initialize()
 {

@@ -595,10 +595,10 @@ void main(void *arg)
     if (halloc(&cons->iob.object) != 2) panic("unexpected stderr handle");
 
 struct fs *fs;
-    mount("ext2fs", "/disk0", "/dev/hd0", NULL, &fs);
+rc = mount("ext2fs", "/disk0", "hd0", NULL, &fs);
 
     main_readFile("/proc/mounts");
-    main_readFile("/proc/copyright");
+    //main_readFile("/proc/copyright");
 
     /*main_readFile("/proc/units");
     main_readFile("/proc/memmap");

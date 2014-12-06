@@ -33,7 +33,7 @@ Required tools
 Building
 --------
 
-Clone the repository in your machine. In the root directory, type the following commands to create the ISO image:
+Clone the repository in your machine. In the root directory, type the following command to build the software and create the ISO image:
 
 ```
 # make iso
@@ -46,13 +46,12 @@ Now, just execute the following script to run the operating system with qemu:
 ```
 
 
-Working in progress
+Work in progress
 -------------------
 
 Currently I'm working on the following features:
 
 - Support for ELF32 binaries
-- Support for APIC
 - ext2 filesystem
 
 Roadmap
@@ -60,6 +59,7 @@ Roadmap
 
 Some features for future developement (no specific order):
 
+- Support for APIC
 - Standard C library
 - Support for multiprocessing in user mode
 - Graphic mode CLI

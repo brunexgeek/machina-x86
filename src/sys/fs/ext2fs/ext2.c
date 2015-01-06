@@ -10,8 +10,9 @@ int ext2_open_filesystem(
     struct ext2_filesystem **fs )
 {
     dev_t device;
-    int32_t count;
+    int32_t count, i;
     int result;
+    uint32_t size;
 
     device = kdev_open(deviceName);
     if (device < 0) return -ENODEV;
@@ -36,6 +37,31 @@ int ext2_open_filesystem(
         kprintf("Invalid magic number\n");
         result = -EINVAL;
         goto ESCAPE;
+    }
+
+    (*fs)->block_size = 1024 << (*fs)->superblock.s_log_block_size;
+    (*fs)->group_count = (*fs)->superblock.s_blocks_count / (*fs)->superblock.s_blocks_per_group;
+    size = EXT2_SECTORS((*fs)->group_count * sizeof(struct ext2_group_descriptor));
+    (*fs)->groups = (struct ext2_group_descriptor*) kmalloc(size);
+
+    // read the group descriptors
+    kprintf("Reading %d bytes\n", size);
+    result = kdev_read(device, (*fs)->groups, size, 4, 0);
+    if (result != size)
+    {
+        kprintf("Error reading group descriptors\n");
+        result = -EINVAL;
+        goto ESCAPE;
+    }
+    // read the block bitmap for each group
+    size = EXT2_SECTORS( (*fs)->group_count * (*fs)->block_size );
+    (*fs)->block_bitmap = (uint8_t*) kmalloc(size);
+    for (i = 0; i < (*fs)->group_count; ++i)
+    {
+        result = kdev_read(device, (*fs)->block_bitmap + (i * 1024), SECTORSIZE * 2, EXT2_BLOCK_SECTOR((*fs)->groups[i].g_block_bitmap), 0);
+        if (result != SECTORSIZE * 2)
+            panic("fuu");
+        kprintf("Group #%d have %d free blocks and bitmap starts from %d\n", i, (*fs)->groups[i].g_free_blocks_count, (*fs)->groups[i].g_block_bitmap);
     }
 
     return 0;

@@ -6,7 +6,12 @@
 #include <os/kmalloc.h>
 
 
-#define EXT2_SUPER_MAGIC      (0xEF53)
+#define EXT2_SUPER_MAGIC            (0xEF53)
+#define EXT2_SECTORS(x)             ( ((x / SECTORSIZE) + (x > 0)) * SECTORSIZE )
+
+#define EXT2_BASE_OFFSET            (1024)
+#define EXT2_BLOCK_OFFSET(block)    (EXT2_BASE_OFFSET + (block-1)*1024)
+#define EXT2_BLOCK_SECTOR(block)    (block * 2)
 
 
 /**
@@ -79,9 +84,26 @@ struct ext2_superblock
 };
 
 
+struct ext2_group_descriptor
+{
+    uint32_t g_block_bitmap; /* Blocks bitmap block */
+    uint32_t g_inode_bitmap; /* Inodes bitmap block */
+    uint32_t g_inode_table; /* Inodes table block */
+    uint16_t g_free_blocks_count; /* Free blocks count */
+    uint16_t g_free_inodes_count; /* Free inodes count */
+    uint16_t g_used_dirs_count; /* Directories count */
+    uint16_t g_pad;
+    uint32_t g_reserved[3];
+};
+
+
 struct ext2_filesystem
 {
     struct ext2_superblock superblock;
+    uint16_t block_size;
+    uint16_t group_count;
+    struct ext2_group_descriptor *groups;
+    uint8_t *block_bitmap;  // at each BLOCKSIZE bytes we have a new bitmap
     dev_t device;
 };
 
